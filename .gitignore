@@ -44,4 +44,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# arquivos que quero manter no repositório mas que não suba para o github
+# local browser/playwright MCP artifacts
+/.playwright-mcp/
