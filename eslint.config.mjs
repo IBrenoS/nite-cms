@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
+    ".codex_artifacts/**",
+    ".codex-artifacts/**",
+    "output/**",
   ]),
 ]);
 
