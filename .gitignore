@@ -46,3 +46,4 @@ next-env.d.ts
 
 # local browser/playwright MCP artifacts
 /.playwright-mcp/
+/.superpowers/
