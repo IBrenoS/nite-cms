@@ -92,12 +92,26 @@ async function requireAdminMembership<TQueryResult extends PgQueryResultHKT>(
 
 async function requireTargetMembership<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
+  actor: CmsMembership,
   rawReference: z.infer<typeof membershipReferenceSchema>,
 ) {
   const reference = membershipReferenceSchema.parse(rawReference);
-  const target = await findMembership(database, reference);
+  const [target] = await database
+    .select()
+    .from(cmsMemberships)
+    .where(
+      and(
+        eq(cmsMemberships.tenantId, reference.tenantId),
+        eq(cmsMemberships.objectId, reference.objectId),
+      ),
+    )
+    .limit(1)
+    .for("update");
   if (!target) {
     throw new CmsMembershipManagementError("Membership não encontrado.");
+  }
+  if (target.tenantId !== actor.tenantId) {
+    throw new CmsAuthorizationError();
   }
   return target;
 }
@@ -118,7 +132,11 @@ async function assertAdminCanBeRemoved<TQueryResult extends PgQueryResultHKT>(
     .select({ id: cmsMemberships.id })
     .from(cmsMemberships)
     .where(
-      and(eq(cmsMemberships.role, "admin"), eq(cmsMemberships.active, true)),
+      and(
+        eq(cmsMemberships.tenantId, target.tenantId),
+        eq(cmsMemberships.role, "admin"),
+        eq(cmsMemberships.active, true),
+      ),
     )
     .for("update");
   if (activeAdmins.length <= 1) {
@@ -197,6 +215,9 @@ export async function createCmsMembership<
 
   return database.transaction(async (transaction) => {
     const actor = await requireAdminMembership(transaction, command.actor.id);
+    if (identity.tenantId !== actor.tenantId) {
+      throw new CmsAuthorizationError();
+    }
     const [membership] = await transaction
       .insert(cmsMemberships)
       .values({ ...identity, role, active: true })
@@ -232,7 +253,7 @@ export async function changeCmsMembershipRole<
 
   return database.transaction(async (transaction) => {
     const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, reference);
+    const target = await requireTargetMembership(transaction, actor, reference);
     if (target.role === role) return target;
     if (target.role === "admin" && role !== "admin") {
       await assertAdminCanBeRemoved(transaction, actor, target);
@@ -269,7 +290,7 @@ export async function setCmsMembershipActive<
 
   return database.transaction(async (transaction) => {
     const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, reference);
+    const target = await requireTargetMembership(transaction, actor, reference);
     if (target.active === active) return target;
     if (!active && target.role === "admin") {
       await assertAdminCanBeRemoved(transaction, actor, target);
@@ -300,7 +321,7 @@ export async function updateCmsMembershipProfile<
 
   return database.transaction(async (transaction) => {
     const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, identity);
+    const target = await requireTargetMembership(transaction, actor, identity);
     const [membership] = await transaction
       .update(cmsMemberships)
       .set({

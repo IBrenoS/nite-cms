@@ -14,6 +14,7 @@ import {
   saveArticleRevision,
 } from "@nite/editorial";
 import {
+  auditEvents,
   articles,
   cmsMemberships,
   mediaAssets,
@@ -201,5 +202,53 @@ describe("ciclo editorial", () => {
       ]),
     ).rejects.toBeInstanceOf(EditorialConflictError);
     await expect(database.select().from(outboxEvents)).resolves.toHaveLength(1);
+  });
+
+  it("reverte artigo, auditoria e outbox se a inserção do outbox falhar", async () => {
+    const { database, publisher, created } = await createPublishedArticle();
+    await client.exec(`
+      CREATE FUNCTION reject_archived_article_outbox() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        IF NEW.topic = 'news.article.archived' THEN
+          RAISE EXCEPTION 'outbox indisponível';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+      CREATE TRIGGER reject_archived_article_outbox_trigger
+      BEFORE INSERT ON outbox_events
+      FOR EACH ROW EXECUTE FUNCTION reject_archived_article_outbox();
+    `);
+
+    await expect(
+      Reflect.apply(command("archiveArticle"), undefined, [
+        database,
+        {
+          actor: publisher,
+          articleId: created.article.id,
+          expectedRevisionId: created.revision.id,
+        },
+      ]),
+    ).rejects.toThrow(/Failed query: insert into "outbox_events"/);
+    await expect(
+      database
+        .select({ status: articles.status })
+        .from(articles)
+        .where(eq(articles.id, created.article.id)),
+    ).resolves.toEqual([{ status: "published" }]);
+    await expect(
+      database
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.aggregateId, created.article.id)),
+    ).resolves.toHaveLength(2);
+    await expect(
+      database
+        .select()
+        .from(outboxEvents)
+        .where(eq(outboxEvents.aggregateId, created.article.id)),
+    ).resolves.toHaveLength(1);
   });
 });
