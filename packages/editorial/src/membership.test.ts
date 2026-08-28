@@ -413,7 +413,7 @@ describe("administração de memberships", () => {
     ]);
   });
 
-  it("preserva admin ativo no tenant nas demissões sequenciais do PGlite", async () => {
+  it("rejeita nova mutação de actor que já foi demitido no PGlite", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [firstAdmin, secondAdmin] = await database
       .insert(cmsMemberships)
