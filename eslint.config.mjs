@@ -5,7 +5,7 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals.map((config) => ({
     ...config,
-    files: ["apps/web/**/*.{js,jsx,ts,tsx}"],
+    files: ["apps/{web,admin}/**/*.{js,jsx,ts,tsx}"],
   })),
   ...nextTs,
   {
@@ -16,8 +16,42 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              group: ["@nite/content/*"],
-              message: "Use somente a entrada pública @nite/content.",
+              group: ["@nite/content/*/*"],
+              message: "Use somente as entradas oficiais de @nite/content.",
+            },
+            {
+              group: [
+                "apps/*",
+                "apps/**",
+                "packages/*",
+                "packages/**",
+                "../apps/**",
+                "../../apps/**",
+                "../packages/**",
+                "../../packages/**",
+              ],
+              message: "Não importe arquivos físicos entre workspaces.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/**/*.{js,jsx,ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@nite/content/admin"],
+              message:
+                "O portal público não pode importar contratos administrativos.",
+            },
+            {
+              group: ["@nite/content/*/*"],
+              message: "Use somente as entradas oficiais de @nite/content.",
             },
             {
               group: [
