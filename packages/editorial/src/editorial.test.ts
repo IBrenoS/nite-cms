@@ -6,7 +6,6 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { fileURLToPath } from "node:url";
 
 import {
-  CmsAuthorizationError,
   EditorialConflictError,
   EditorialPublicationError,
   createArticleDraft,
@@ -60,13 +59,13 @@ describe("comandos editoriais", () => {
 
   it("cria revisoes imutaveis e rejeita salvamento concorrente obsoleto", async () => {
     const database = drizzle(client, { schema: cmsSchema });
-    const [author] = await database
+    const [publisher] = await database
       .insert(cmsMemberships)
       .values({
         tenantId: "tenant-nite",
-        objectId: "author-oid",
-        displayName: "Autora NITE",
-        role: "author",
+        objectId: "publisher-oid",
+        displayName: "Publisher NITE",
+        role: "publisher",
       })
       .returning();
     await database.insert(mediaAssets).values({
@@ -82,11 +81,11 @@ describe("comandos editoriais", () => {
     });
 
     const created = await createArticleDraft(database, {
-      actor: author,
+      actor: publisher,
       input: firstDraft,
     });
     const saved = await saveArticleRevision(database, {
-      actor: author,
+      actor: publisher,
       articleId: created.article.id,
       expectedRevisionId: created.revision.id,
       input: {
@@ -102,7 +101,7 @@ describe("comandos editoriais", () => {
     });
     await expect(
       saveArticleRevision(database, {
-        actor: author,
+        actor: publisher,
         articleId: created.article.id,
         expectedRevisionId: created.revision.id,
         input: {
@@ -120,24 +119,16 @@ describe("comandos editoriais", () => {
     ).resolves.toEqual([{ version: 1 }, { version: 2 }]);
   });
 
-  it("impede autor de publicar e registra auditoria e outbox para editor", async () => {
+  it("publica e registra auditoria e outbox para publisher", async () => {
     const database = drizzle(client, { schema: cmsSchema });
-    const [author, editor] = await database
+    const [publisher] = await database
       .insert(cmsMemberships)
-      .values([
-        {
-          tenantId: "tenant-nite",
-          objectId: "author-oid",
-          displayName: "Autora NITE",
-          role: "author" as const,
-        },
-        {
-          tenantId: "tenant-nite",
-          objectId: "editor-oid",
-          displayName: "Editora NITE",
-          role: "editor" as const,
-        },
-      ])
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-oid",
+        displayName: "Publisher NITE",
+        role: "publisher",
+      })
       .returning();
     await database.insert(mediaAssets).values({
       id: firstDraft.coverMediaId,
@@ -151,20 +142,12 @@ describe("comandos editoriais", () => {
       status: "ready",
     });
     const created = await createArticleDraft(database, {
-      actor: author,
+      actor: publisher,
       input: firstDraft,
     });
 
-    await expect(
-      publishArticle(database, {
-        actor: author,
-        articleId: created.article.id,
-        expectedRevisionId: created.revision.id,
-      }),
-    ).rejects.toBeInstanceOf(CmsAuthorizationError);
-
     const published = await publishArticle(database, {
-      actor: editor,
+      actor: publisher,
       articleId: created.article.id,
       expectedRevisionId: created.revision.id,
     });
@@ -190,7 +173,7 @@ describe("comandos editoriais", () => {
 
     await expect(
       saveArticleRevision(database, {
-        actor: editor,
+        actor: publisher,
         articleId: created.article.id,
         expectedRevisionId: created.revision.id,
         input: { ...firstDraft, slug: "slug-publico-alterado" },
@@ -198,7 +181,7 @@ describe("comandos editoriais", () => {
     ).rejects.toBeInstanceOf(EditorialPublicationError);
 
     await saveArticleRevision(database, {
-      actor: editor,
+      actor: publisher,
       articleId: created.article.id,
       expectedRevisionId: created.revision.id,
       input: {

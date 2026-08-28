@@ -36,6 +36,13 @@
       "when": 1787864960704,
       "tag": "0004_flowery_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787944800000,
+      "tag": "0005_editorial_roles",
+      "breakpoints": true
     }
   ]
 }

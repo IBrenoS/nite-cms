@@ -83,7 +83,7 @@ describe("mídia editorial", () => {
         tenantId: "tenant-nite",
         objectId: "editor-oid",
         displayName: "Editora NITE",
-        role: "editor",
+        role: "publisher",
       })
       .returning();
     const store = new MemoryObjectStore();
@@ -131,7 +131,7 @@ describe("mídia editorial", () => {
         tenantId: "tenant-nite",
         objectId: "editor-oid",
         displayName: "Editora NITE",
-        role: "editor",
+        role: "publisher",
       })
       .returning();
     const store = new MemoryObjectStore();

@@ -6,19 +6,10 @@ import { newsBodyBlockSchema } from "./article-schema";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 import { articleRevisions, articles, type CmsMembership } from "@nite/cms-db";
 
-function assertArticleReadable(
-  actor: CmsMembership,
-  article: typeof articles.$inferSelect,
-) {
-  if (actor.role === "author" && article.createdByMembershipId !== actor.id) {
-    throw new Error("Matéria não encontrada.");
-  }
-}
-
 export async function listEditorialArticles<
   TQueryResult extends PgQueryResultHKT,
 >(database: CmsDatabase<TQueryResult>, actor: CmsMembership) {
-  const activeActor = await requireActiveCmsMembership(database, actor.id);
+  await requireActiveCmsMembership(database, actor.id);
   const selection = database
     .select({
       article: articles,
@@ -30,11 +21,7 @@ export async function listEditorialArticles<
       eq(articleRevisions.id, articles.currentRevisionId),
     );
 
-  return activeActor.role === "author"
-    ? selection
-        .where(eq(articles.createdByMembershipId, activeActor.id))
-        .orderBy(desc(articles.updatedAt))
-    : selection.orderBy(desc(articles.updatedAt));
+  return selection.orderBy(desc(articles.updatedAt));
 }
 
 export async function getEditorialArticle<
@@ -45,7 +32,7 @@ export async function getEditorialArticle<
   rawArticleId: string,
 ) {
   const articleId = z.uuid().parse(rawArticleId);
-  const activeActor = await requireActiveCmsMembership(database, actor.id);
+  await requireActiveCmsMembership(database, actor.id);
   const [result] = await database
     .select({ article: articles, revision: articleRevisions })
     .from(articles)
@@ -57,7 +44,6 @@ export async function getEditorialArticle<
     .limit(1);
 
   if (!result) return undefined;
-  assertArticleReadable(activeActor, result.article);
   return result;
 }
 

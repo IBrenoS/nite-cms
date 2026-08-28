@@ -1,12 +1,19 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
+import { newsCategoryValues } from "./article-schema";
+
 export const newsRevalidationPayloadSchema = z.object({
   eventId: z.uuid(),
-  topic: z.literal("news.article.published"),
+  topic: z.enum([
+    "news.article.published",
+    "news.article.unpublished",
+    "news.article.archived",
+  ]),
   articleId: z.uuid(),
   revisionId: z.uuid(),
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  category: z.enum(newsCategoryValues),
 });
 
 export type NewsRevalidationPayload = z.infer<

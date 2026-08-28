@@ -11,11 +11,7 @@ import {
   outboxEvents,
   type CmsMembership,
 } from "@nite/cms-db";
-import {
-  CmsAuthorizationError,
-  type CmsDatabase,
-  requireActiveCmsMembership,
-} from "./identity";
+import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 
 export const editorialArticleInputSchema = newsArticleSchema
   .pick({
@@ -50,21 +46,6 @@ export class EditorialPublicationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "EditorialPublicationError";
-  }
-}
-
-function assertCanEdit(
-  actor: CmsMembership,
-  article: typeof articles.$inferSelect,
-) {
-  if (actor.role === "author" && article.createdByMembershipId !== actor.id) {
-    throw new CmsAuthorizationError();
-  }
-}
-
-function assertCanPublish(actor: CmsMembership) {
-  if (actor.role === "author") {
-    throw new CmsAuthorizationError();
   }
 }
 
@@ -161,8 +142,7 @@ export async function saveArticleRevision<
     if (!article || article.currentRevisionId !== command.expectedRevisionId) {
       throw new EditorialConflictError();
     }
-    assertCanEdit(actor, article);
-    if (article.status === "published" && input.slug !== article.slug) {
+    if (article.publishedAt && input.slug !== article.slug) {
       throw new EditorialPublicationError(
         "O slug de uma matéria publicada não pode ser alterado.",
       );
@@ -232,8 +212,6 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
       transaction,
       command.actor.id,
     );
-    assertCanPublish(actor);
-
     const [article] = await transaction
       .select()
       .from(articles)
@@ -242,11 +220,17 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
     if (!article || article.currentRevisionId !== command.expectedRevisionId) {
       throw new EditorialConflictError();
     }
+    if (article.status === "archived") {
+      throw new EditorialPublicationError(
+        "Restaure a matéria antes de publicar novamente.",
+      );
+    }
 
     const [revision] = await transaction
       .select({
         coverMediaId: articleRevisions.coverMediaId,
         featured: articleRevisions.featured,
+        category: articleRevisions.category,
       })
       .from(articleRevisions)
       .where(eq(articleRevisions.id, command.expectedRevisionId))
@@ -267,7 +251,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
       );
     }
 
-    const publishedAt = new Date();
+    const publishedAt = article.publishedAt ?? new Date();
     const [publishedArticle] = await transaction
       .update(articles)
       .set({
@@ -276,7 +260,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
         publishedAt,
         featured: revision.featured,
         updatedByMembershipId: actor.id,
-        updatedAt: publishedAt,
+        updatedAt: new Date(),
       })
       .where(
         and(
@@ -303,9 +287,203 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
         articleId: article.id,
         revisionId: command.expectedRevisionId,
         slug: article.slug,
+        category: revision.category,
       },
     });
 
     return publishedArticle;
+  });
+}
+
+async function getArticleForTransition<TQueryResult extends PgQueryResultHKT>(
+  database: CmsDatabase<TQueryResult>,
+  command: { articleId: string; expectedRevisionId: string },
+) {
+  const [article] = await database
+    .select()
+    .from(articles)
+    .where(eq(articles.id, command.articleId))
+    .limit(1);
+  if (!article || article.currentRevisionId !== command.expectedRevisionId) {
+    throw new EditorialConflictError();
+  }
+  return article;
+}
+
+async function createPublicRemovalOutboxEvent<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  article: typeof articles.$inferSelect,
+  topic: "news.article.unpublished" | "news.article.archived",
+) {
+  if (!article.publishedRevisionId) {
+    throw new EditorialPublicationError(
+      "A matéria publicada não possui uma revisão pública válida.",
+    );
+  }
+  const [revision] = await database
+    .select({ category: articleRevisions.category })
+    .from(articleRevisions)
+    .where(eq(articleRevisions.id, article.publishedRevisionId))
+    .limit(1);
+  if (!revision) {
+    throw new EditorialPublicationError(
+      "A matéria publicada não possui uma revisão pública válida.",
+    );
+  }
+  await database.insert(outboxEvents).values({
+    topic,
+    aggregateId: article.id,
+    payload: {
+      articleId: article.id,
+      revisionId: article.publishedRevisionId,
+      slug: article.slug,
+      category: revision.category,
+    },
+  });
+}
+
+export async function unpublishArticle<TQueryResult extends PgQueryResultHKT>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    articleId: string;
+    expectedRevisionId: string;
+  },
+) {
+  return database.transaction(async (transaction) => {
+    const actor = await requireActiveCmsMembership(
+      transaction,
+      command.actor.id,
+    );
+    const article = await getArticleForTransition(transaction, command);
+    if (article.status !== "published") {
+      throw new EditorialPublicationError("A matéria não está publicada.");
+    }
+    const [updatedArticle] = await transaction
+      .update(articles)
+      .set({
+        status: "draft",
+        updatedByMembershipId: actor.id,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(articles.id, article.id),
+          eq(articles.currentRevisionId, command.expectedRevisionId),
+          eq(articles.status, "published"),
+        ),
+      )
+      .returning();
+    if (!updatedArticle) throw new EditorialConflictError();
+    await transaction.insert(auditEvents).values({
+      actorMembershipId: actor.id,
+      action: "article.unpublished",
+      aggregateType: "article",
+      aggregateId: article.id,
+      metadata: { revisionId: article.publishedRevisionId },
+    });
+    await createPublicRemovalOutboxEvent(
+      transaction,
+      article,
+      "news.article.unpublished",
+    );
+    return updatedArticle;
+  });
+}
+
+export async function archiveArticle<TQueryResult extends PgQueryResultHKT>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    articleId: string;
+    expectedRevisionId: string;
+  },
+) {
+  return database.transaction(async (transaction) => {
+    const actor = await requireActiveCmsMembership(
+      transaction,
+      command.actor.id,
+    );
+    const article = await getArticleForTransition(transaction, command);
+    if (article.status === "archived") {
+      throw new EditorialPublicationError("A matéria já está arquivada.");
+    }
+    const [updatedArticle] = await transaction
+      .update(articles)
+      .set({
+        status: "archived",
+        updatedByMembershipId: actor.id,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(articles.id, article.id),
+          eq(articles.currentRevisionId, command.expectedRevisionId),
+          eq(articles.status, article.status),
+        ),
+      )
+      .returning();
+    if (!updatedArticle) throw new EditorialConflictError();
+    await transaction.insert(auditEvents).values({
+      actorMembershipId: actor.id,
+      action: "article.archived",
+      aggregateType: "article",
+      aggregateId: article.id,
+      metadata: { revisionId: article.publishedRevisionId },
+    });
+    if (article.status === "published") {
+      await createPublicRemovalOutboxEvent(
+        transaction,
+        article,
+        "news.article.archived",
+      );
+    }
+    return updatedArticle;
+  });
+}
+
+export async function restoreArticle<TQueryResult extends PgQueryResultHKT>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    articleId: string;
+    expectedRevisionId: string;
+  },
+) {
+  return database.transaction(async (transaction) => {
+    const actor = await requireActiveCmsMembership(
+      transaction,
+      command.actor.id,
+    );
+    const article = await getArticleForTransition(transaction, command);
+    if (article.status !== "archived") {
+      throw new EditorialPublicationError("A matéria não está arquivada.");
+    }
+    const [updatedArticle] = await transaction
+      .update(articles)
+      .set({
+        status: "draft",
+        updatedByMembershipId: actor.id,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(articles.id, article.id),
+          eq(articles.currentRevisionId, command.expectedRevisionId),
+          eq(articles.status, "archived"),
+        ),
+      )
+      .returning();
+    if (!updatedArticle) throw new EditorialConflictError();
+    await transaction.insert(auditEvents).values({
+      actorMembershipId: actor.id,
+      action: "article.restored",
+      aggregateType: "article",
+      aggregateId: article.id,
+      metadata: { revisionId: article.currentRevisionId },
+    });
+    return updatedArticle;
   });
 }

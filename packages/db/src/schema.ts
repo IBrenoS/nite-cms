@@ -22,7 +22,7 @@ export const articleStatusEnum = pgEnum("article_status", [
   "published",
   "archived",
 ]);
-export const cmsRoleEnum = pgEnum("cms_role", ["admin", "editor", "author"]);
+export const cmsRoleEnum = pgEnum("cms_role", ["admin", "publisher"]);
 export const mediaStatusEnum = pgEnum("media_status", [
   "pending",
   "processing",

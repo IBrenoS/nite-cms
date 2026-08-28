@@ -105,6 +105,52 @@ describe("persistencia editorial", () => {
     ]);
   });
 
+  it("migra os papéis legados para publisher sem ativar antigos authors", async () => {
+    await client.exec(`
+      ALTER TYPE "cms_role" RENAME TO "cms_role_current";
+      CREATE TYPE "cms_role" AS ENUM('admin', 'editor', 'author');
+      ALTER TABLE "cms_memberships"
+      ALTER COLUMN "role" TYPE "cms_role"
+      USING "role"::text::"cms_role";
+      DROP TYPE "cms_role_current";
+      DELETE FROM "drizzle"."__drizzle_migrations"
+      WHERE id = (
+        SELECT max(id) FROM "drizzle"."__drizzle_migrations"
+      );
+    `);
+    await client.query(
+      `insert into cms_memberships
+        (tenant_id, object_id, display_name, role, active)
+       values
+        ('tenant-nite', 'editor-legado', 'Editora legada', 'editor', true),
+        ('tenant-nite', 'author-legado', 'Autora legada', 'author', true)`,
+    );
+
+    await migrate(drizzle(client), { migrationsFolder });
+
+    const memberships = await client.query<{
+      object_id: string;
+      role: string;
+      active: boolean;
+    }>(
+      `select object_id, role, active
+       from cms_memberships
+       order by object_id`,
+    );
+
+    expect(memberships.rows).toEqual([
+      { object_id: "author-legado", role: "publisher", active: false },
+      { object_id: "editor-legado", role: "publisher", active: true },
+    ]);
+    await expect(
+      client.query(
+        `insert into cms_memberships
+          (tenant_id, object_id, display_name, role)
+         values ('tenant-nite', 'role-legada', 'Role legada', 'editor')`,
+      ),
+    ).rejects.toThrow(/invalid input value for enum cms_role/i);
+  });
+
   it("impede alteracao de uma revisao criada", async () => {
     const articleId = "10000000-0000-4000-8000-000000000010";
     const revisionId = "20000000-0000-4000-8000-000000000010";

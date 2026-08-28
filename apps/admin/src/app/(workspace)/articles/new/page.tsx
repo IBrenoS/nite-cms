@@ -4,7 +4,7 @@ import { ArticleEditor } from "@/components/article-editor";
 import { requireCmsPageContext } from "@/lib/auth";
 
 export default async function NewArticlePage() {
-  const context = await requireCmsPageContext();
+  await requireCmsPageContext();
 
   return (
     <main className="grid gap-8">
@@ -22,7 +22,7 @@ export default async function NewArticlePage() {
           O primeiro salvamento cria o artigo e sua revisão v1 como rascunho.
         </p>
       </header>
-      <ArticleEditor canPublish={context.membership.role !== "author"} />
+      <ArticleEditor canPublish />
     </main>
   );
 }

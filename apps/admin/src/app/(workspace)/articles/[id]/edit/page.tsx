@@ -67,7 +67,7 @@ export default async function EditArticlePage({
         </div>
       </header>
       <ArticleEditor
-        canPublish={context.membership.role !== "author"}
+        canPublish
         initial={{
           ...input,
           articleId: result.article.id,
