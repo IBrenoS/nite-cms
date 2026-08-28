@@ -21,6 +21,16 @@ describe("guard de reset do PostgreSQL de teste", () => {
     },
   );
 
+  it("retorna uma URL canônica construída a partir dos componentes validados", () => {
+    expect(
+      resolvePostgresTestDatabaseUrl({
+        databaseUrl:
+          "  postgres://postgres:secret@localhost:5432/cms%5Feditorial%5Ftest  ",
+        allowDatabaseReset: "1",
+      }),
+    ).toBe("postgres://postgres:secret@localhost:5432/cms_editorial_test");
+  });
+
   it("mantém a integração desabilitada quando nenhuma URL foi configurada", () => {
     expect(
       resolvePostgresTestDatabaseUrl({
@@ -47,6 +57,8 @@ describe("guard de reset do PostgreSQL de teste", () => {
     "postgres://postgres:secret@database.internal/cms_editorial_test",
     "postgres://postgres:secret@192.168.1.10/cms_editorial_test",
     "postgres://postgres:secret@[::1]/cms_editorial_test",
+    "postgres://postgres:secret@local%68ost/cms_editorial_test",
+    "postgres://postgres:secret@%2Fvar%2Frun%2Fpostgresql/cms_editorial_test",
   ])("rejeita host fora da allowlist estrita: %s", (databaseUrl) => {
     expect(() =>
       resolvePostgresTestDatabaseUrl({
@@ -60,7 +72,26 @@ describe("guard de reset do PostgreSQL de teste", () => {
     "postgres://postgres:secret@localhost/postgres",
     "postgres://postgres:secret@localhost/cms_editorial",
     "postgres://postgres:secret@localhost/cms_editorial_test/extra",
+    "postgres://postgres:secret@localhost/%2Fcms_editorial_test",
+    "postgres://postgres:secret@localhost/cms_editorial_test%2Fextra",
   ])("rejeita database sem sufixo _test: %s", (databaseUrl) => {
+    expect(() =>
+      resolvePostgresTestDatabaseUrl({
+        databaseUrl,
+        allowDatabaseReset: "1",
+      }),
+    ).toThrow(UnsafePostgresTestDatabaseError);
+  });
+
+  it.each([
+    "postgres://postgres:secret@localhost/cms_editorial_test?host=database.internal",
+    "postgres://postgres:secret@localhost/cms_editorial_test?host=%2Fvar%2Frun%2Fpostgresql",
+    "postgres://postgres:secret@localhost/cms_editorial_test?sslmode=require",
+    "postgres://postgres:secret@localhost/cms_editorial_test?application_name=membership-test",
+    "postgres://postgres:secret@localhost/cms_editorial_test#host=database.internal",
+    "postgres://postgres:secret@localhost/cms_editorial_test?",
+    "postgres://postgres:secret@localhost/cms_editorial_test#",
+  ])("rejeita query, socket ou fragmento adicional: %s", (databaseUrl) => {
     expect(() =>
       resolvePostgresTestDatabaseUrl({
         databaseUrl,

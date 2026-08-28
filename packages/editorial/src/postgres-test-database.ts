@@ -39,6 +39,12 @@ export function resolvePostgresTestDatabaseUrl(configuration: {
     );
   }
 
+  if (parsedUrl.href.includes("?") || parsedUrl.href.includes("#")) {
+    throw new UnsafePostgresTestDatabaseError(
+      "CMS_TEST_DATABASE_URL não pode conter query ou fragmento.",
+    );
+  }
+
   let databaseName: string;
   try {
     databaseName = decodeURIComponent(parsedUrl.pathname.slice(1));
@@ -54,5 +60,11 @@ export function resolvePostgresTestDatabaseUrl(configuration: {
     );
   }
 
-  return databaseUrl;
+  const canonicalUrl = new URL(`${parsedUrl.protocol}//${parsedUrl.hostname}`);
+  canonicalUrl.username = parsedUrl.username;
+  canonicalUrl.password = parsedUrl.password;
+  canonicalUrl.port = parsedUrl.port;
+  canonicalUrl.pathname = `/${databaseName}`;
+
+  return canonicalUrl.toString();
 }
