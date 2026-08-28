@@ -1,0 +1,31 @@
+{
+  "name": "@nite/cms-db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./database": "./src/database.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "server-only": "^0.0.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^20",
+    "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.10",
+    "vitest": "^4.1.5"
+  }
+}

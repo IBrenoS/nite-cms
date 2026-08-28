@@ -14,7 +14,7 @@ import {
   publishArticle,
   saveArticleRevision,
   tiptapDocumentToNewsBlocks,
-} from "@nite/content/admin";
+} from "@nite/editorial";
 import { requireCmsContext } from "@/lib/auth";
 import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
 import { processCmsOutbox } from "@/lib/outbox";

@@ -2,11 +2,11 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { z } from "zod";
 
-import type { OutboxDispatcher } from "@nite/content/admin";
+import type { OutboxDispatcher } from "@nite/editorial";
 import {
   createRevalidationSignature,
   newsRevalidationPayloadSchema,
-} from "@nite/content/revalidation";
+} from "@nite/editorial/revalidation";
 
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 

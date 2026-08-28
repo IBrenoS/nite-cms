@@ -2,9 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { NewsArticleBody, StatusBadge } from "@nite/ui";
+import { NewsArticleBody, StatusBadge } from "@nite/cms-ui";
 
-import { getEditorialRevisionPreview, mediaAssets } from "@nite/content/admin";
+import { getEditorialRevisionPreview } from "@nite/editorial";
+import { mediaAssets } from "@nite/cms-db";
 import { requireCmsPageContext } from "@/lib/auth";
 import { getPublicMediaUrl } from "@/lib/media-storage";
 

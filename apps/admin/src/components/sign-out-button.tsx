@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@nite/ui";
+import { Button } from "@nite/cms-ui";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 

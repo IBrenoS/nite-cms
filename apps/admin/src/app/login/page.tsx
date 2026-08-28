@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Chip } from "@nite/ui";
+import { Chip } from "@nite/cms-ui";
 
 import { getCmsContext } from "@/lib/auth";
 import { SignInButton } from "./sign-in-button";

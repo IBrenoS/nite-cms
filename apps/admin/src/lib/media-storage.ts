@@ -9,7 +9,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 
-import type { MediaObjectStore } from "@nite/content/admin";
+import type { MediaObjectStore } from "@nite/editorial";
 export { sharpImageProcessor } from "./sharp-image-processor";
 
 const storageConfigurationSchema = z.object({

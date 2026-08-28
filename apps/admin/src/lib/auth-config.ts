@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { EntraIdentity } from "@nite/content/admin";
+import type { EntraIdentity } from "@nite/editorial";
 
 const requiredConfiguration = {
   DATABASE_ADMIN_URL: z.url(),

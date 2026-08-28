@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-import type { ImageProcessor } from "@nite/content/admin";
+import type { ImageProcessor } from "@nite/editorial";
 
 export const sharpImageProcessor: ImageProcessor = {
   async toWebp(input) {

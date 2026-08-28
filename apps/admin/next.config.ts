@@ -10,7 +10,7 @@ try {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  transpilePackages: ["@nite/content", "@nite/ui"],
+  transpilePackages: ["@nite/cms-db", "@nite/cms-ui", "@nite/editorial"],
   typedRoutes: true,
   images: {
     remotePatterns: mediaRemotePattern ? [mediaRemotePattern] : [],

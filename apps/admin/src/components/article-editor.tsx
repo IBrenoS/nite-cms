@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import Blockquote from "@tiptap/extension-blockquote";
 import StarterKit from "@tiptap/starter-kit";
-import { Button, Input, StatusBadge, Textarea } from "@nite/ui";
+import { Button, Input, StatusBadge, Textarea } from "@nite/cms-ui";
 
 import {
   newsBlocksToTiptapDocument,
   newsCategoryValues,
   type EditorialArticleInput,
-} from "@nite/content/admin";
+} from "@nite/editorial";
 import {
   createMediaUploadAction,
   processMediaUploadAction,

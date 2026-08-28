@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Button, EmptyState, StatusBadge } from "@nite/ui";
+import { Button, EmptyState, StatusBadge } from "@nite/cms-ui";
 
-import { listEditorialArticles } from "@nite/content/admin";
+import { listEditorialArticles } from "@nite/editorial";
 import { requireCmsPageContext } from "@/lib/auth";
 
 export default async function DashboardPage() {

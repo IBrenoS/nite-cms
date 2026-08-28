@@ -5,7 +5,7 @@ import {
   editorialArticleInputSchema,
   getEditorialArticle,
   listEditorialRevisions,
-} from "@nite/content/admin";
+} from "@nite/editorial";
 import { ArticleEditor } from "@/components/article-editor";
 import { requireCmsPageContext } from "@/lib/auth";
 

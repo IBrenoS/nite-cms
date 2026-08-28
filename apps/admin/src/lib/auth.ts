@@ -6,21 +6,18 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { and, eq } from "drizzle-orm";
 
-import {
-  CmsAuthorizationError,
-  account,
-  resolveCmsMembership,
-} from "@nite/content/admin";
-import * as cmsSchema from "@nite/content/admin";
+import { CmsAuthorizationError, resolveCmsMembership } from "@nite/editorial";
+import { account } from "@nite/cms-db";
+import * as cmsSchema from "@nite/cms-db/schema";
 import {
   type AdminConfiguration,
   readAdminConfiguration,
   toEntraIdentity,
 } from "./auth-config";
-import { getCmsDatabase } from "./database";
+import { getDatabase } from "@nite/cms-db/database";
 
 function createAuth(configuration: AdminConfiguration) {
-  const database = getCmsDatabase(configuration);
+  const database = getDatabase(configuration);
   return betterAuth({
     appName: "NITE CMS",
     baseURL: configuration.betterAuthUrl,
@@ -73,7 +70,7 @@ export async function getCmsContext() {
   const authSession = await auth.api.getSession({ headers: await headers() });
   if (!authSession) return { status: "anonymous" as const };
 
-  const database = getCmsDatabase(configuration);
+  const database = getDatabase(configuration);
   const [microsoftAccount] = await database
     .select({ accountId: account.accountId, providerId: account.providerId })
     .from(account)

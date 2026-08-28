@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@nite/ui";
+import { Button } from "@nite/cms-ui";
 
 import { authClient } from "@/lib/auth-client";
 

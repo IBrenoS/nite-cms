@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { verifyRevalidationSignature } from "@nite/content/revalidation";
+import { verifyRevalidationSignature } from "@nite/editorial/revalidation";
 import {
   createWebRevalidationDispatcher,
   readOutboxConfiguration,

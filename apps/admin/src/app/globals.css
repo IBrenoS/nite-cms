@@ -1,4 +1,4 @@
-@import "@nite/ui/theme.css";
+@import "@nite/cms-ui/theme.css";
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 
 @layer utilities {
