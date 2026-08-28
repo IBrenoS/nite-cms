@@ -46,6 +46,46 @@ export type CmsDatabase<TQueryResult extends PgQueryResultHKT> = PgDatabase<
   typeof schema
 >;
 
+export interface TenantMutationAdapter<TTransaction> {
+  transaction<T>(
+    operation: (transaction: TTransaction) => Promise<T>,
+  ): Promise<T>;
+  withTenantLock<T>(
+    transaction: TTransaction,
+    tenantId: string,
+    operation: () => Promise<T>,
+  ): Promise<T>;
+}
+
+export function executeTenantScopedMutation<TTransaction, T>(
+  adapter: TenantMutationAdapter<TTransaction>,
+  tenantId: string,
+  operation: (transaction: TTransaction) => Promise<T>,
+) {
+  return adapter.transaction((transaction) =>
+    adapter.withTenantLock(transaction, tenantId, () => operation(transaction)),
+  );
+}
+
+function createDatabaseTenantMutationAdapter<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+): TenantMutationAdapter<CmsDatabase<TQueryResult>> {
+  return {
+    transaction: (operation) => database.transaction(operation),
+    async withTenantLock(transaction, tenantId, operation) {
+      await transaction
+        .select({ id: cmsMemberships.id })
+        .from(cmsMemberships)
+        .where(eq(cmsMemberships.tenantId, tenantId))
+        .orderBy(cmsMemberships.id)
+        .for("update");
+      return operation();
+    },
+  };
+}
+
 async function findMembership<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
   identity: Pick<EntraIdentity, "tenantId" | "objectId">,
@@ -81,6 +121,12 @@ function assertAdminMembership(membership: CmsMembership) {
   return membership;
 }
 
+function assertTenantReference(actorTenantId: string, targetTenantId: string) {
+  if (actorTenantId !== targetTenantId) {
+    throw new CmsAuthorizationError();
+  }
+}
+
 async function requireAdminMembership<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
   membershipId: string,
@@ -92,7 +138,6 @@ async function requireAdminMembership<TQueryResult extends PgQueryResultHKT>(
 
 async function requireTargetMembership<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
-  actor: CmsMembership,
   rawReference: z.infer<typeof membershipReferenceSchema>,
 ) {
   const reference = membershipReferenceSchema.parse(rawReference);
@@ -109,9 +154,6 @@ async function requireTargetMembership<TQueryResult extends PgQueryResultHKT>(
     .for("update");
   if (!target) {
     throw new CmsMembershipManagementError("Membership não encontrado.");
-  }
-  if (target.tenantId !== actor.tenantId) {
-    throw new CmsAuthorizationError();
   }
   return target;
 }
@@ -212,29 +254,32 @@ export async function createCmsMembership<
 ) {
   const identity = entraIdentitySchema.parse(command.identity);
   const role = cmsRoleSchema.parse(command.role);
+  assertTenantReference(command.actor.tenantId, identity.tenantId);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireAdminMembership(transaction, command.actor.id);
-    if (identity.tenantId !== actor.tenantId) {
-      throw new CmsAuthorizationError();
-    }
-    const [membership] = await transaction
-      .insert(cmsMemberships)
-      .values({ ...identity, role, active: true })
-      .returning();
-    await transaction.insert(schema.auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "membership.created",
-      aggregateType: "membership",
-      aggregateId: membership.id,
-      metadata: {
-        tenantId: membership.tenantId,
-        objectId: membership.objectId,
-        role,
-      },
-    });
-    return membership;
-  });
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    identity.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      assertTenantReference(actor.tenantId, identity.tenantId);
+      const [membership] = await transaction
+        .insert(cmsMemberships)
+        .values({ ...identity, role, active: true })
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "membership.created",
+        aggregateType: "membership",
+        aggregateId: membership.id,
+        metadata: {
+          tenantId: membership.tenantId,
+          objectId: membership.objectId,
+          role,
+        },
+      });
+      return membership;
+    },
+  );
 }
 
 export async function changeCmsMembershipRole<
@@ -250,28 +295,34 @@ export async function changeCmsMembershipRole<
 ) {
   const reference = membershipReferenceSchema.parse(command);
   const role = cmsRoleSchema.parse(command.role);
+  assertTenantReference(command.actor.tenantId, reference.tenantId);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, actor, reference);
-    if (target.role === role) return target;
-    if (target.role === "admin" && role !== "admin") {
-      await assertAdminCanBeRemoved(transaction, actor, target);
-    }
-    const [membership] = await transaction
-      .update(cmsMemberships)
-      .set({ role, updatedAt: new Date() })
-      .where(eq(cmsMemberships.id, target.id))
-      .returning();
-    await transaction.insert(schema.auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "membership.role.changed",
-      aggregateType: "membership",
-      aggregateId: target.id,
-      metadata: { previousRole: target.role, role },
-    });
-    return membership;
-  });
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    reference.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      assertTenantReference(actor.tenantId, reference.tenantId);
+      const target = await requireTargetMembership(transaction, reference);
+      if (target.role === role) return target;
+      if (target.role === "admin" && role !== "admin") {
+        await assertAdminCanBeRemoved(transaction, actor, target);
+      }
+      const [membership] = await transaction
+        .update(cmsMemberships)
+        .set({ role, updatedAt: new Date() })
+        .where(eq(cmsMemberships.id, target.id))
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "membership.role.changed",
+        aggregateType: "membership",
+        aggregateId: target.id,
+        metadata: { previousRole: target.role, role },
+      });
+      return membership;
+    },
+  );
 }
 
 export async function setCmsMembershipActive<
@@ -287,28 +338,34 @@ export async function setCmsMembershipActive<
 ) {
   const reference = membershipReferenceSchema.parse(command);
   const active = z.boolean().parse(command.active);
+  assertTenantReference(command.actor.tenantId, reference.tenantId);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, actor, reference);
-    if (target.active === active) return target;
-    if (!active && target.role === "admin") {
-      await assertAdminCanBeRemoved(transaction, actor, target);
-    }
-    const [membership] = await transaction
-      .update(cmsMemberships)
-      .set({ active, updatedAt: new Date() })
-      .where(eq(cmsMemberships.id, target.id))
-      .returning();
-    await transaction.insert(schema.auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "membership.active.changed",
-      aggregateType: "membership",
-      aggregateId: target.id,
-      metadata: { active },
-    });
-    return membership;
-  });
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    reference.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      assertTenantReference(actor.tenantId, reference.tenantId);
+      const target = await requireTargetMembership(transaction, reference);
+      if (target.active === active) return target;
+      if (!active && target.role === "admin") {
+        await assertAdminCanBeRemoved(transaction, actor, target);
+      }
+      const [membership] = await transaction
+        .update(cmsMemberships)
+        .set({ active, updatedAt: new Date() })
+        .where(eq(cmsMemberships.id, target.id))
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "membership.active.changed",
+        aggregateType: "membership",
+        aggregateId: target.id,
+        metadata: { active },
+      });
+      return membership;
+    },
+  );
 }
 
 export async function updateCmsMembershipProfile<
@@ -318,26 +375,32 @@ export async function updateCmsMembershipProfile<
   command: { actor: CmsMembership; identity: EntraIdentity },
 ) {
   const identity = entraIdentitySchema.parse(command.identity);
+  assertTenantReference(command.actor.tenantId, identity.tenantId);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireAdminMembership(transaction, command.actor.id);
-    const target = await requireTargetMembership(transaction, actor, identity);
-    const [membership] = await transaction
-      .update(cmsMemberships)
-      .set({
-        displayName: identity.displayName,
-        email: identity.email,
-        updatedAt: new Date(),
-      })
-      .where(eq(cmsMemberships.id, target.id))
-      .returning();
-    await transaction.insert(schema.auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "membership.profile.updated",
-      aggregateType: "membership",
-      aggregateId: target.id,
-      metadata: { tenantId: target.tenantId, objectId: target.objectId },
-    });
-    return membership;
-  });
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    identity.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      assertTenantReference(actor.tenantId, identity.tenantId);
+      const target = await requireTargetMembership(transaction, identity);
+      const [membership] = await transaction
+        .update(cmsMemberships)
+        .set({
+          displayName: identity.displayName,
+          email: identity.email,
+          updatedAt: new Date(),
+        })
+        .where(eq(cmsMemberships.id, target.id))
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "membership.profile.updated",
+        aggregateType: "membership",
+        aggregateId: target.id,
+        metadata: { tenantId: target.tenantId, objectId: target.objectId },
+      });
+      return membership;
+    },
+  );
 }

@@ -6,6 +6,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { fileURLToPath } from "node:url";
 
 import * as editorial from "@nite/editorial";
+import { CmsAuthorizationError } from "@nite/editorial";
 import { auditEvents, cmsMemberships } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
@@ -307,7 +308,112 @@ describe("administração de memberships", () => {
     await expect(database.select().from(auditEvents)).resolves.toEqual([]);
   });
 
-  it("confirma somente uma demissão concorrente e preserva admin ativo no tenant", async () => {
+  it("rejeita referência cross-tenant antes de distinguir alvo inexistente", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "admin-oid",
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+
+    await expect(
+      Reflect.apply(command("changeCmsMembershipRole"), undefined, [
+        database,
+        {
+          actor: admin,
+          tenantId: "tenant-externo",
+          objectId: "oid-inexistente",
+          role: "publisher",
+        },
+      ]),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+  });
+
+  it("serializa duas transações independentes antes da demissão de admins", async () => {
+    type Transaction = { id: number };
+    type TenantMutationAdapter = {
+      transaction<T>(
+        operation: (transaction: Transaction) => Promise<T>,
+      ): Promise<T>;
+      withTenantLock<T>(
+        transaction: Transaction,
+        tenantId: string,
+        operation: () => Promise<T>,
+      ): Promise<T>;
+    };
+
+    const waitingByTenant = new Map<string, Promise<void>>();
+    let nextTransactionId = 0;
+    let activeMutationCount = 0;
+    let maxActiveMutationCount = 0;
+    let activeAdmins = 2;
+    const adapter: TenantMutationAdapter = {
+      async transaction(operation) {
+        return operation({ id: ++nextTransactionId });
+      },
+      async withTenantLock(_transaction, tenantId, operation) {
+        const previous = waitingByTenant.get(tenantId) ?? Promise.resolve();
+        let release: (() => void) | undefined;
+        const current = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        waitingByTenant.set(
+          tenantId,
+          previous.then(() => current),
+        );
+        await previous;
+        try {
+          return await operation();
+        } finally {
+          release?.();
+        }
+      },
+    };
+    const demote = async (transaction: Transaction) => {
+      expect(transaction.id).toBeGreaterThan(0);
+      activeMutationCount += 1;
+      maxActiveMutationCount = Math.max(
+        maxActiveMutationCount,
+        activeMutationCount,
+      );
+      try {
+        if (activeAdmins <= 1) {
+          throw new Error("último admin ativo");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        activeAdmins -= 1;
+      } finally {
+        activeMutationCount -= 1;
+      }
+    };
+
+    const results = await Promise.allSettled([
+      Reflect.apply(command("executeTenantScopedMutation"), undefined, [
+        adapter,
+        "tenant-nite",
+        demote,
+      ]),
+      Reflect.apply(command("executeTenantScopedMutation"), undefined, [
+        adapter,
+        "tenant-nite",
+        demote,
+      ]),
+    ]);
+
+    expect(nextTransactionId).toBe(2);
+    expect(maxActiveMutationCount).toBe(1);
+    expect(activeAdmins).toBe(1);
+    expect(results.map(({ status }) => status)).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+  });
+
+  it("preserva admin ativo no tenant nas demissões sequenciais do PGlite", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [firstAdmin, secondAdmin] = await database
       .insert(cmsMemberships)
@@ -327,16 +433,17 @@ describe("administração de memberships", () => {
       ])
       .returning();
 
-    const results = await Promise.allSettled([
-      Reflect.apply(command("changeCmsMembershipRole"), undefined, [
-        database,
-        {
-          actor: firstAdmin,
-          tenantId: secondAdmin.tenantId,
-          objectId: secondAdmin.objectId,
-          role: "publisher",
-        },
-      ]),
+    await Reflect.apply(command("changeCmsMembershipRole"), undefined, [
+      database,
+      {
+        actor: firstAdmin,
+        tenantId: secondAdmin.tenantId,
+        objectId: secondAdmin.objectId,
+        role: "publisher",
+      },
+    ]);
+
+    await expect(
       Reflect.apply(command("changeCmsMembershipRole"), undefined, [
         database,
         {
@@ -346,14 +453,7 @@ describe("administração de memberships", () => {
           role: "publisher",
         },
       ]),
-    ]);
-
-    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(
-      1,
-    );
-    expect(results.filter(({ status }) => status === "rejected")).toHaveLength(
-      1,
-    );
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
     await expect(
       database
         .select({ id: cmsMemberships.id })
