@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "apps/admin": { "project": ["src/**/*.{ts,tsx,css}", "*.ts"] },
+    "apps/api": { "project": ["src/**/*.ts", "*.ts"] },
+    "packages/cms-ui": { "project": ["src/**/*.{ts,tsx,css}", "*.ts"] },
+    "packages/db": { "project": ["src/**/*.ts", "*.ts"] },
+    "packages/editorial": { "project": ["src/**/*.ts", "*.ts"] }
+  }
+}

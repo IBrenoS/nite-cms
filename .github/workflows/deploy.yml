@@ -1,0 +1,29 @@
+name: Deploy CMS
+
+on:
+  workflow_dispatch:
+    inputs:
+      application:
+        description: Aplicação a implantar
+        required: true
+        type: choice
+        options: [admin, api]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=${{ inputs.application == 'admin' && '@nite/admin' || '@nite/cms-api' }}
+      - run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/${{ inputs.application }}
+      - run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/${{ inputs.application }}
+      - run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/${{ inputs.application }}
