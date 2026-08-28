@@ -9,11 +9,69 @@ import { changeCmsMembershipRole } from "@nite/editorial";
 import { auditEvents, cmsMemberships } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
+import { resolvePostgresTestDatabaseUrl } from "./postgres-test-database";
+
 const migrationsFolder = fileURLToPath(
   new URL("../../db/drizzle", import.meta.url),
 );
-const testDatabaseUrl = process.env.CMS_TEST_DATABASE_URL;
+const testDatabaseUrl = resolvePostgresTestDatabaseUrl({
+  databaseUrl: process.env.CMS_TEST_DATABASE_URL,
+  allowDatabaseReset: process.env.CMS_TEST_ALLOW_DATABASE_RESET,
+});
 const postgresIt = testDatabaseUrl ? it : it.skip;
+
+const firstApplicationName = "nite-cms-membership-first-demotion";
+const secondApplicationName = "nite-cms-membership-second-demotion";
+const lockApplicationName = "nite-cms-membership-lock-holder";
+
+interface SessionLockState {
+  applicationName: string;
+  ungrantedLockCount: number;
+  waitEventType: string | null;
+}
+
+async function waitForBlockedSessions(
+  observer: PoolClient,
+  applicationNames: readonly string[],
+  timeoutMilliseconds = 5_000,
+) {
+  const deadline = Date.now() + timeoutMilliseconds;
+  let latestStates: SessionLockState[] = [];
+
+  while (Date.now() < deadline) {
+    const result = await observer.query<SessionLockState>(
+      `SELECT
+        activity.application_name AS "applicationName",
+        activity.wait_event_type AS "waitEventType",
+        COUNT(*) FILTER (WHERE locks.granted = false)::int AS "ungrantedLockCount"
+      FROM pg_stat_activity AS activity
+      LEFT JOIN pg_locks AS locks ON locks.pid = activity.pid
+      WHERE activity.datname = current_database()
+        AND activity.application_name = ANY($1::text[])
+      GROUP BY activity.application_name, activity.wait_event_type`,
+      [applicationNames],
+    );
+    latestStates = result.rows;
+
+    const stateByApplication = new Map(
+      latestStates.map((state) => [state.applicationName, state]),
+    );
+    if (
+      applicationNames.every((applicationName) => {
+        const state = stateByApplication.get(applicationName);
+        return state?.waitEventType === "Lock" && state.ungrantedLockCount > 0;
+      })
+    ) {
+      return stateByApplication;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error(
+    `Sessões não alcançaram locks pendentes antes do deadline: ${JSON.stringify(latestStates)}`,
+  );
+}
 
 describe("administração de memberships com PostgreSQL", () => {
   let firstPool: Pool | undefined;
@@ -24,9 +82,21 @@ describe("administração de memberships com PostgreSQL", () => {
   beforeEach(async () => {
     if (!testDatabaseUrl) return;
 
-    firstPool = new Pool({ connectionString: testDatabaseUrl, max: 1 });
-    secondPool = new Pool({ connectionString: testDatabaseUrl, max: 1 });
-    lockPool = new Pool({ connectionString: testDatabaseUrl, max: 1 });
+    firstPool = new Pool({
+      connectionString: testDatabaseUrl,
+      application_name: firstApplicationName,
+      max: 1,
+    });
+    secondPool = new Pool({
+      connectionString: testDatabaseUrl,
+      application_name: secondApplicationName,
+      max: 1,
+    });
+    lockPool = new Pool({
+      connectionString: testDatabaseUrl,
+      application_name: lockApplicationName,
+      max: 1,
+    });
 
     await firstPool.query(
       "DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
@@ -51,6 +121,10 @@ describe("administração de memberships com PostgreSQL", () => {
   postgresIt(
     "serializa duas demissões incompatíveis em sessões PostgreSQL independentes",
     async () => {
+      await Promise.all([
+        firstPool!.query("SELECT 1"),
+        secondPool!.query("SELECT 1"),
+      ]);
       const firstDatabase = drizzle(firstPool!, { schema: cmsSchema });
       const secondDatabase = drizzle(secondPool!, { schema: cmsSchema });
       const [firstAdmin, secondAdmin] = await firstDatabase
@@ -90,23 +164,37 @@ describe("administração de memberships com PostgreSQL", () => {
         objectId: firstAdmin.objectId,
         role: "publisher",
       });
+      const demotionResults = Promise.allSettled([
+        firstDemotion,
+        secondDemotion,
+      ]);
 
-      await expect(
-        Promise.race([
-          Promise.allSettled([firstDemotion, secondDemotion]).then(
-            () => "settled",
-          ),
-          new Promise((resolve) => setTimeout(resolve, 100, "waiting")),
-        ]),
-      ).resolves.toBe("waiting");
+      const blockedSessions = await waitForBlockedSessions(lockClient, [
+        firstApplicationName,
+        secondApplicationName,
+      ]);
+      expect(blockedSessions.get(firstApplicationName)).toMatchObject({
+        waitEventType: "Lock",
+      });
+      expect(
+        blockedSessions.get(firstApplicationName)?.ungrantedLockCount,
+      ).toBeGreaterThan(0);
+      expect(blockedSessions.get(secondApplicationName)).toMatchObject({
+        waitEventType: "Lock",
+      });
+      expect(
+        blockedSessions.get(secondApplicationName)?.ungrantedLockCount,
+      ).toBeGreaterThan(0);
 
       await lockClient.query("COMMIT");
       lockClient.release();
       lockClient = undefined;
 
-      const results = await Promise.allSettled([firstDemotion, secondDemotion]);
+      const results = await demotionResults;
       expect(results.map(({ status }) => status)).toContain("fulfilled");
       expect(results.map(({ status }) => status)).toContain("rejected");
+      const successfulActor =
+        results[0].status === "fulfilled" ? firstAdmin : secondAdmin;
       await expect(
         firstDatabase
           .select({ id: cmsMemberships.id })
@@ -120,8 +208,19 @@ describe("administração de memberships com PostgreSQL", () => {
           ),
       ).resolves.toHaveLength(1);
       await expect(
-        firstDatabase.select().from(auditEvents),
-      ).resolves.toMatchObject([{ action: "membership.role.changed" }]);
+        firstDatabase
+          .select({
+            action: auditEvents.action,
+            actorMembershipId: auditEvents.actorMembershipId,
+          })
+          .from(auditEvents),
+      ).resolves.toEqual([
+        {
+          action: "membership.role.changed",
+          actorMembershipId: successfulActor.id,
+        },
+      ]);
     },
+    10_000,
   );
 });
