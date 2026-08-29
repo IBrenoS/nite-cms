@@ -25,7 +25,65 @@ const markSchema = z.discriminatedUnion("type", [
     .strict(),
 ]);
 
-const textNodeSchema = z
+type EditorialMark =
+  | { type: "bold" }
+  | { type: "italic" }
+  | { type: "link"; attrs: { href: string } };
+type EditorialTextNode = {
+  type: "text";
+  text: string;
+  marks?: EditorialMark[];
+};
+type EditorialParagraphNode = {
+  type: "paragraph";
+  content: EditorialTextNode[];
+};
+type EditorialHeadingNode = {
+  type: "heading";
+  attrs: { level: 2 | 3 };
+  content: EditorialTextNode[];
+};
+type StoredImageAttrs = { mediaId: string; alt: string };
+type ResolvedImageAttrs = StoredImageAttrs & {
+  src: string;
+  width: number;
+  height: number;
+};
+type EditorialImageNode = {
+  type: "image";
+  attrs: StoredImageAttrs | ResolvedImageAttrs;
+};
+type EditorialListItemNode = {
+  type: "listItem";
+  content: EditorialContentNode[];
+};
+type EditorialBulletListNode = {
+  type: "bulletList";
+  content: EditorialListItemNode[];
+};
+type EditorialOrderedListNode = {
+  type: "orderedList";
+  content: EditorialListItemNode[];
+};
+type EditorialBlockquoteNode = {
+  type: "blockquote";
+  content: EditorialContentNode[];
+};
+type EditorialContentNode =
+  | EditorialParagraphNode
+  | EditorialHeadingNode
+  | EditorialBulletListNode
+  | EditorialOrderedListNode
+  | EditorialBlockquoteNode
+  | EditorialImageNode;
+
+export type EditorialDocumentV1 = {
+  schemaVersion: 1;
+  type: "doc";
+  content: EditorialContentNode[];
+};
+
+const textNodeSchema: z.ZodType<EditorialTextNode> = z
   .object({
     type: z.literal("text"),
     text: z.string().min(1),
@@ -33,11 +91,12 @@ const textNodeSchema = z
   })
   .strict();
 
-const inlineContentSchema = z.array(textNodeSchema).min(1);
-const paragraphNodeSchema = z
+const inlineContentSchema: z.ZodType<EditorialTextNode[]> =
+  z.array(textNodeSchema);
+const paragraphNodeSchema: z.ZodType<EditorialParagraphNode> = z
   .object({ type: z.literal("paragraph"), content: inlineContentSchema })
   .strict();
-const headingNodeSchema = z
+const headingNodeSchema: z.ZodType<EditorialHeadingNode> = z
   .object({
     type: z.literal("heading"),
     attrs: z.object({ level: z.union([z.literal(2), z.literal(3)]) }).strict(),
@@ -54,48 +113,51 @@ const resolvedImageAttrsSchema = storedImageAttrsSchema
     height: z.number().int().positive(),
   })
   .strict();
-const imageNodeSchema = z
+const imageNodeSchema: z.ZodType<EditorialImageNode> = z
   .object({
     type: z.literal("image"),
     attrs: z.union([storedImageAttrsSchema, resolvedImageAttrsSchema]),
   })
   .strict();
 
-const listItemNodeSchema = z
+const listItemNodeSchema: z.ZodType<EditorialListItemNode> = z
   .object({
     type: z.literal("listItem"),
-    content: z.array(paragraphNodeSchema).min(1),
+    content: z.array(z.lazy(() => editorialContentNodeSchema)).min(1),
   })
   .strict();
-const bulletListNodeSchema = z
+const bulletListNodeSchema: z.ZodType<EditorialBulletListNode> = z
   .object({
     type: z.literal("bulletList"),
     content: z.array(listItemNodeSchema).min(1),
   })
   .strict();
-const orderedListNodeSchema = z
+const orderedListNodeSchema: z.ZodType<EditorialOrderedListNode> = z
   .object({
     type: z.literal("orderedList"),
     content: z.array(listItemNodeSchema).min(1),
   })
   .strict();
-const blockquoteNodeSchema = z
+const blockquoteNodeSchema: z.ZodType<EditorialBlockquoteNode> = z
   .object({
     type: z.literal("blockquote"),
-    content: z.array(paragraphNodeSchema).min(1),
+    content: z.array(z.lazy(() => editorialContentNodeSchema)).min(1),
   })
   .strict();
 
-const editorialContentNodeSchema = z.discriminatedUnion("type", [
-  paragraphNodeSchema,
-  headingNodeSchema,
-  bulletListNodeSchema,
-  orderedListNodeSchema,
-  blockquoteNodeSchema,
-  imageNodeSchema,
-]);
+const editorialContentNodeSchema: z.ZodType<EditorialContentNode> = z.lazy(
+  (): z.ZodType<EditorialContentNode> =>
+    z.union([
+      paragraphNodeSchema,
+      headingNodeSchema,
+      bulletListNodeSchema,
+      orderedListNodeSchema,
+      blockquoteNodeSchema,
+      imageNodeSchema,
+    ]),
+);
 
-export const editorialDocumentV1Schema = z
+export const editorialDocumentV1Schema: z.ZodType<EditorialDocumentV1> = z
   .object({
     schemaVersion: z.literal(1),
     type: z.literal("doc"),
@@ -103,23 +165,42 @@ export const editorialDocumentV1Schema = z
   })
   .strict();
 
-export type EditorialDocumentV1 = z.infer<typeof editorialDocumentV1Schema>;
+function resolvedImagePaths(
+  nodes: EditorialContentNode[],
+  path: (string | number)[] = ["content"],
+): (string | number)[][] {
+  return nodes.flatMap((node, index) => {
+    const nodePath = [...path, index];
+    if (node.type === "image") {
+      return "src" in node.attrs ? [nodePath] : [];
+    }
+    if (node.type === "blockquote") {
+      return resolvedImagePaths(node.content, [...nodePath, "content"]);
+    }
+    if (node.type === "bulletList" || node.type === "orderedList") {
+      return node.content.flatMap((item, itemIndex) =>
+        resolvedImagePaths(item.content, [
+          ...nodePath,
+          "content",
+          itemIndex,
+          "content",
+        ]),
+      );
+    }
+    return [];
+  });
+}
 
 export const persistedEditorialDocumentV1Schema =
   editorialDocumentV1Schema.superRefine((document, context) => {
-    document.content.forEach((node, index) => {
-      if (node.type === "image" && "src" in node.attrs) {
-        context.addIssue({
-          code: "custom",
-          path: ["content", index, "attrs"],
-          message: "A resolução pública de imagem não pode ser persistida.",
-        });
-      }
+    resolvedImagePaths(document.content).forEach((path) => {
+      context.addIssue({
+        code: "custom",
+        path: [...path, "attrs"],
+        message: "A resolução pública de imagem não pode ser persistida.",
+      });
     });
   });
-
-type EditorialContentNode = EditorialDocumentV1["content"][number];
-type EditorialListItemNode = z.infer<typeof listItemNodeSchema>;
 
 function visibleText(node: EditorialContentNode): string[] {
   if (node.type === "paragraph" || node.type === "heading") {
@@ -192,7 +273,7 @@ function normalizeTiptapNode(input: unknown): unknown {
   if (node.type === "paragraph") {
     return {
       type: "paragraph",
-      content: requiredContent(node).map(normalizeInlineNode),
+      content: (node.content ?? []).map(normalizeInlineNode),
     };
   }
   if (node.type === "heading") {
@@ -202,7 +283,7 @@ function normalizeTiptapNode(input: unknown): unknown {
       attrs: {
         level: z.union([z.literal(2), z.literal(3)]).parse(attrs.level),
       },
-      content: requiredContent(node).map(normalizeInlineNode),
+      content: (node.content ?? []).map(normalizeInlineNode),
     };
   }
   if (node.type === "blockquote") {

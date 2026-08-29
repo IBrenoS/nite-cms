@@ -230,4 +230,30 @@ describe("documento editorial v1", () => {
       /não pode ser persistida/i,
     );
   });
+
+  it("rejeita resolução pública de imagem aninhada na entrada persistida", () => {
+    expect(() =>
+      persistedEditorialDocumentV1Schema.parse({
+        schemaVersion: 1,
+        type: "doc",
+        content: [
+          {
+            type: "blockquote",
+            content: [
+              {
+                type: "image",
+                attrs: {
+                  mediaId: imageMediaId,
+                  alt: "Pessoas no laboratório",
+                  src: "https://media.nite.test/news/laboratorio.webp",
+                  width: 1200,
+                  height: 675,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/não pode ser persistida/i);
+  });
 });

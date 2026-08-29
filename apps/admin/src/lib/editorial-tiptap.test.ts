@@ -228,4 +228,146 @@ describe("integração Tiptap editorial", () => {
     );
     expect(editor.getJSON().content).toHaveLength(1);
   });
+
+  it("preserva um parágrafo vazio intermediário do JSON real", () => {
+    const editor = new Editor({
+      extensions: createEditorialTiptapExtensions(),
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Antes." }],
+          },
+          { type: "paragraph" },
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Depois." }],
+          },
+        ],
+      },
+    });
+    editors.push(editor);
+
+    expect(tiptapDocumentToEditorialDocumentV1(editor.getJSON())).toMatchObject(
+      {
+        content: [
+          { type: "paragraph", content: [{ text: "Antes." }] },
+          { type: "paragraph", content: [] },
+          { type: "paragraph", content: [{ text: "Depois." }] },
+        ],
+      },
+    );
+  });
+
+  it("preserva heading dentro de blockquote no JSON real", () => {
+    const editor = new Editor({
+      extensions: createEditorialTiptapExtensions(),
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "blockquote",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "Uma citação em título" }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    editors.push(editor);
+
+    expect(tiptapDocumentToEditorialDocumentV1(editor.getJSON())).toMatchObject(
+      {
+        content: [
+          {
+            type: "blockquote",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ text: "Uma citação em título" }],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
+
+  it("preserva lista aninhada dentro de listItem no JSON real", () => {
+    const editor = new Editor({
+      extensions: createEditorialTiptapExtensions(),
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "bulletList",
+            content: [
+              {
+                type: "listItem",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Item pai" }],
+                  },
+                  {
+                    type: "orderedList",
+                    content: [
+                      {
+                        type: "listItem",
+                        content: [
+                          {
+                            type: "paragraph",
+                            content: [{ type: "text", text: "Item filho" }],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    editors.push(editor);
+
+    expect(tiptapDocumentToEditorialDocumentV1(editor.getJSON())).toMatchObject(
+      {
+        content: [
+          {
+            type: "bulletList",
+            content: [
+              {
+                type: "listItem",
+                content: [
+                  { type: "paragraph", content: [{ text: "Item pai" }] },
+                  {
+                    type: "orderedList",
+                    content: [
+                      {
+                        type: "listItem",
+                        content: [
+                          {
+                            type: "paragraph",
+                            content: [{ text: "Item filho" }],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
 });
