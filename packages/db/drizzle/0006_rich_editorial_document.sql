@@ -36,11 +36,28 @@ SELECT
 					'height', embedded_media."height"
 				)
 			)
-			FROM jsonb_array_elements(r."body" -> 'content') AS node
+			FROM (
+				WITH RECURSIVE nested_nodes(node) AS (
+					SELECT top_level.node
+					FROM jsonb_array_elements(COALESCE(r."body" -> 'content', '[]'::jsonb)) AS top_level(node)
+					UNION ALL
+					SELECT child.node
+					FROM nested_nodes AS parent
+					CROSS JOIN LATERAL jsonb_array_elements(
+						CASE
+							WHEN jsonb_typeof(parent.node -> 'content') = 'array'
+							THEN parent.node -> 'content'
+							ELSE '[]'::jsonb
+						END
+					) AS child(node)
+				)
+				SELECT node
+				FROM nested_nodes
+				WHERE node ->> 'type' = 'image'
+			) AS embedded_node
 			INNER JOIN "media_assets" AS embedded_media
-				ON embedded_media."id"::text = node -> 'attrs' ->> 'mediaId'
+				ON embedded_media."id"::text = embedded_node.node -> 'attrs' ->> 'mediaId'
 				AND embedded_media."status" = 'ready'
-			WHERE node ->> 'type' = 'image'
 		),
 		'{}'::jsonb
 	) AS "body_media",
@@ -57,8 +74,22 @@ INNER JOIN "media_assets" AS m
 WHERE a."status" = 'published'
 	AND a."published_at" <= now()
 	AND NOT EXISTS (
+		WITH RECURSIVE nested_nodes(node) AS (
+			SELECT top_level.node
+			FROM jsonb_array_elements(COALESCE(r."body" -> 'content', '[]'::jsonb)) AS top_level(node)
+			UNION ALL
+			SELECT child.node
+			FROM nested_nodes AS parent
+			CROSS JOIN LATERAL jsonb_array_elements(
+				CASE
+					WHEN jsonb_typeof(parent.node -> 'content') = 'array'
+					THEN parent.node -> 'content'
+					ELSE '[]'::jsonb
+				END
+			) AS child(node)
+		)
 		SELECT 1
-		FROM jsonb_array_elements(r."body" -> 'content') AS node
+		FROM nested_nodes
 		WHERE node ->> 'type' = 'image'
 			AND NOT EXISTS (
 				SELECT 1

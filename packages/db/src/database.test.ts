@@ -139,6 +139,111 @@ describe("persistencia editorial", () => {
     ]);
   });
 
+  it("resolve imagens aninhadas prontas e omite matéria com imagem aninhada não pronta", async () => {
+    const readyArticleId = "10000000-0000-4000-8000-000000000021";
+    const pendingArticleId = "10000000-0000-4000-8000-000000000022";
+    const readyRevisionId = "20000000-0000-4000-8000-000000000021";
+    const pendingRevisionId = "20000000-0000-4000-8000-000000000022";
+    const coverMediaId = "30000000-0000-4000-8000-000000000021";
+    const readyBodyMediaId = "30000000-0000-4000-8000-000000000022";
+    const pendingBodyMediaId = "30000000-0000-4000-8000-000000000023";
+
+    await client.query(
+      `insert into media_assets
+        (id, object_key, mime_type, byte_size, width, height, checksum_sha256, status)
+       values
+        ($1, 'news/capa-aninhada.webp', 'image/webp', 2048, 1200, 675,
+         '1111111111111111111111111111111111111111111111111111111111111111', 'ready'),
+        ($2, 'news/imagem-aninhada.webp', 'image/webp', 2048, 800, 600,
+         '2222222222222222222222222222222222222222222222222222222222222222', 'ready'),
+        ($3, 'news/imagem-pendente.webp', 'image/webp', 2048, 640, 480,
+         '3333333333333333333333333333333333333333333333333333333333333333', 'processing')`,
+      [coverMediaId, readyBodyMediaId, pendingBodyMediaId],
+    );
+
+    for (const [id, slug] of [
+      [readyArticleId, "imagem-aninhada-pronta"],
+      [pendingArticleId, "imagem-aninhada-pendente"],
+    ] as const) {
+      await client.query(
+        "insert into articles (id, slug, status) values ($1, $2, 'draft')",
+        [id, slug],
+      );
+    }
+
+    for (const [revisionId, articleId, bodyMediaId] of [
+      [readyRevisionId, readyArticleId, readyBodyMediaId],
+      [pendingRevisionId, pendingArticleId, pendingBodyMediaId],
+    ] as const) {
+      await client.query(
+        `insert into article_revisions
+          (id, article_id, version, content_schema_version, title, summary,
+           category, read_time_minutes, byline, cover_media_id, cover_alt, body)
+         values ($1, $2, 1, 1, 'Matéria com imagem aninhada',
+          'Resumo editorial suficientemente descritivo para validar mídia aninhada.',
+          'projetos', 1, 'Redação NITE', $3,
+          'Pessoas reunidas em um ambiente universitário iluminado.',
+          jsonb_build_object(
+            'schemaVersion', 1,
+            'type', 'doc',
+            'content', jsonb_build_array(
+              jsonb_build_object(
+                'type', 'blockquote',
+                'content', jsonb_build_array(
+                  jsonb_build_object(
+                    'type', 'bulletList',
+                    'content', jsonb_build_array(
+                      jsonb_build_object(
+                        'type', 'listItem',
+                        'content', jsonb_build_array(
+                          jsonb_build_object(
+                            'type', 'image',
+                            'attrs', jsonb_build_object(
+                              'mediaId', $4::text,
+                              'alt', 'Atividade universitária em laboratório.'
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          ))`,
+        [revisionId, articleId, coverMediaId, bodyMediaId],
+      );
+      await client.query(
+        `update articles
+         set current_revision_id = $2, published_revision_id = $2,
+             published_at = now() - interval '1 hour', status = 'published'
+         where id = $1`,
+        [articleId, revisionId],
+      );
+    }
+
+    const result = await client.query<{
+      slug: string;
+      body_media: Record<
+        string,
+        { objectKey: string; width: number; height: number }
+      >;
+    }>("select slug, body_media from published_articles order by slug");
+
+    expect(result.rows).toEqual([
+      {
+        slug: "imagem-aninhada-pronta",
+        body_media: {
+          [readyBodyMediaId]: {
+            objectKey: "news/imagem-aninhada.webp",
+            width: 800,
+            height: 600,
+          },
+        },
+      },
+    ]);
+  });
+
   it("migra os papéis legados para publisher sem ativar antigos authors", async () => {
     await client.exec(`
       DROP VIEW IF EXISTS "published_articles";

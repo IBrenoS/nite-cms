@@ -256,4 +256,50 @@ describe("documento editorial v1", () => {
       }),
     ).toThrow(/não pode ser persistida/i);
   });
+
+  it("rejeita documento persistido sem texto visível nem imagem", () => {
+    expect(() =>
+      persistedEditorialDocumentV1Schema.parse({
+        schemaVersion: 1,
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [] },
+          {
+            type: "blockquote",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "   " }],
+              },
+            ],
+          },
+          {
+            type: "bulletList",
+            content: [
+              {
+                type: "listItem",
+                content: [{ type: "paragraph", content: [] }],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/conteúdo significativo/i);
+  });
+
+  it("aceita documento persistido composto somente por imagem", () => {
+    expect(
+      persistedEditorialDocumentV1Schema.parse({
+        schemaVersion: 1,
+        type: "doc",
+        content: [
+          {
+            type: "image",
+            attrs: { mediaId: imageMediaId, alt: "Pessoas no laboratório" },
+          },
+        ],
+      }),
+    ).toMatchObject({ content: [{ type: "image" }] });
+  });
 });

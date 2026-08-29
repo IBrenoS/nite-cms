@@ -200,7 +200,28 @@ export const persistedEditorialDocumentV1Schema =
         message: "A resolução pública de imagem não pode ser persistida.",
       });
     });
+    if (!hasMeaningfulContent(document.content)) {
+      context.addIssue({
+        code: "custom",
+        path: ["content"],
+        message:
+          "O documento editorial exige conteúdo significativo ou uma imagem.",
+      });
+    }
   });
+
+function hasMeaningfulContent(nodes: EditorialContentNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === "image") return true;
+    if (node.type === "paragraph" || node.type === "heading") {
+      return node.content.some((textNode) => /\S/u.test(textNode.text));
+    }
+    if (node.type === "blockquote") {
+      return hasMeaningfulContent(node.content);
+    }
+    return node.content.some((item) => hasMeaningfulContent(item.content));
+  });
+}
 
 function visibleText(node: EditorialContentNode): string[] {
   if (node.type === "paragraph" || node.type === "heading") {
