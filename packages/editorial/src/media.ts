@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ import { mediaAssets, type CmsMembership, type MediaAsset } from "@nite/cms-db";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const UPLOAD_EXPIRATION_SECONDS = 5 * 60;
+const PROCESSING_LEASE_MILLISECONDS = 5 * 60 * 1000;
 const allowedImageMimeTypes = [
   "image/jpeg",
   "image/png",
@@ -151,10 +152,25 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
   command: { mediaId: string },
 ): Promise<MediaAsset> {
   const mediaId = z.uuid().parse(command.mediaId);
+  const claimedAt = new Date();
+  const leaseExpiresAt = new Date(
+    claimedAt.getTime() - PROCESSING_LEASE_MILLISECONDS,
+  );
   const [claimed] = await database
     .update(mediaAssets)
-    .set({ status: "processing", updatedAt: new Date() })
-    .where(and(eq(mediaAssets.id, mediaId), eq(mediaAssets.status, "pending")))
+    .set({ status: "processing", updatedAt: claimedAt })
+    .where(
+      and(
+        eq(mediaAssets.id, mediaId),
+        or(
+          eq(mediaAssets.status, "pending"),
+          and(
+            eq(mediaAssets.status, "processing"),
+            lt(mediaAssets.updatedAt, leaseExpiresAt),
+          ),
+        ),
+      ),
+    )
     .returning();
 
   if (!claimed) {
@@ -175,7 +191,13 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
       await database
         .update(mediaAssets)
         .set({ status: "quarantined", updatedAt: new Date() })
-        .where(eq(mediaAssets.id, mediaId));
+        .where(
+          and(
+            eq(mediaAssets.id, mediaId),
+            eq(mediaAssets.status, "processing"),
+            eq(mediaAssets.updatedAt, claimed.updatedAt),
+          ),
+        );
       throw new MediaQuarantinedError();
     }
 
@@ -183,7 +205,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
     if (output.width < 1 || output.height < 1 || output.body.byteLength < 1) {
       throw new MediaProcessingError();
     }
-    const publicObjectKey = `news/${mediaId}/${randomUUID()}.webp`;
+    const publicObjectKey = `news/${mediaId}/v1.webp`;
     const checksumSha256 = createHash("sha256")
       .update(output.body)
       .digest("hex");
@@ -206,7 +228,11 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
         updatedAt: new Date(),
       })
       .where(
-        and(eq(mediaAssets.id, mediaId), eq(mediaAssets.status, "processing")),
+        and(
+          eq(mediaAssets.id, mediaId),
+          eq(mediaAssets.status, "processing"),
+          eq(mediaAssets.updatedAt, claimed.updatedAt),
+        ),
       )
       .returning();
     if (!ready) {
@@ -219,7 +245,11 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
       .update(mediaAssets)
       .set({ status: "failed", updatedAt: new Date() })
       .where(
-        and(eq(mediaAssets.id, mediaId), eq(mediaAssets.status, "processing")),
+        and(
+          eq(mediaAssets.id, mediaId),
+          eq(mediaAssets.status, "processing"),
+          eq(mediaAssets.updatedAt, claimed.updatedAt),
+        ),
       );
     if (error instanceof MediaProcessingError) throw error;
     throw new MediaProcessingError();

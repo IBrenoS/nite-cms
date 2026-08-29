@@ -23,6 +23,7 @@ const editableSlugSchema = z
   .trim()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(120);
+const coverAltSchema = z.string().trim().min(1);
 
 export const editorialArticleInputSchema = z
   .object({
@@ -46,7 +47,7 @@ export const editorialArticleInputSchema = z
   })
   .extend({
     coverMediaId: z.uuid().nullable(),
-    coverAlt: z.string().min(12),
+    coverAlt: coverAltSchema,
   });
 
 export type EditorialArticleInput = z.infer<typeof editorialArticleInputSchema>;
@@ -267,6 +268,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
     const [revision] = await transaction
       .select({
         coverMediaId: articleRevisions.coverMediaId,
+        coverAlt: articleRevisions.coverAlt,
         body: articleRevisions.body,
         featured: articleRevisions.featured,
         category: articleRevisions.category,
@@ -279,6 +281,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
         "Selecione uma capa processada antes de publicar.",
       );
     }
+    coverAltSchema.parse(revision.coverAlt);
     const [cover] = await transaction
       .select({ status: mediaAssets.status })
       .from(mediaAssets)

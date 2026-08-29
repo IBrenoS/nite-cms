@@ -33,7 +33,8 @@ const firstDraft = {
   category: "inovacao" as const,
   byline: "Redação NITE",
   coverMediaId: "30000000-0000-4000-8000-000000000100",
-  coverAlt: "Estudantes reunidos em um laboratório de inovação universitário.",
+  coverAlt:
+    "  Estudantes reunidos em um laboratório de inovação universitário.  ",
   featured: false,
   body: {
     schemaVersion: 1 as const,
@@ -108,9 +109,14 @@ describe("comandos editoriais", () => {
       "laboratorio-de-inovacao-abre-nova-agenda",
     );
     expect(created.revision.readTimeMinutes).toBe(1);
+    expect(created.revision.coverAlt).toBe(
+      "Estudantes reunidos em um laboratório de inovação universitário.",
+    );
     expect(saved.revision).toMatchObject({
       version: 2,
       title: "Laboratório de inovação confirma nova agenda",
+      coverAlt:
+        "Estudantes reunidos em um laboratório de inovação universitário.",
     });
     expect(saved.article.slug).toBe(
       "laboratorio-de-inovacao-confirma-nova-agenda",
@@ -173,6 +179,9 @@ describe("comandos editoriais", () => {
       status: "published",
       publishedRevisionId: created.revision.id,
     });
+    expect(created.revision.coverAlt).toBe(
+      "Estudantes reunidos em um laboratório de inovação universitário.",
+    );
     await expect(database.select().from(auditEvents)).resolves.toHaveLength(2);
     await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
       {
@@ -298,5 +307,96 @@ describe("comandos editoriais", () => {
         expectedRevisionId: created.revision.id,
       }),
     ).rejects.toThrow(/imagens inline.*processadas/i);
+  });
+
+  it("rejeita capa composta apenas por espaços ao salvar", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-oid",
+        displayName: "Publisher NITE",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-editorial/original",
+      publicObjectKey: "news/capa-editorial/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      status: "ready",
+    });
+
+    await expect(
+      createArticleDraft(database, {
+        actor: publisher,
+        input: { ...firstDraft, coverAlt: "            " },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejeita publicação de revisão persistida com alt de capa em branco", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-oid",
+        displayName: "Publisher NITE",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-editorial/original",
+      publicObjectKey: "news/capa-editorial/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      status: "ready",
+    });
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: firstDraft,
+    });
+    const [invalidRevision] = await database
+      .insert(articleRevisions)
+      .values({
+        articleId: created.article.id,
+        version: 2,
+        contentSchemaVersion: 1,
+        title: firstDraft.title,
+        summary: firstDraft.summary,
+        category: firstDraft.category,
+        readTimeMinutes: 1,
+        byline: firstDraft.byline,
+        featured: false,
+        coverMediaId: firstDraft.coverMediaId,
+        coverAlt: "   ",
+        body: firstDraft.body,
+        createdByMembershipId: publisher.id,
+      })
+      .returning();
+    await database
+      .update(articles)
+      .set({ currentRevisionId: invalidRevision.id })
+      .where(eq(articles.id, created.article.id));
+
+    await expect(
+      publishArticle(database, {
+        actor: publisher,
+        articleId: created.article.id,
+        expectedRevisionId: invalidRevision.id,
+      }),
+    ).rejects.toThrow();
   });
 });

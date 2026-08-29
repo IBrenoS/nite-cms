@@ -103,8 +103,9 @@ const headingNodeSchema: z.ZodType<EditorialHeadingNode> = z
     content: inlineContentSchema,
   })
   .strict();
+const altTextSchema = z.string().trim().min(1);
 const storedImageAttrsSchema = z
-  .object({ mediaId: z.uuid(), alt: z.string().min(1) })
+  .object({ mediaId: z.uuid(), alt: altTextSchema })
   .strict();
 const resolvedImageAttrsSchema = storedImageAttrsSchema
   .extend({
@@ -350,7 +351,7 @@ function normalizeTiptapNode(input: unknown): unknown {
   if (node.type === "image") {
     const attrs = nodeAttrs(node.attrs);
     const mediaId = z.uuid().parse(attrs.mediaId);
-    const alt = z.string().min(1).parse(attrs.alt);
+    const alt = altTextSchema.parse(attrs.alt);
     const resolved = {
       src: attrs.src ?? undefined,
       width: attrs.width ?? undefined,

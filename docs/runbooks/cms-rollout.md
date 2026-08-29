@@ -38,6 +38,12 @@ O comando aplica migrations pendentes; não execute DDL manual concorrente.
 Depois, crie os logins de runtime fora do repositório e conceda membership nos
 group roles correspondentes.
 
+A migration `0007_media_two_buckets` parte da premissa aprovada de que não há
+objetos ou registros de mídia reais para converter. Ela não faz backfill, não
+mantém fallback para `object_key` e não move objetos entre buckets. Se essa
+premissa não for verdadeira no ambiente alvo, interrompa o rollout e planeje
+uma migração de dados separada.
+
 ### Admin
 
 - `DATABASE_ADMIN_URL`

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   createMediaUpload,
+  mediaUploadFileSchema,
   processMediaAsset,
   type ImageProcessor,
   type MediaObjectStore,
@@ -20,6 +21,7 @@ const migrationsFolder = fileURLToPath(
 
 class MemoryObjectStore implements MediaObjectStore {
   readonly objects = new Map<string, Uint8Array>();
+  readonly publicWrites: string[] = [];
 
   async createStagingUploadUrl(input: {
     stagingObjectKey: string;
@@ -45,6 +47,7 @@ class MemoryObjectStore implements MediaObjectStore {
     body: Uint8Array;
     contentType: "image/webp";
   }) {
+    this.publicWrites.push(input.publicObjectKey);
     this.objects.set(input.publicObjectKey, input.body);
   }
 }
@@ -107,9 +110,7 @@ describe("mídia editorial", () => {
     expect(processed).toMatchObject({
       id: upload.mediaId,
       stagingObjectKey: `incoming/${upload.mediaId}/original`,
-      publicObjectKey: expect.stringMatching(
-        new RegExp(`^news/${upload.mediaId}/[0-9a-f-]+\\.webp$`),
-      ),
+      publicObjectKey: `news/${upload.mediaId}/v1.webp`,
       mimeType: "image/webp",
       byteSize: 14,
       width: 1600,
@@ -120,8 +121,8 @@ describe("mídia editorial", () => {
     });
     expect(store.objects.has(`incoming/${upload.mediaId}/original`)).toBe(true);
     expect(
-      [...store.objects.keys()].some((key) =>
-        key.startsWith(`news/${upload.mediaId}/`),
+      [...store.objects.keys()].some(
+        (key) => key === `news/${upload.mediaId}/v1.webp`,
       ),
     ).toBe(true);
   });
@@ -201,6 +202,166 @@ describe("mídia editorial", () => {
         .from(mediaAssets)
         .where(eq(mediaAssets.id, upload.mediaId)),
     ).resolves.toEqual([{ status: "quarantined" }]);
+  });
+
+  it("rejeita lease de processamento ainda ativa", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    await database
+      .update(mediaAssets)
+      .set({ status: "processing", updatedAt: new Date() })
+      .where(eq(mediaAssets.id, upload.mediaId));
+
+    await expect(
+      processMediaAsset(database, store, imageProcessor, {
+        mediaId: upload.mediaId,
+      }),
+    ).rejects.toThrow(/disponível para processamento/i);
+  });
+
+  it("recupera lease vencida e conclui o processamento", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    store.objects.set(
+      `incoming/${upload.mediaId}/original`,
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
+    );
+    await database
+      .update(mediaAssets)
+      .set({
+        status: "processing",
+        updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+      })
+      .where(eq(mediaAssets.id, upload.mediaId));
+
+    await expect(
+      processMediaAsset(database, store, imageProcessor, {
+        mediaId: upload.mediaId,
+      }),
+    ).resolves.toMatchObject({
+      status: "ready",
+      publicObjectKey: `news/${upload.mediaId}/v1.webp`,
+    });
+  });
+
+  it("retoma após crash depois do put sem criar outra chave pública", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    store.objects.set(
+      `incoming/${upload.mediaId}/original`,
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
+    );
+    store.objects.set(
+      `news/${upload.mediaId}/v1.webp`,
+      new TextEncoder().encode("processed-webp"),
+    );
+    await database
+      .update(mediaAssets)
+      .set({
+        status: "processing",
+        updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+      })
+      .where(eq(mediaAssets.id, upload.mediaId));
+
+    await processMediaAsset(database, store, imageProcessor, {
+      mediaId: upload.mediaId,
+    });
+
+    expect(store.publicWrites).toEqual([`news/${upload.mediaId}/v1.webp`]);
+    expect(
+      [...store.objects.keys()].filter((key) => key.startsWith("news/")),
+    ).toEqual([`news/${upload.mediaId}/v1.webp`]);
+  });
+
+  it.each([
+    ["image/jpeg", new Uint8Array([255, 216, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0])],
+    [
+      "image/webp",
+      new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0, 87, 69, 66, 80]),
+    ],
+  ] as const)("aceita magic bytes válidos de %s", async (mimeType, source) => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: `editor-${mimeType}`,
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType, byteSize: source.byteLength },
+    });
+    store.objects.set(`incoming/${upload.mediaId}/original`, source);
+
+    await expect(
+      processMediaAsset(database, store, imageProcessor, {
+        mediaId: upload.mediaId,
+      }),
+    ).resolves.toMatchObject({ status: "ready" });
+  });
+
+  it("aceita exatamente 10 MB e rejeita excesso ou MIME não permitido", () => {
+    expect(
+      mediaUploadFileSchema.parse({
+        mimeType: "image/png",
+        byteSize: 10 * 1024 * 1024,
+      }),
+    ).toMatchObject({ byteSize: 10 * 1024 * 1024 });
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mimeType: "image/png",
+        byteSize: 10 * 1024 * 1024 + 1,
+      }),
+    ).toThrow();
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mimeType: "image/gif",
+        byteSize: 1,
+      }),
+    ).toThrow();
   });
 
   it("impede tornar ready sem saída pública e alterar chaves após sua definição", async () => {

@@ -25,4 +25,22 @@ describe("processador de imagens editorial", () => {
     expect(metadata.orientation).toBeUndefined();
     expect(metadata.exif).toBeUndefined();
   });
+
+  it("não amplia uma imagem menor que o limite", async () => {
+    const source = await sharp({
+      create: {
+        width: 320,
+        height: 180,
+        channels: 3,
+        background: { r: 24, g: 48, b: 96 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    await expect(sharpImageProcessor.toWebp(source)).resolves.toMatchObject({
+      width: 320,
+      height: 180,
+    });
+  });
 });

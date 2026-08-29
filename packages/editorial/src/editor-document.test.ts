@@ -132,6 +132,20 @@ describe("documento editorial v1", () => {
     ).toThrow();
   });
 
+  it("rejeita alt de imagem formado somente por espaços", () => {
+    expect(() =>
+      persistedEditorialDocumentV1Schema.parse({
+        ...document,
+        content: [
+          {
+            type: "image",
+            attrs: { mediaId: imageMediaId, alt: "   " },
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
   it("rejeita listItem fora de uma lista", () => {
     expect(() =>
       editorialDocumentV1Schema.parse({
