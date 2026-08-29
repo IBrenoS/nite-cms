@@ -53,8 +53,13 @@ test.describe("CMS Admin — fluxos críticos em staging", () => {
       await expect(
         page.getByRole("button", { name: "Arquivar" }),
       ).toBeVisible();
-      page.once("dialog", (dialog) => dialog.dismiss());
-      await page.getByRole("button", { name: "Arquivar" }).click();
+      const [dialog] = await Promise.all([
+        page.waitForEvent("dialog"),
+        page.getByRole("button", { name: "Arquivar" }).click(),
+      ]);
+      expect(dialog.type()).toBe("confirm");
+      expect(dialog.message()).toMatch(/arquiv|ciclo de vida/i);
+      await dialog.dismiss();
     });
   });
 });
