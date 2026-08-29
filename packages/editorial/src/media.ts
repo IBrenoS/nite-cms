@@ -205,10 +205,10 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
     if (output.width < 1 || output.height < 1 || output.body.byteLength < 1) {
       throw new MediaProcessingError();
     }
-    const publicObjectKey = `news/${mediaId}/v1.webp`;
     const checksumSha256 = createHash("sha256")
       .update(output.body)
       .digest("hex");
+    const publicObjectKey = `news/${mediaId}/${checksumSha256}.webp`;
 
     await objectStore.putPublicObject({
       publicObjectKey,

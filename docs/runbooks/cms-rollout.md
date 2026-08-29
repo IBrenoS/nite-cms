@@ -59,7 +59,8 @@ uma migração de dados separada.
 - `R2_STAGING_BUCKET`: bucket privado de uploads originais; a aplicação não os
   exclui automaticamente.
 - `R2_PUBLIC_BUCKET`: bucket público exclusivo para WebPs processados com
-  chaves imutáveis.
+  chaves imutáveis content-addressed. Um objeto público não referenciado pode
+  permanecer após uma corrida recuperada; o MVP não usa `DeleteObject`.
 - `R2_PUBLIC_BASE_URL`
 - `WEB_REVALIDATION_URL`: URL HTTPS exata de
   `/api/revalidate/news` no projeto Web.

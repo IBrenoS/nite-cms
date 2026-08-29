@@ -62,6 +62,14 @@ const imageProcessor: ImageProcessor = {
   },
 };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("mídia editorial", () => {
   let client: PGlite;
 
@@ -110,7 +118,7 @@ describe("mídia editorial", () => {
     expect(processed).toMatchObject({
       id: upload.mediaId,
       stagingObjectKey: `incoming/${upload.mediaId}/original`,
-      publicObjectKey: `news/${upload.mediaId}/v1.webp`,
+      publicObjectKey: `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
       mimeType: "image/webp",
       byteSize: 14,
       width: 1600,
@@ -122,7 +130,9 @@ describe("mídia editorial", () => {
     expect(store.objects.has(`incoming/${upload.mediaId}/original`)).toBe(true);
     expect(
       [...store.objects.keys()].some(
-        (key) => key === `news/${upload.mediaId}/v1.webp`,
+        (key) =>
+          key ===
+          `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
       ),
     ).toBe(true);
   });
@@ -266,7 +276,7 @@ describe("mídia editorial", () => {
       }),
     ).resolves.toMatchObject({
       status: "ready",
-      publicObjectKey: `news/${upload.mediaId}/v1.webp`,
+      publicObjectKey: `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
     });
   });
 
@@ -291,7 +301,7 @@ describe("mídia editorial", () => {
       new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
     );
     store.objects.set(
-      `news/${upload.mediaId}/v1.webp`,
+      `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
       new TextEncoder().encode("processed-webp"),
     );
     await database
@@ -306,10 +316,109 @@ describe("mídia editorial", () => {
       mediaId: upload.mediaId,
     });
 
-    expect(store.publicWrites).toEqual([`news/${upload.mediaId}/v1.webp`]);
+    expect(store.publicWrites).toEqual([
+      `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
+    ]);
     expect(
       [...store.objects.keys()].filter((key) => key.startsWith("news/")),
-    ).toEqual([`news/${upload.mediaId}/v1.webp`]);
+    ).toEqual([
+      `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
+    ]);
+  });
+
+  it("mantém a saída da claim mais nova quando a antiga termina depois", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    store.objects.set(
+      `incoming/${upload.mediaId}/original`,
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
+    );
+    const oldOutput = deferred<{
+      body: Uint8Array;
+      width: number;
+      height: number;
+    }>();
+    const oldStarted = deferred<void>();
+    const oldRun = processMediaAsset(
+      database,
+      store,
+      {
+        async toWebp() {
+          oldStarted.resolve();
+          return oldOutput.promise;
+        },
+      },
+      { mediaId: upload.mediaId },
+    );
+    await oldStarted.promise;
+    await database
+      .update(mediaAssets)
+      .set({ updatedAt: new Date(Date.now() - 10 * 60 * 1000) })
+      .where(eq(mediaAssets.id, upload.mediaId));
+
+    await expect(
+      processMediaAsset(
+        database,
+        store,
+        {
+          async toWebp() {
+            return {
+              body: new TextEncoder().encode("new-processed-webp"),
+              width: 1200,
+              height: 675,
+            };
+          },
+        },
+        { mediaId: upload.mediaId },
+      ),
+    ).resolves.toMatchObject({
+      publicObjectKey: `news/${upload.mediaId}/5ab19e5b4b6d39d17529e20eee2aa30470097737cad2298d3d5d2de1f63b9001.webp`,
+      checksumSha256:
+        "5ab19e5b4b6d39d17529e20eee2aa30470097737cad2298d3d5d2de1f63b9001",
+    });
+
+    oldOutput.resolve({
+      body: new TextEncoder().encode("old-processed-webp"),
+      width: 800,
+      height: 450,
+    });
+    await expect(oldRun).rejects.toThrow(/processar/i);
+
+    await expect(
+      database
+        .select({
+          publicObjectKey: mediaAssets.publicObjectKey,
+          checksumSha256: mediaAssets.checksumSha256,
+          width: mediaAssets.width,
+        })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.id, upload.mediaId)),
+    ).resolves.toEqual([
+      {
+        publicObjectKey: `news/${upload.mediaId}/5ab19e5b4b6d39d17529e20eee2aa30470097737cad2298d3d5d2de1f63b9001.webp`,
+        checksumSha256:
+          "5ab19e5b4b6d39d17529e20eee2aa30470097737cad2298d3d5d2de1f63b9001",
+        width: 1200,
+      },
+    ]);
+    expect(
+      store.objects.has(
+        `news/${upload.mediaId}/3b0e06317c0803f4e4938de96bbc84dbfcaf8014fc72d948040f3dfe85c903c6.webp`,
+      ),
+    ).toBe(true);
   });
 
   it.each([

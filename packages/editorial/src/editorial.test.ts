@@ -9,6 +9,7 @@ import {
   EditorialConflictError,
   EditorialPublicationError,
   createArticleDraft,
+  mapPublishedArticle,
   publishArticle,
   saveArticleRevision,
 } from "@nite/editorial";
@@ -19,6 +20,7 @@ import {
   cmsMemberships,
   mediaAssets,
   outboxEvents,
+  publishedArticles,
 } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
@@ -230,6 +232,15 @@ describe("comandos editoriais", () => {
         },
       ],
     });
+    const [publicRow] = await database.select().from(publishedArticles);
+    expect(
+      mapPublishedArticle(publicRow, "https://media.nite.test"),
+    ).toMatchObject({
+      public: true,
+      cover: {
+        alt: "Estudantes reunidos em um laboratório de inovação universitário.",
+      },
+    });
   });
 
   it("bloqueia publicação quando uma imagem inline aninhada ainda não está pronta", async () => {
@@ -309,37 +320,40 @@ describe("comandos editoriais", () => {
     ).rejects.toThrow(/imagens inline.*processadas/i);
   });
 
-  it("rejeita capa composta apenas por espaços ao salvar", async () => {
-    const database = drizzle(client, { schema: cmsSchema });
-    const [publisher] = await database
-      .insert(cmsMemberships)
-      .values({
-        tenantId: "tenant-nite",
-        objectId: "publisher-oid",
-        displayName: "Publisher NITE",
-        role: "publisher",
-      })
-      .returning();
-    await database.insert(mediaAssets).values({
-      id: firstDraft.coverMediaId,
-      stagingObjectKey: "incoming/capa-editorial/original",
-      publicObjectKey: "news/capa-editorial/processed.webp",
-      mimeType: "image/webp",
-      byteSize: 4096,
-      width: 1200,
-      height: 675,
-      checksumSha256:
-        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      status: "ready",
-    });
+  it.each(["            ", "curta"])(
+    "rejeita capa inválida ao salvar: %s",
+    async (coverAlt) => {
+      const database = drizzle(client, { schema: cmsSchema });
+      const [publisher] = await database
+        .insert(cmsMemberships)
+        .values({
+          tenantId: "tenant-nite",
+          objectId: "publisher-oid",
+          displayName: "Publisher NITE",
+          role: "publisher",
+        })
+        .returning();
+      await database.insert(mediaAssets).values({
+        id: firstDraft.coverMediaId,
+        stagingObjectKey: "incoming/capa-editorial/original",
+        publicObjectKey: "news/capa-editorial/processed.webp",
+        mimeType: "image/webp",
+        byteSize: 4096,
+        width: 1200,
+        height: 675,
+        checksumSha256:
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "ready",
+      });
 
-    await expect(
-      createArticleDraft(database, {
-        actor: publisher,
-        input: { ...firstDraft, coverAlt: "            " },
-      }),
-    ).rejects.toThrow();
-  });
+      await expect(
+        createArticleDraft(database, {
+          actor: publisher,
+          input: { ...firstDraft, coverAlt },
+        }),
+      ).rejects.toThrow();
+    },
+  );
 
   it("rejeita publicação de revisão persistida com alt de capa em branco", async () => {
     const database = drizzle(client, { schema: cmsSchema });

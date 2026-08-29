@@ -23,7 +23,7 @@ const editableSlugSchema = z
   .trim()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(120);
-const coverAltSchema = z.string().trim().min(1);
+const coverAltSchema = z.string().trim().min(12);
 
 export const editorialArticleInputSchema = z
   .object({
