@@ -1,32 +1,60 @@
 import { expect, test } from "@playwright/test";
 
-const adminUrl = process.env.ADMIN_E2E_BASE_URL;
+const staging = {
+  baseUrl: process.env.ADMIN_E2E_BASE_URL,
+  adminStorageState: process.env.ADMIN_E2E_ADMIN_STORAGE_STATE,
+  publisherStorageState: process.env.ADMIN_E2E_PUBLISHER_STORAGE_STATE,
+  articleId: process.env.ADMIN_E2E_ARTICLE_ID,
+};
+const missing = Object.entries(staging)
+  .filter(([, value]) => !value)
+  .map(([name]) => name);
 
-test.describe("CMS Admin — fluxos críticos", () => {
+test.describe("CMS Admin — fluxos críticos em staging", () => {
   test.skip(
-    !adminUrl,
-    "Requer Admin configurado com Entra e PostgreSQL de staging.",
+    missing.length > 0,
+    `Requer staging real e variáveis explícitas: ${missing.join(", ")}.`,
   );
 
-  test("publisher não encontra memberships e admins gerenciam o acesso", async ({
-    page,
-  }) => {
-    await page.goto(`${adminUrl}/memberships`);
-    await expect(
-      page.getByRole("heading", { name: "Memberships" }),
-    ).toBeVisible();
-    // A sessão publisher é validada no staging: deve receber a superfície negada,
-    // sem controles administrativos nem endpoints de mutação acessíveis pela UI.
+  test.describe("publisher", () => {
+    test.use({ storageState: staging.publisherStorageState });
+
+    test("não acessa memberships nem encontra controles administrativos", async ({
+      page,
+    }) => {
+      await page.goto(`${staging.baseUrl}/memberships`);
+      await expect(
+        page.getByRole("heading", { name: "Acesso negado" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Criar e ativar/ }),
+      ).toHaveCount(0);
+      await expect(page.getByLabel(/Papel de/)).toHaveCount(0);
+    });
   });
 
-  test("editor exige confirmação para publish e lifecycle", async ({
-    page,
-  }) => {
-    await page.goto(`${adminUrl}/articles`);
-    await expect(
-      page.getByRole("button", { name: /Publicar revisão/ }),
-    ).toBeVisible();
-    page.once("dialog", (dialog) => dialog.dismiss());
-    await page.getByRole("button", { name: /Publicar revisão/ }).click();
+  test.describe("admin", () => {
+    test.use({ storageState: staging.adminStorageState });
+
+    test("vê a superfície administrativa de memberships", async ({ page }) => {
+      await page.goto(`${staging.baseUrl}/memberships`);
+      await expect(
+        page.getByRole("heading", { name: "Memberships" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Criar e ativar/ }),
+      ).toBeVisible();
+    });
+
+    test("confirma lifecycle para o artigo de staging explicitamente informado", async ({
+      page,
+    }) => {
+      await page.goto(`${staging.baseUrl}/articles/${staging.articleId}/edit`);
+      await expect(
+        page.getByRole("button", { name: "Arquivar" }),
+      ).toBeVisible();
+      page.once("dialog", (dialog) => dialog.dismiss());
+      await page.getByRole("button", { name: "Arquivar" }).click();
+    });
   });
 });

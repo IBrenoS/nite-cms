@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { z } from "zod";
 
+// Tokens devem expirar em até dez minutos a partir do relógio que os valida.
 const PREVIEW_DURATION_MILLISECONDS = 10 * 60 * 1000;
 
 const previewClaimsSchema = z
@@ -66,7 +67,12 @@ export function verifyPreviewToken(
     const claims = previewClaimsSchema.parse(
       JSON.parse(Buffer.from(payload, "base64url").toString("utf8")),
     );
-    if (claims.expiresAt <= now.getTime()) throw new PreviewTokenError();
+    if (
+      claims.expiresAt <= now.getTime() ||
+      claims.expiresAt > now.getTime() + PREVIEW_DURATION_MILLISECONDS
+    ) {
+      throw new PreviewTokenError();
+    }
     return claims;
   } catch (error) {
     if (error instanceof PreviewTokenError) throw error;

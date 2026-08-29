@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Input } from "@nite/cms-ui";
 
 import {
@@ -32,11 +33,13 @@ export function MembershipsPanel({
   );
   const [message, setMessage] = useState<string>();
   const [changing, startTransition] = useTransition();
+  const router = useRouter();
 
   function report(result: Awaited<ReturnType<typeof updateMembershipRole>>) {
     setMessage(
       result.status === "error" ? result.message : "Membership atualizada.",
     );
+    if (result.status === "success") router.refresh();
   }
 
   return (
@@ -156,6 +159,7 @@ export function MembershipsPanel({
                               ? result.message
                               : "Membership atualizada.",
                           );
+                          if (result.status === "success") router.refresh();
                         })
                       }
                     >

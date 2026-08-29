@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createHmac } from "node:crypto";
 
 import {
   PreviewTokenError,
@@ -38,5 +39,23 @@ describe("token privado de preview", () => {
         new Date(now.getTime() + 10 * 60 * 1000),
       ),
     ).toThrow(PreviewTokenError);
+  });
+
+  it("recusa token corretamente assinado com expiração acima do TTL", () => {
+    const now = new Date("2026-08-29T12:00:00.000Z");
+    const payload = Buffer.from(
+      JSON.stringify({
+        version: 1,
+        ...claims,
+        expiresAt: now.getTime() + 10 * 60 * 1000 + 1,
+        nonce: "abcdefghijklmnopqrstuv",
+      }),
+    ).toString("base64url");
+    const signed = `v1.${payload}`;
+    const token = `${signed}.${createHmac("sha256", secret).update(signed).digest("base64url")}`;
+
+    expect(() => verifyPreviewToken(token, secret, now)).toThrow(
+      PreviewTokenError,
+    );
   });
 });

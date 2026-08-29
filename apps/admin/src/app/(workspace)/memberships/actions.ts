@@ -9,6 +9,7 @@ import {
   setCmsMembershipActive,
 } from "@nite/editorial";
 import { requireCmsContext } from "@/lib/auth";
+import { membershipActionError } from "./membership-errors";
 
 const membershipInputSchema = z.object({
   objectId: z.string().trim().min(1).max(128),
@@ -31,14 +32,9 @@ export type MembershipActionState =
   | { status: "error"; message: string };
 
 function failure(error: unknown): MembershipActionState {
-  if (error instanceof z.ZodError) {
-    return { status: "error", message: "Revise os dados da membership." };
-  }
-  if (error instanceof Error)
-    return { status: "error", message: error.message };
   return {
     status: "error",
-    message: "Não foi possível atualizar memberships.",
+    message: membershipActionError(error),
   };
 }
 
