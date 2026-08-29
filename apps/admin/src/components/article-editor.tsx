@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import Link from "next/link";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import { Button, Input, StatusBadge, Textarea } from "@nite/cms-ui";
@@ -12,8 +11,10 @@ import {
 } from "@nite/editorial";
 import {
   createMediaUploadAction,
+  createPrivatePreviewLink,
   processMediaUploadAction,
   submitEditorialArticle,
+  transitionEditorialArticle,
   type EditorialActionState,
 } from "@/app/(workspace)/articles/actions";
 import { createEditorialTiptapExtensions } from "@/lib/editorial-tiptap";
@@ -55,6 +56,14 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
     "idle" | "uploading" | "processing" | "ready" | "error"
   >(initial?.coverMediaId ? "ready" : "idle");
   const [mediaMessage, setMediaMessage] = useState<string>();
+  const [inlineMediaId, setInlineMediaId] = useState("");
+  const [inlineAlt, setInlineAlt] = useState("");
+  const [inlineMediaState, setInlineMediaState] = useState<
+    "idle" | "uploading" | "processing" | "ready" | "error"
+  >("idle");
+  const [lifecycleMessage, setLifecycleMessage] = useState<string>();
+  const [previewMessage, setPreviewMessage] = useState<string>();
+  const [lifecyclePending, startLifecycleTransition] = useTransition();
 
   const editor = useEditor({
     extensions: createEditorialTiptapExtensions(),
@@ -103,6 +112,87 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
       setMediaMessage(
         "Não foi possível processar a capa. Use JPEG, PNG ou WebP de até 10 MB.",
       );
+    }
+  }
+
+  async function uploadInlineImage(file: File) {
+    setInlineMediaState("uploading");
+    try {
+      const upload = await createMediaUploadAction({
+        mimeType: file.type,
+        byteSize: file.size,
+      });
+      const response = await fetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: upload.requiredHeaders,
+        body: file,
+      });
+      if (!response.ok) throw new Error("Upload direto recusado.");
+      setInlineMediaState("processing");
+      const processed = await processMediaUploadAction(upload.mediaId);
+      if (processed.status !== "ready") throw new Error("Imagem não pronta.");
+      setInlineMediaId(processed.id);
+      setInlineMediaState("ready");
+    } catch {
+      setInlineMediaState("error");
+    }
+  }
+
+  function insertInlineImage() {
+    if (!editor || inlineMediaState !== "ready" || !inlineAlt.trim()) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "image",
+        attrs: { mediaId: inlineMediaId, alt: inlineAlt.trim() },
+      })
+      .run();
+    setInlineMediaId("");
+    setInlineAlt("");
+    setInlineMediaState("idle");
+  }
+
+  function toggleLink() {
+    if (!editor) return;
+    const href = window.prompt(
+      "URL do link (http, https, mailto ou caminho interno)",
+    );
+    if (href?.trim())
+      editor.chain().focus().setLink({ href: href.trim() }).run();
+  }
+
+  function transitionLifecycle(intent: "unpublish" | "archive" | "restore") {
+    if (
+      !initial ||
+      !window.confirm("Confirmar esta alteração de ciclo de vida?")
+    )
+      return;
+    startLifecycleTransition(async () => {
+      const result = await transitionEditorialArticle({
+        articleId: initial.articleId,
+        expectedRevisionId: currentRevisionId,
+        intent,
+      });
+      setLifecycleMessage(
+        result.status === "success"
+          ? "Ciclo de vida atualizado. Recarregue para ver o novo estado."
+          : result.message,
+      );
+      if (result.status === "success") router.refresh();
+    });
+  }
+
+  async function openPrivatePreview() {
+    if (!initial) return;
+    const result = await createPrivatePreviewLink({
+      articleId: initial.articleId,
+      revisionId: currentRevisionId,
+    });
+    if (result.status === "success") {
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } else {
+      setPreviewMessage(result.message);
     }
   }
 
@@ -268,8 +358,69 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
             >
               Citação
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              aria-pressed={editor?.isActive("link") ?? false}
+              onClick={toggleLink}
+            >
+              Link
+            </Button>
+            {editor?.isActive("link") ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="quiet"
+                onClick={() => editor.chain().focus().unsetLink().run()}
+              >
+                Remover link
+              </Button>
+            ) : null}
           </div>
           <EditorContent editor={editor} className="p-5 sm:p-7" />
+          <div className="grid gap-3 border-t border-nite-border-subtle p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <Input
+              aria-label="Imagem inline pronta"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={
+                inlineMediaState === "uploading" ||
+                inlineMediaState === "processing"
+              }
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void uploadInlineImage(file);
+              }}
+            />
+            <Input
+              aria-label="Texto alternativo da imagem inline"
+              value={inlineAlt}
+              required
+              onChange={(event) => setInlineAlt(event.target.value)}
+              placeholder="Texto alternativo obrigatório"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={inlineMediaState !== "ready" || !inlineAlt.trim()}
+              onClick={insertInlineImage}
+            >
+              Inserir imagem
+            </Button>
+            {inlineMediaState !== "idle" ? (
+              <p
+                role={inlineMediaState === "error" ? "alert" : "status"}
+                className="sm:col-span-3 text-sm text-nite-text-secondary"
+              >
+                {inlineMediaState === "ready"
+                  ? "Imagem pronta para inserir."
+                  : inlineMediaState === "error"
+                    ? "Não foi possível processar a imagem inline."
+                    : "Validando imagem…"}
+              </p>
+            ) : null}
+          </div>
         </section>
       </div>
 
@@ -395,6 +546,16 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
             {actionState.message}
           </p>
         ) : null}
+        {lifecycleMessage ? (
+          <p role="status" className="text-sm text-nite-text-secondary">
+            {lifecycleMessage}
+          </p>
+        ) : null}
+        {previewMessage ? (
+          <p role="alert" className="text-sm text-status-error">
+            {previewMessage}
+          </p>
+        ) : null}
 
         <div className="grid gap-3">
           <Button
@@ -433,16 +594,41 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
           ) : null}
           {initial ? (
             <Button
-              render={
-                <Link
-                  href={`/preview/articles/${initial.articleId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              }
+              type="button"
+              onClick={() => void openPrivatePreview()}
               variant="quiet"
             >
               Abrir preview
+            </Button>
+          ) : null}
+          {initial?.status === "published" ? (
+            <Button
+              type="button"
+              variant="quiet"
+              loading={lifecyclePending}
+              onClick={() => transitionLifecycle("unpublish")}
+            >
+              Despublicar
+            </Button>
+          ) : null}
+          {initial?.status !== "archived" ? (
+            <Button
+              type="button"
+              variant="quiet"
+              loading={lifecyclePending}
+              onClick={() => transitionLifecycle("archive")}
+            >
+              Arquivar
+            </Button>
+          ) : null}
+          {initial?.status === "archived" ? (
+            <Button
+              type="button"
+              variant="quiet"
+              loading={lifecyclePending}
+              onClick={() => transitionLifecycle("restore")}
+            >
+              Restaurar
             </Button>
           ) : null}
         </div>

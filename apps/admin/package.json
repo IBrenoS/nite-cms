@@ -19,8 +19,8 @@
     "@nite/cms-ui": "0.1.0",
     "@nite/editorial": "0.1.0",
     "@tiptap/core": "^3.30.5",
-    "@tiptap/react": "^3.30.5",
     "@tiptap/extension-blockquote": "^3.30.5",
+    "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
     "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.2",
@@ -32,6 +32,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/node": "^20",

@@ -1,0 +1,36 @@
+import { asc, eq } from "drizzle-orm";
+import { cmsMemberships } from "@nite/cms-db";
+import { MembershipsPanel } from "@/components/memberships-panel";
+import { requireCmsPageContext } from "@/lib/auth";
+
+export default async function MembershipsPage() {
+  const context = await requireCmsPageContext();
+  if (context.membership.role !== "admin") {
+    return (
+      <main>
+        <h1 className="font-heading text-2xl font-semibold">Acesso negado</h1>
+        <p className="mt-3 text-nite-text-secondary">
+          A gestão de memberships é restrita a admins.
+        </p>
+      </main>
+    );
+  }
+  const memberships = await context.database
+    .select()
+    .from(cmsMemberships)
+    .where(eq(cmsMemberships.tenantId, context.membership.tenantId))
+    .orderBy(asc(cmsMemberships.displayName));
+  return (
+    <main className="grid gap-5">
+      <div>
+        <p className="font-mono text-xs uppercase tracking-[0.12em] text-nite-brand-accent">
+          Administração
+        </p>
+        <h1 className="mt-2 font-heading text-3xl font-semibold">
+          Memberships
+        </h1>
+      </div>
+      <MembershipsPanel memberships={memberships} />
+    </main>
+  );
+}

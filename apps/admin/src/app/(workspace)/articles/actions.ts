@@ -6,18 +6,25 @@ import { after } from "next/server";
 import {
   EditorialConflictError,
   EditorialPublicationError,
+  archiveArticle,
   createArticleDraft,
   createMediaUpload,
   editorialArticleInputSchema,
   mediaUploadFileSchema,
   processMediaAsset,
   publishArticle,
+  restoreArticle,
   saveArticleRevision,
   tiptapDocumentToEditorialDocumentV1,
+  unpublishArticle,
+  getEditorialRevisionPreview,
 } from "@nite/editorial";
+import { revalidatePath } from "next/cache";
 import { requireCmsContext } from "@/lib/auth";
 import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
 import { processCmsOutbox } from "@/lib/outbox";
+import { readPreviewConfiguration } from "@/lib/preview-config";
+import { issuePreviewToken } from "@/lib/preview-token";
 
 export type EditorialActionState = {
   status: "idle" | "success" | "error" | "conflict";
@@ -166,4 +173,99 @@ export async function processMediaUploadAction(mediaId: string) {
     { mediaId },
   );
   return { id: media.id, status: media.status };
+}
+
+const lifecycleSchema = z.object({
+  articleId: z.uuid(),
+  expectedRevisionId: z.uuid(),
+  intent: z.enum(["unpublish", "archive", "restore"]),
+});
+
+export async function transitionEditorialArticle(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const command = lifecycleSchema.parse(input);
+    const lifecycleCommand = {
+      actor: context.membership,
+      articleId: command.articleId,
+      expectedRevisionId: command.expectedRevisionId,
+    };
+    if (command.intent === "unpublish") {
+      await unpublishArticle(context.database, lifecycleCommand);
+    } else if (command.intent === "archive") {
+      await archiveArticle(context.database, lifecycleCommand);
+    } else {
+      await restoreArticle(context.database, lifecycleCommand);
+    }
+    revalidatePath(`/articles/${command.articleId}/edit`);
+    revalidatePath("/");
+    return { status: "success" as const };
+  } catch (error) {
+    if (error instanceof EditorialConflictError) {
+      return { status: "conflict" as const, message: error.message };
+    }
+    if (
+      error instanceof EditorialPublicationError ||
+      error instanceof z.ZodError
+    ) {
+      return {
+        status: "error" as const,
+        message:
+          error instanceof EditorialPublicationError
+            ? error.message
+            : "A operação editorial é inválida.",
+      };
+    }
+    return {
+      status: "error" as const,
+      message: "Não foi possível alterar o ciclo de vida da matéria.",
+    };
+  }
+}
+
+const previewLinkSchema = z.object({
+  articleId: z.uuid(),
+  revisionId: z.uuid(),
+});
+
+export async function createPrivatePreviewLink(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const request = previewLinkSchema.parse(input);
+    const revision = await getEditorialRevisionPreview(
+      context.database,
+      context.membership,
+      request.articleId,
+      request.revisionId,
+    );
+    if (!revision)
+      return { status: "error" as const, message: "Revisão não encontrada." };
+    const preview = readPreviewConfiguration(process.env);
+    if (!preview.configured) {
+      return {
+        status: "error" as const,
+        message: "O preview privado não está configurado neste ambiente.",
+      };
+    }
+    const url = new URL(preview.configuration.portalPreviewUrl);
+    url.searchParams.set(
+      "token",
+      issuePreviewToken(
+        { articleId: request.articleId, revisionId: request.revisionId },
+        preview.configuration.hmacSecret,
+      ),
+    );
+    return { status: "success" as const, url: url.toString() };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        status: "error" as const,
+        message: "A referência de preview é inválida.",
+      };
+    }
+    return {
+      status: "error" as const,
+      message: "Não foi possível criar o preview privado.",
+    };
+  }
 }

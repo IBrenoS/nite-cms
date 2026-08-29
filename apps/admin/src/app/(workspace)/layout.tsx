@@ -47,6 +47,14 @@ export default async function WorkspaceLayout({
             <span className="hidden font-mono text-xs uppercase tracking-[0.12em] text-nite-text-muted sm:inline">
               {context.membership.role}
             </span>
+            {context.membership.role === "admin" ? (
+              <Link
+                href="/memberships"
+                className="rounded-md text-sm text-nite-text-secondary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Memberships
+              </Link>
+            ) : null}
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-nite-text-secondary md:inline">
