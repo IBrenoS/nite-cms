@@ -18,6 +18,7 @@
     "@nite/cms-db": "0.1.0",
     "@nite/cms-ui": "0.1.0",
     "@nite/editorial": "0.1.0",
+    "@tiptap/core": "^3.30.5",
     "@tiptap/react": "^3.30.5",
     "@tiptap/extension-blockquote": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",

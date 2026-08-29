@@ -1,11 +1,8 @@
-import type {
-  EditorialDocumentV1,
-  PublicEditorialDocumentV1,
-} from "@nite/editorial";
+import type { EditorialDocumentV1 } from "@nite/editorial";
 import type { ReactNode } from "react";
 
 type NewsArticleBodyProps = {
-  document: EditorialDocumentV1 | PublicEditorialDocumentV1;
+  document: EditorialDocumentV1;
   className?: string;
 };
 
@@ -14,12 +11,20 @@ type InlineContentNode = Extract<
   EditorialContentNode,
   { type: "paragraph" }
 >["content"];
-type PublicImageNode = Extract<
-  PublicEditorialDocumentV1["content"][number],
-  { type: "image" }
->;
+type EditorialImageNode = Extract<EditorialContentNode, { type: "image" }>;
+type ResolvedEditorialImageNode = EditorialImageNode & {
+  attrs: {
+    mediaId: string;
+    alt: string;
+    src: string;
+    width: number;
+    height: number;
+  };
+};
 
-function isPublicImage(node: EditorialContentNode): node is PublicImageNode {
+function isPublicImage(
+  node: EditorialImageNode,
+): node is ResolvedEditorialImageNode {
   return (
     node.type === "image" &&
     "src" in node.attrs &&
@@ -78,18 +83,21 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
       </List>
     );
   }
-  if (isPublicImage(node)) {
-    return (
-      <img
-        key={key}
-        src={node.attrs.src}
-        alt={node.attrs.alt}
-        width={node.attrs.width}
-        height={node.attrs.height}
-      />
-    );
+  if (node.type === "image") {
+    if (isPublicImage(node)) {
+      return (
+        <img
+          key={key}
+          src={node.attrs.src}
+          alt={node.attrs.alt}
+          width={node.attrs.width}
+          height={node.attrs.height}
+        />
+      );
+    }
+    return <figure key={key} aria-label={node.attrs.alt} />;
   }
-  return <figure key={key} aria-label={node.attrs.alt} />;
+  return null;
 }
 
 function NewsArticleBody({ document, className }: NewsArticleBodyProps) {

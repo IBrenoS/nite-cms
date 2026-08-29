@@ -5,7 +5,7 @@ import { z } from "zod";
 import { newsCategoryValues } from "./article-schema";
 import {
   calculateEditorialReadTime,
-  editorialDocumentV1Schema,
+  persistedEditorialDocumentV1Schema,
 } from "./editor-document";
 import {
   articleRevisions,
@@ -35,7 +35,7 @@ export const editorialArticleInputSchema = z
       .optional(),
     byline: z.string().min(3).max(80),
     featured: z.boolean(),
-    body: editorialDocumentV1Schema,
+    body: persistedEditorialDocumentV1Schema,
     seo: z
       .object({
         title: z.string().min(20).max(60),
@@ -103,7 +103,7 @@ function deriveSlug(title: string) {
   return editableSlugSchema.parse(normalized);
 }
 
-function requestedSlug(input: EditorialArticleInput) {
+function resolveRequestedSlug(input: EditorialArticleInput) {
   return input.slug || deriveSlug(input.title);
 }
 
@@ -112,7 +112,7 @@ export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
   command: { actor: CmsMembership; input: EditorialArticleInput },
 ) {
   const input = editorialArticleInputSchema.parse(command.input);
-  const slug = requestedSlug(input);
+  const slug = resolveRequestedSlug(input);
 
   return database.transaction(async (transaction) => {
     const actor = await requireActiveCmsMembership(
@@ -177,12 +177,13 @@ export async function saveArticleRevision<
     if (!article || article.currentRevisionId !== command.expectedRevisionId) {
       throw new EditorialConflictError();
     }
-    const slug = input.slug || article.slug;
-    if (article.publishedAt && slug !== article.slug) {
+    const requestedSlug = resolveRequestedSlug(input);
+    if (article.publishedAt && input.slug && requestedSlug !== article.slug) {
       throw new EditorialPublicationError(
         "O slug de uma matéria publicada não pode ser alterado.",
       );
     }
+    const slug = article.publishedAt ? article.slug : requestedSlug;
 
     const [currentRevision] = await transaction
       .select({ version: articleRevisions.version })

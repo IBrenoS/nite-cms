@@ -111,7 +111,9 @@ describe("comandos editoriais", () => {
       version: 2,
       title: "Laboratório de inovação confirma nova agenda",
     });
-    expect(saved.article.slug).toBe(created.article.slug);
+    expect(saved.article.slug).toBe(
+      "laboratorio-de-inovacao-confirma-nova-agenda",
+    );
     await expect(
       saveArticleRevision(database, {
         actor: publisher,
@@ -193,7 +195,7 @@ describe("comandos editoriais", () => {
       }),
     ).rejects.toBeInstanceOf(EditorialPublicationError);
 
-    await saveArticleRevision(database, {
+    const savedAfterPublication = await saveArticleRevision(database, {
       actor: publisher,
       articleId: created.article.id,
       expectedRevisionId: created.revision.id,
@@ -203,6 +205,7 @@ describe("comandos editoriais", () => {
         title: "Laboratório de inovação prepara uma nova chamada",
       },
     });
+    expect(savedAfterPublication.article.slug).toBe(created.article.slug);
     await expect(
       client.query<{ featured: boolean; title: string }>(
         "select featured, title from published_articles where article_id = $1",

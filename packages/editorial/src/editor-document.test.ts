@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateEditorialReadTime,
   editorialDocumentV1Schema,
+  persistedEditorialDocumentV1Schema,
   resolveEditorialDocumentMedia,
   tiptapDocumentToEditorialDocumentV1,
 } from "@nite/editorial";
@@ -213,5 +214,20 @@ describe("documento editorial v1", () => {
         },
       ],
     });
+  });
+
+  it("mantém um único contrato quando a fronteira pública resolve a imagem", () => {
+    const resolved = resolveEditorialDocumentMedia(document, {
+      [imageMediaId]: {
+        src: "https://media.nite.test/news/laboratorio.webp",
+        width: 1200,
+        height: 675,
+      },
+    });
+
+    expect(editorialDocumentV1Schema.parse(resolved)).toEqual(resolved);
+    expect(() => persistedEditorialDocumentV1Schema.parse(resolved)).toThrow(
+      /não pode ser persistida/i,
+    );
   });
 });

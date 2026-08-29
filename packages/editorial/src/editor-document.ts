@@ -44,10 +44,20 @@ const headingNodeSchema = z
     content: inlineContentSchema,
   })
   .strict();
+const storedImageAttrsSchema = z
+  .object({ mediaId: z.uuid(), alt: z.string().min(1) })
+  .strict();
+const resolvedImageAttrsSchema = storedImageAttrsSchema
+  .extend({
+    src: z.url(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  })
+  .strict();
 const imageNodeSchema = z
   .object({
     type: z.literal("image"),
-    attrs: z.object({ mediaId: z.uuid(), alt: z.string().min(1) }).strict(),
+    attrs: z.union([storedImageAttrsSchema, resolvedImageAttrsSchema]),
   })
   .strict();
 
@@ -95,6 +105,19 @@ export const editorialDocumentV1Schema = z
 
 export type EditorialDocumentV1 = z.infer<typeof editorialDocumentV1Schema>;
 
+export const persistedEditorialDocumentV1Schema =
+  editorialDocumentV1Schema.superRefine((document, context) => {
+    document.content.forEach((node, index) => {
+      if (node.type === "image" && "src" in node.attrs) {
+        context.addIssue({
+          code: "custom",
+          path: ["content", index, "attrs"],
+          message: "A resolução pública de imagem não pode ser persistida.",
+        });
+      }
+    });
+  });
+
 type EditorialContentNode = EditorialDocumentV1["content"][number];
 type EditorialListItemNode = z.infer<typeof listItemNodeSchema>;
 
@@ -114,51 +137,138 @@ function visibleText(node: EditorialContentNode): string[] {
 const tiptapDocumentSchema = z
   .object({
     type: z.literal("doc"),
-    content: z.unknown(),
+    content: z.array(z.unknown()),
   })
   .strict();
+
+const tiptapNodeSchema = z
+  .object({
+    type: z.string(),
+    attrs: z.unknown().optional(),
+    content: z.array(z.unknown()).optional(),
+    text: z.string().optional(),
+    marks: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
+function nodeAttrs(input: unknown) {
+  return z.record(z.string(), z.unknown()).parse(input ?? {});
+}
+
+function requiredContent(node: z.infer<typeof tiptapNodeSchema>) {
+  if (!node.content) throw new Error(`O nó ${node.type} exige conteúdo.`);
+  return node.content;
+}
+
+function normalizeMark(input: unknown): unknown {
+  const mark = z
+    .object({ type: z.string(), attrs: z.unknown().optional() })
+    .passthrough()
+    .parse(input);
+  if (mark.type === "bold" || mark.type === "italic") {
+    return { type: mark.type };
+  }
+  if (mark.type === "link") {
+    const attrs = nodeAttrs(mark.attrs);
+    return { type: "link", attrs: { href: z.string().parse(attrs.href) } };
+  }
+  throw new Error(`Mark editorial não permitido: ${mark.type}`);
+}
+
+function normalizeInlineNode(input: unknown): unknown {
+  const node = tiptapNodeSchema.parse(input);
+  if (node.type !== "text" || node.text === undefined) {
+    throw new Error(`Nó inline editorial não permitido: ${node.type}`);
+  }
+  return {
+    type: "text",
+    text: node.text,
+    ...(node.marks ? { marks: node.marks.map(normalizeMark) } : {}),
+  };
+}
+
+function normalizeTiptapNode(input: unknown): unknown {
+  const node = tiptapNodeSchema.parse(input);
+  if (node.type === "paragraph") {
+    return {
+      type: "paragraph",
+      content: requiredContent(node).map(normalizeInlineNode),
+    };
+  }
+  if (node.type === "heading") {
+    const attrs = nodeAttrs(node.attrs);
+    return {
+      type: "heading",
+      attrs: {
+        level: z.union([z.literal(2), z.literal(3)]).parse(attrs.level),
+      },
+      content: requiredContent(node).map(normalizeInlineNode),
+    };
+  }
+  if (node.type === "blockquote") {
+    return {
+      type: "blockquote",
+      content: requiredContent(node).map(normalizeTiptapNode),
+    };
+  }
+  if (node.type === "bulletList" || node.type === "orderedList") {
+    return {
+      type: node.type,
+      content: requiredContent(node).map(normalizeTiptapNode),
+    };
+  }
+  if (node.type === "listItem") {
+    return {
+      type: "listItem",
+      content: requiredContent(node).map(normalizeTiptapNode),
+    };
+  }
+  if (node.type === "image") {
+    const attrs = nodeAttrs(node.attrs);
+    const mediaId = z.uuid().parse(attrs.mediaId);
+    const alt = z.string().min(1).parse(attrs.alt);
+    const resolved = {
+      src: attrs.src ?? undefined,
+      width: attrs.width ?? undefined,
+      height: attrs.height ?? undefined,
+    };
+    return {
+      type: "image",
+      attrs: {
+        mediaId,
+        alt,
+        ...(resolved.src !== undefined ||
+        resolved.width !== undefined ||
+        resolved.height !== undefined
+          ? resolved
+          : {}),
+      },
+    };
+  }
+  throw new Error(`Nó editorial não permitido: ${node.type}`);
+}
+
+function isTrailingEmptyParagraph(input: unknown) {
+  const node = tiptapNodeSchema.safeParse(input);
+  return (
+    node.success &&
+    node.data.type === "paragraph" &&
+    (!node.data.content || node.data.content.length === 0)
+  );
+}
 
 export function tiptapDocumentToEditorialDocumentV1(
   input: unknown,
 ): EditorialDocumentV1 {
   const document = tiptapDocumentSchema.parse(input);
-  return editorialDocumentV1Schema.parse({ ...document, schemaVersion: 1 });
+  const content = [...document.content];
+  while (isTrailingEmptyParagraph(content.at(-1))) content.pop();
+  return editorialDocumentV1Schema.parse({
+    schemaVersion: 1,
+    type: "doc",
+    content: content.map(normalizeTiptapNode),
+  });
 }
-
-const publicImageNodeSchema = z
-  .object({
-    type: z.literal("image"),
-    attrs: z
-      .object({
-        mediaId: z.uuid(),
-        alt: z.string().min(1),
-        src: z.url(),
-        width: z.number().int().positive(),
-        height: z.number().int().positive(),
-      })
-      .strict(),
-  })
-  .strict();
-const publicEditorialContentNodeSchema = z.discriminatedUnion("type", [
-  paragraphNodeSchema,
-  headingNodeSchema,
-  bulletListNodeSchema,
-  orderedListNodeSchema,
-  blockquoteNodeSchema,
-  publicImageNodeSchema,
-]);
-
-export const publicEditorialDocumentV1Schema = z
-  .object({
-    schemaVersion: z.literal(1),
-    type: z.literal("doc"),
-    content: z.array(publicEditorialContentNodeSchema).min(1),
-  })
-  .strict();
-
-export type PublicEditorialDocumentV1 = z.infer<
-  typeof publicEditorialDocumentV1Schema
->;
 
 export function calculateEditorialReadTime(input: unknown) {
   const document = editorialDocumentV1Schema.parse(input);
@@ -214,9 +324,9 @@ function resolveNodeMedia(
 export function resolveEditorialDocumentMedia(
   input: unknown,
   media: PublicMedia,
-): PublicEditorialDocumentV1 {
-  const document = editorialDocumentV1Schema.parse(input);
-  return publicEditorialDocumentV1Schema.parse({
+): EditorialDocumentV1 {
+  const document = persistedEditorialDocumentV1Schema.parse(input);
+  return editorialDocumentV1Schema.parse({
     ...document,
     content: document.content.map((node) => resolveNodeMedia(node, media)),
   });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { publicEditorialDocumentV1Schema } from "./editor-document";
+import { editorialDocumentV1Schema } from "./editor-document";
 
 export const newsCategoryValues = [
   "agenda",
@@ -32,7 +32,7 @@ export const newsArticleSchema = z.object({
   featured: z.boolean(),
   contentState: z.enum(newsContentStateValues),
   public: z.literal(true),
-  body: publicEditorialDocumentV1Schema,
+  body: editorialDocumentV1Schema,
   seo: z
     .object({
       title: z.string().min(20).max(60),

@@ -4,8 +4,6 @@ import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
-import Blockquote from "@tiptap/extension-blockquote";
-import StarterKit from "@tiptap/starter-kit";
 import { Button, Input, StatusBadge, Textarea } from "@nite/cms-ui";
 
 import {
@@ -18,6 +16,7 @@ import {
   submitEditorialArticle,
   type EditorialActionState,
 } from "@/app/(workspace)/articles/actions";
+import { createEditorialTiptapExtensions } from "@/lib/editorial-tiptap";
 
 type ArticleEditorProps = {
   initial?: EditorialArticleInput & {
@@ -34,21 +33,6 @@ const emptyDocument: JSONContent = {
   type: "doc",
   content: [{ type: "paragraph" }],
 };
-
-const EditorialBlockquote = Blockquote.extend({
-  addAttributes() {
-    return {
-      attribution: {
-        default: null,
-        parseHTML: (element) => element.getAttribute("data-attribution"),
-        renderHTML: (attributes) =>
-          attributes.attribution
-            ? { "data-attribution": attributes.attribution }
-            : {},
-      },
-    };
-  },
-});
 
 export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
   const router = useRouter();
@@ -73,17 +57,7 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
   const [mediaMessage, setMediaMessage] = useState<string>();
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3] },
-        codeBlock: false,
-        horizontalRule: false,
-        strike: false,
-        code: false,
-        blockquote: false,
-      }),
-      EditorialBlockquote,
-    ],
+    extensions: createEditorialTiptapExtensions(),
     content: bodyDocument,
     immediatelyRender: false,
     onUpdate({ editor: currentEditor }) {
