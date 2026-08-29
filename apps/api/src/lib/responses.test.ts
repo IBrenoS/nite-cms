@@ -23,12 +23,21 @@ const article = {
   featured: true,
   contentState: "real",
   public: true,
-  body: [
-    {
-      type: "paragraph",
-      text: "Texto editorial suficientemente longo para validar o contrato público.",
-    },
-  ],
+  body: {
+    schemaVersion: 1,
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Texto editorial suficientemente longo para validar o contrato público.",
+          },
+        ],
+      },
+    ],
+  },
 } satisfies NewsArticle;
 
 describe("respostas HTTP públicas de News", () => {
@@ -36,7 +45,7 @@ describe("respostas HTTP públicas de News", () => {
     const response = createListResponse([article]);
 
     await expect(response.json()).resolves.toEqual({
-      version: 1,
+      version: 2,
       articles: [article],
     });
     expect(response.headers.get("cache-control")).toBe(

@@ -18,12 +18,35 @@ const row = {
   byline: "Redação NITE",
   coverObjectKey: "news/capa principal.webp",
   coverAlt: "Pessoas reunidas em um ambiente universitário iluminado.",
-  body: [
-    {
-      type: "paragraph",
-      text: "Texto editorial suficientemente longo para validar o contrato público.",
+  body: {
+    schemaVersion: 1,
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Texto editorial suficientemente longo para validar o contrato público.",
+          },
+        ],
+      },
+      {
+        type: "image",
+        attrs: {
+          mediaId: "30000000-0000-4000-8000-000000000101",
+          alt: "Atividade universitária em laboratório.",
+        },
+      },
+    ],
+  },
+  bodyMedia: {
+    "30000000-0000-4000-8000-000000000101": {
+      objectKey: "news/imagem editorial.webp",
+      width: 1200,
+      height: 675,
     },
-  ],
+  },
   seo: null,
   public: true,
   contentState: "real",
@@ -39,6 +62,23 @@ describe("DTO público do CMS", () => {
           src: "https://media.nite.test/public/news/capa%20principal.webp",
           alt: "Pessoas reunidas em um ambiente universitário iluminado.",
         },
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            expect.anything(),
+            {
+              type: "image",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000101",
+                alt: "Atividade universitária em laboratório.",
+                src: "https://media.nite.test/public/news/imagem%20editorial.webp",
+                width: 1200,
+                height: 675,
+              },
+            },
+          ],
+        },
         public: true,
       }),
     );
@@ -47,7 +87,14 @@ describe("DTO público do CMS", () => {
   it("rejeita JSONB incompatível antes de responder à API", () => {
     expect(() =>
       mapPublishedArticle(
-        { ...row, body: [{ type: "script" }] },
+        {
+          ...row,
+          body: {
+            schemaVersion: 1,
+            type: "doc",
+            content: [{ type: "script" }],
+          },
+        },
         "https://media.nite.test",
       ),
     ).toThrow();

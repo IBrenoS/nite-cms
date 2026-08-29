@@ -32,17 +32,25 @@ const draftInput = {
   summary:
     "A equipe do NITE apresenta uma agenda editorial validada para atividades acadêmicas e projetos aplicados.",
   category: "inovacao" as const,
-  readTimeMinutes: 4,
   byline: "Redação NITE",
   coverMediaId,
   coverAlt: "Estudantes reunidos em um laboratório de inovação universitário.",
   featured: false,
-  body: [
-    {
-      type: "paragraph" as const,
-      text: "A programação reúne atividades acadêmicas e projetos aplicados desenvolvidos pela comunidade universitária.",
-    },
-  ],
+  body: {
+    schemaVersion: 1 as const,
+    type: "doc" as const,
+    content: [
+      {
+        type: "paragraph" as const,
+        content: [
+          {
+            type: "text" as const,
+            text: "A programação reúne atividades acadêmicas e projetos aplicados desenvolvidos pela comunidade universitária.",
+          },
+        ],
+      },
+    ],
+  },
 };
 
 type DomainCommand = (...arguments_: readonly unknown[]) => unknown;

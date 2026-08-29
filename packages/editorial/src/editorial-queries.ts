@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { newsBodyBlockSchema } from "./article-schema";
+import { editorialDocumentV1Schema } from "./editor-document";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 import { articleRevisions, articles, type CmsMembership } from "@nite/cms-db";
 
@@ -77,7 +77,7 @@ export async function getEditorialRevisionPreview<
         article: result.article,
         revision: {
           ...revision,
-          body: z.array(newsBodyBlockSchema).parse(revision.body),
+          body: editorialDocumentV1Schema.parse(revision.body),
         },
       }
     : undefined;

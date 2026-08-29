@@ -34,7 +34,6 @@ export default async function EditArticlePage({
     summary: result.revision.summary,
     category: result.revision.category,
     eventDate: result.revision.eventDate ?? undefined,
-    readTimeMinutes: result.revision.readTimeMinutes,
     byline: result.revision.byline,
     coverMediaId: result.revision.coverMediaId,
     coverAlt: result.revision.coverAlt,

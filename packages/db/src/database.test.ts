@@ -26,6 +26,7 @@ describe("persistencia editorial", () => {
     const draftRevisionId = "20000000-0000-4000-8000-000000000002";
     const futureRevisionId = "20000000-0000-4000-8000-000000000003";
     const mediaId = "30000000-0000-4000-8000-000000000001";
+    const bodyMediaId = "30000000-0000-4000-8000-000000000004";
 
     await client.query(
       `insert into media_assets
@@ -33,6 +34,13 @@ describe("persistencia editorial", () => {
        values ($1, 'news/capa.webp', 'image/webp', 2048, 1200, 675,
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'ready')`,
       [mediaId],
+    );
+    await client.query(
+      `insert into media_assets
+        (id, object_key, mime_type, byte_size, width, height, checksum_sha256, status)
+       values ($1, 'news/imagem.webp', 'image/webp', 2048, 800, 600,
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ready')`,
+      [bodyMediaId],
     );
 
     for (const [id, slug] of [
@@ -59,8 +67,23 @@ describe("persistencia editorial", () => {
           'Resumo editorial suficientemente descritivo para validar a view publica.',
           'comunidade', 4, 'Redacao NITE', $4,
           'Pessoas reunidas em um ambiente universitario iluminado.',
-          '[{"type":"paragraph","text":"Texto editorial suficientemente longo para validar o contrato publico."}]'::jsonb)`,
-        [id, articleId, title, mediaId],
+           jsonb_build_object(
+             'schemaVersion', 1,
+             'type', 'doc',
+             'content', jsonb_build_array(
+               jsonb_build_object(
+                 'type', 'paragraph',
+                 'content', jsonb_build_array(
+                   jsonb_build_object('type', 'text', 'text', 'Texto editorial suficientemente longo para validar o contrato publico.')
+                 )
+               ),
+               jsonb_build_object(
+                 'type', 'image',
+                 'attrs', jsonb_build_object('mediaId', $5::text, 'alt', 'Atividade universitária em laboratório.')
+               )
+             )
+           ))`,
+        [id, articleId, title, mediaId, bodyMediaId],
       );
     }
 
@@ -90,8 +113,12 @@ describe("persistencia editorial", () => {
       public: boolean;
       content_state: string;
       cover_object_key: string;
+      body_media: Record<
+        string,
+        { objectKey: string; width: number; height: number }
+      >;
     }>(
-      "select slug, title, public, content_state, cover_object_key from published_articles",
+      "select slug, title, public, content_state, cover_object_key, body_media from published_articles",
     );
 
     expect(result.rows).toEqual([
@@ -101,12 +128,22 @@ describe("persistencia editorial", () => {
         public: true,
         content_state: "real",
         cover_object_key: "news/capa.webp",
+        body_media: {
+          [bodyMediaId]: {
+            objectKey: "news/imagem.webp",
+            width: 800,
+            height: 600,
+          },
+        },
       },
     ]);
   });
 
   it("migra os papéis legados para publisher sem ativar antigos authors", async () => {
     await client.exec(`
+      DROP VIEW IF EXISTS "published_articles";
+      ALTER TABLE "article_revisions"
+      DROP CONSTRAINT "article_revisions_body_root_check";
       ALTER TYPE "cms_role" RENAME TO "cms_role_current";
       CREATE TYPE "cms_role" AS ENUM('admin', 'editor', 'author');
       ALTER TABLE "cms_memberships"
@@ -114,8 +151,8 @@ describe("persistencia editorial", () => {
       USING "role"::text::"cms_role";
       DROP TYPE "cms_role_current";
       DELETE FROM "drizzle"."__drizzle_migrations"
-      WHERE id = (
-        SELECT max(id) FROM "drizzle"."__drizzle_migrations"
+      WHERE id >= (
+        SELECT max(id) - 1 FROM "drizzle"."__drizzle_migrations"
       );
     `);
     await client.query(
@@ -167,7 +204,7 @@ describe("persistencia editorial", () => {
         'Resumo editorial suficientemente descritivo para validar a imutabilidade.',
         'projetos', 3, 'Redacao NITE',
         'Ilustracao editorial de uma atividade universitaria.',
-        '[{"type":"paragraph","text":"Texto editorial suficientemente longo para validar o contrato publico."}]'::jsonb)`,
+         '{"schemaVersion":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Texto editorial suficientemente longo para validar o contrato publico."}]}]}'::jsonb)`,
       [revisionId, articleId],
     );
 

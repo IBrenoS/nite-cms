@@ -43,6 +43,13 @@
       "when": 1787944800000,
       "tag": "0005_editorial_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787966800000,
+      "tag": "0006_rich_editorial_document",
+      "breakpoints": true
     }
   ]
 }

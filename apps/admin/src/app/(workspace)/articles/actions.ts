@@ -13,7 +13,7 @@ import {
   processMediaAsset,
   publishArticle,
   saveArticleRevision,
-  tiptapDocumentToNewsBlocks,
+  tiptapDocumentToEditorialDocumentV1,
 } from "@nite/editorial";
 import { requireCmsContext } from "@/lib/auth";
 import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
@@ -35,7 +35,6 @@ const formSchema = z.object({
   summary: z.string(),
   category: z.string(),
   eventDate: z.string(),
-  readTimeMinutes: z.coerce.number(),
   byline: z.string(),
   coverMediaId: z.union([z.literal(""), z.uuid()]),
   coverAlt: z.string(),
@@ -59,7 +58,6 @@ function parseEditorialForm(formData: FormData) {
     summary: readString(formData, "summary"),
     category: readString(formData, "category"),
     eventDate: readString(formData, "eventDate"),
-    readTimeMinutes: readString(formData, "readTimeMinutes"),
     byline: readString(formData, "byline"),
     coverMediaId: readString(formData, "coverMediaId"),
     coverAlt: readString(formData, "coverAlt"),
@@ -77,12 +75,11 @@ function parseEditorialForm(formData: FormData) {
     summary: fields.summary,
     category: fields.category,
     eventDate: fields.eventDate || undefined,
-    readTimeMinutes: fields.readTimeMinutes,
     byline: fields.byline,
     coverMediaId: fields.coverMediaId || null,
     coverAlt: fields.coverAlt,
     featured: formData.get("featured") === "on",
-    body: tiptapDocumentToNewsBlocks(JSON.parse(fields.bodyDocument)),
+    body: tiptapDocumentToEditorialDocumentV1(JSON.parse(fields.bodyDocument)),
     seo,
   });
   return { fields, input };

@@ -340,6 +340,11 @@ export const publishedArticles = pgView("published_articles", {
   coverObjectKey: text("cover_object_key").notNull(),
   coverAlt: text("cover_alt").notNull(),
   body: jsonb("body").$type<unknown>().notNull(),
+  bodyMedia: jsonb("body_media")
+    .$type<
+      Record<string, { objectKey: string; width: number; height: number }>
+    >()
+    .notNull(),
   seo: jsonb("seo").$type<unknown>(),
   public: boolean("public").notNull(),
   contentState: text("content_state").notNull(),

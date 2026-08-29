@@ -4,6 +4,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
 import { publishedArticles, type PublishedArticleRow } from "@nite/cms-db";
 import { newsArticleSchema, type NewsArticle } from "./article-schema";
+import { resolveEditorialDocumentMedia } from "./editor-document";
 
 type PublicNewsDatabase<TQueryResult extends PgQueryResultHKT> = Pick<
   PgDatabase<TQueryResult, typeof import("@nite/cms-db/schema")>,
@@ -33,6 +34,17 @@ export function mapPublishedArticle(
   row: PublishedArticleRow,
   mediaBaseUrl: string,
 ): NewsArticle {
+  const bodyMedia = Object.fromEntries(
+    Object.entries(row.bodyMedia).map(([mediaId, media]) => [
+      mediaId,
+      {
+        src: buildPublicMediaUrl(mediaBaseUrl, media.objectKey),
+        width: media.width,
+        height: media.height,
+      },
+    ]),
+  );
+
   return newsArticleSchema.parse({
     slug: row.slug,
     title: row.title,
@@ -49,7 +61,7 @@ export function mapPublishedArticle(
     featured: row.featured,
     contentState: row.contentState,
     public: row.public,
-    body: row.body,
+    body: resolveEditorialDocumentMedia(row.body, bodyMedia),
     ...(row.seo ? { seo: row.seo } : {}),
   });
 }

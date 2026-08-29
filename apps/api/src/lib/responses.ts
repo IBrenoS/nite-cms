@@ -11,9 +11,9 @@ function createEtag(body: string) {
 
 function createVersionedResponse(
   payload:
-    | { version: 1; articles: NewsArticle[] }
+    | { version: 2; articles: NewsArticle[] }
     | {
-        version: 1;
+        version: 2;
         article: NewsArticle;
       },
   ifNoneMatch?: string,
@@ -35,7 +35,7 @@ export function createListResponse(
   articles: NewsArticle[],
   ifNoneMatch?: string,
 ) {
-  return createVersionedResponse({ version: 1, articles }, ifNoneMatch);
+  return createVersionedResponse({ version: 2, articles }, ifNoneMatch);
 }
 
 export function createArticleResponse(
@@ -48,5 +48,5 @@ export function createArticleResponse(
       { status: 404, headers: { "cache-control": PUBLIC_NEWS_CACHE_CONTROL } },
     );
   }
-  return createVersionedResponse({ version: 1, article }, ifNoneMatch);
+  return createVersionedResponse({ version: 2, article }, ifNoneMatch);
 }

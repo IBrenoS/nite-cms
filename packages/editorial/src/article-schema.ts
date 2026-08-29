@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { publicEditorialDocumentV1Schema } from "./editor-document";
+
 export const newsCategoryValues = [
   "agenda",
   "comunidade",
@@ -10,16 +12,6 @@ export const newsCategoryValues = [
 ] as const;
 
 export const newsContentStateValues = ["demonstrativo", "real"] as const;
-
-export const newsBodyBlockSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("paragraph"), text: z.string().min(24) }),
-  z.object({ type: z.literal("heading"), text: z.string().min(3) }),
-  z.object({
-    type: z.literal("quote"),
-    text: z.string().min(24),
-    attribution: z.string().min(3).optional(),
-  }),
-]);
 
 export const newsArticleSchema = z.object({
   slug: z
@@ -40,7 +32,7 @@ export const newsArticleSchema = z.object({
   featured: z.boolean(),
   contentState: z.enum(newsContentStateValues),
   public: z.literal(true),
-  body: z.array(newsBodyBlockSchema).min(1),
+  body: publicEditorialDocumentV1Schema,
   seo: z
     .object({
       title: z.string().min(20).max(60),
@@ -50,6 +42,5 @@ export const newsArticleSchema = z.object({
 });
 
 export type NewsArticle = z.infer<typeof newsArticleSchema>;
-export type NewsBodyBlock = z.infer<typeof newsBodyBlockSchema>;
 export type NewsCategory = (typeof newsCategoryValues)[number];
 export type NewsContentState = (typeof newsContentStateValues)[number];

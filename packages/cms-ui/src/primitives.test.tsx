@@ -59,27 +59,64 @@ describe("@nite/cms-ui", () => {
     expect(screen.getByText("Em estruturação")).toBeVisible();
   });
 
-  it("renderiza blocos editoriais como estrutura, nunca como HTML bruto", () => {
+  it("renderiza o documento editorial estruturado, nunca como HTML bruto", () => {
     render(
       <NewsArticleBody
-        blocks={[
-          {
-            type: "paragraph",
-            text: "Um parágrafo editorial com conteúdo suficiente para leitura.",
-          },
-          { type: "heading", text: "Contexto acadêmico" },
-          {
-            type: "quote",
-            text: "Uma citação editorial renderizada como texto seguro e estruturado.",
-            attribution: "Equipe NITE",
-          },
-        ]}
+        document={{
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: { level: 2 },
+              content: [{ type: "text", text: "Contexto acadêmico" }],
+            },
+            {
+              type: "blockquote",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Uma citação editorial renderizada como texto seguro e estruturado.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "Leia a referência.",
+                  marks: [
+                    {
+                      type: "link",
+                      attrs: { href: "/atualizacoes" },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }}
       />,
     );
 
     expect(
       screen.getByRole("heading", { name: "Contexto acadêmico" }),
     ).toBeVisible();
-    expect(screen.getByText("Equipe NITE")).toHaveProperty("tagName", "CITE");
+    expect(
+      screen
+        .getByText(
+          "Uma citação editorial renderizada como texto seguro e estruturado.",
+        )
+        .closest("blockquote"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Leia a referência." }),
+    ).toHaveAttribute("href", "/atualizacoes");
   });
 });

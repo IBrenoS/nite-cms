@@ -2,7 +2,11 @@ import { and, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { newsArticleSchema } from "./article-schema";
+import { newsCategoryValues } from "./article-schema";
+import {
+  calculateEditorialReadTime,
+  editorialDocumentV1Schema,
+} from "./editor-document";
 import {
   articleRevisions,
   articles,
@@ -13,18 +17,31 @@ import {
 } from "@nite/cms-db";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 
-export const editorialArticleInputSchema = newsArticleSchema
-  .pick({
-    slug: true,
-    title: true,
-    summary: true,
-    category: true,
-    eventDate: true,
-    readTimeMinutes: true,
-    byline: true,
-    featured: true,
-    body: true,
-    seo: true,
+const editableSlugSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .max(120);
+
+export const editorialArticleInputSchema = z
+  .object({
+    slug: editableSlugSchema.or(z.literal("")).optional(),
+    title: z.string().min(12).max(100),
+    summary: z.string().min(48).max(220),
+    category: z.enum(newsCategoryValues),
+    eventDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    byline: z.string().min(3).max(80),
+    featured: z.boolean(),
+    body: editorialDocumentV1Schema,
+    seo: z
+      .object({
+        title: z.string().min(20).max(60),
+        description: z.string().min(80).max(160),
+      })
+      .optional(),
   })
   .extend({
     coverMediaId: z.uuid().nullable(),
@@ -62,7 +79,8 @@ function revisionValues(
     summary: input.summary,
     category: input.category,
     eventDate: input.eventDate,
-    readTimeMinutes: input.readTimeMinutes,
+    contentSchemaVersion: input.body.schemaVersion,
+    readTimeMinutes: calculateEditorialReadTime(input.body),
     byline: input.byline,
     featured: input.featured,
     coverMediaId: input.coverMediaId,
@@ -73,11 +91,28 @@ function revisionValues(
   };
 }
 
+function deriveSlug(title: string) {
+  const normalized = title
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120)
+    .replace(/-+$/g, "");
+  return editableSlugSchema.parse(normalized);
+}
+
+function requestedSlug(input: EditorialArticleInput) {
+  return input.slug || deriveSlug(input.title);
+}
+
 export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
   command: { actor: CmsMembership; input: EditorialArticleInput },
 ) {
   const input = editorialArticleInputSchema.parse(command.input);
+  const slug = requestedSlug(input);
 
   return database.transaction(async (transaction) => {
     const actor = await requireActiveCmsMembership(
@@ -87,7 +122,7 @@ export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
     const [article] = await transaction
       .insert(articles)
       .values({
-        slug: input.slug,
+        slug,
         featured: input.featured,
         createdByMembershipId: actor.id,
         updatedByMembershipId: actor.id,
@@ -142,7 +177,8 @@ export async function saveArticleRevision<
     if (!article || article.currentRevisionId !== command.expectedRevisionId) {
       throw new EditorialConflictError();
     }
-    if (article.publishedAt && input.slug !== article.slug) {
+    const slug = input.slug || article.slug;
+    if (article.publishedAt && slug !== article.slug) {
       throw new EditorialPublicationError(
         "O slug de uma matéria publicada não pode ser alterado.",
       );
@@ -171,7 +207,7 @@ export async function saveArticleRevision<
     const [updatedArticle] = await transaction
       .update(articles)
       .set({
-        slug: input.slug,
+        slug,
         currentRevisionId: revision.id,
         updatedByMembershipId: actor.id,
         updatedAt: new Date(),

@@ -89,7 +89,7 @@ export default async function ArticlePreviewPage({
         )}
 
         <NewsArticleBody
-          blocks={result.revision.body}
+          document={result.revision.body}
           className="mx-auto grid w-full max-w-3xl gap-7 text-lg leading-9 text-nite-text-secondary"
         />
       </article>

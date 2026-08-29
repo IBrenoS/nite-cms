@@ -5,7 +5,7 @@ CMS editorial independente do Portal NITE. O repositório contém o painel admin
 ## Aplicações
 
 - `apps/admin`: autenticação Entra/Better Auth, editor, revisões, mídia, preview, publicação, auditoria e outbox.
-- `apps/api`: `GET /v1/news`, `GET /v1/news/{slug}` e `GET /health`.
+- `apps/api`: `GET /v2/news`, `GET /v2/news/{slug}` e `GET /health`.
 
 ## Fronteira com o Portal
 

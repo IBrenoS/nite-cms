@@ -9,7 +9,6 @@ import StarterKit from "@tiptap/starter-kit";
 import { Button, Input, StatusBadge, Textarea } from "@nite/cms-ui";
 
 import {
-  newsBlocksToTiptapDocument,
   newsCategoryValues,
   type EditorialArticleInput,
 } from "@nite/editorial";
@@ -58,7 +57,14 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
     initialActionState,
   );
   const [bodyDocument, setBodyDocument] = useState<JSONContent>(() =>
-    initial ? newsBlocksToTiptapDocument(initial.body) : emptyDocument,
+    initial
+      ? (() => {
+          return {
+            type: initial.body.type,
+            content: initial.body.content,
+          };
+        })()
+      : emptyDocument,
   );
   const [mediaId, setMediaId] = useState(initial?.coverMediaId ?? "");
   const [mediaState, setMediaState] = useState<
@@ -69,14 +75,9 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [2] },
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
+        heading: { levels: [2, 3] },
         codeBlock: false,
         horizontalRule: false,
-        bold: false,
-        italic: false,
         strike: false,
         code: false,
         blockquote: false,
@@ -187,7 +188,6 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
               <Input
                 id="slug"
                 name="slug"
-                required
                 pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
                 defaultValue={initial?.slug}
               />
@@ -242,6 +242,53 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
               type="button"
               size="sm"
               variant="quiet"
+              aria-pressed={editor?.isActive("heading", { level: 3 }) ?? false}
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 3 }).run()
+              }
+            >
+              Seção
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              aria-pressed={editor?.isActive("bold") ?? false}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
+              Negrito
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              aria-pressed={editor?.isActive("italic") ?? false}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
+              Itálico
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              aria-pressed={editor?.isActive("bulletList") ?? false}
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
+              Lista
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              aria-pressed={editor?.isActive("orderedList") ?? false}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              Lista numerada
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
               aria-pressed={editor?.isActive("blockquote") ?? false}
               onClick={() => editor?.chain().focus().toggleBlockquote().run()}
             >
@@ -277,20 +324,9 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <label htmlFor="readTimeMinutes" className="text-sm font-medium">
-                Leitura
-              </label>
-              <Input
-                id="readTimeMinutes"
-                name="readTimeMinutes"
-                type="number"
-                min={1}
-                max={30}
-                required
-                defaultValue={initial?.readTimeMinutes ?? 4}
-              />
-            </div>
+            <p className="self-end text-sm text-nite-text-secondary">
+              Leitura calculada automaticamente ao salvar.
+            </p>
             <div className="grid gap-2">
               <label htmlFor="eventDate" className="text-sm font-medium">
                 Data do evento

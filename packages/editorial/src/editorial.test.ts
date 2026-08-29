@@ -27,22 +27,29 @@ const migrationsFolder = fileURLToPath(
 );
 
 const firstDraft = {
-  slug: "laboratorio-de-inovacao",
   title: "Laboratório de inovação abre nova agenda",
   summary:
     "A equipe do NITE apresenta uma agenda editorial validada para atividades acadêmicas e projetos aplicados.",
   category: "inovacao" as const,
-  readTimeMinutes: 4,
   byline: "Redação NITE",
   coverMediaId: "30000000-0000-4000-8000-000000000100",
   coverAlt: "Estudantes reunidos em um laboratório de inovação universitário.",
   featured: false,
-  body: [
-    {
-      type: "paragraph" as const,
-      text: "A programação reúne atividades acadêmicas e projetos aplicados desenvolvidos pela comunidade universitária.",
-    },
-  ],
+  body: {
+    schemaVersion: 1 as const,
+    type: "doc" as const,
+    content: [
+      {
+        type: "paragraph" as const,
+        content: [
+          {
+            type: "text" as const,
+            text: "A programação reúne atividades acadêmicas e projetos aplicados desenvolvidos pela comunidade universitária.",
+          },
+        ],
+      },
+    ],
+  },
 };
 
 describe("comandos editoriais", () => {
@@ -90,15 +97,21 @@ describe("comandos editoriais", () => {
       expectedRevisionId: created.revision.id,
       input: {
         ...firstDraft,
+        slug: "",
         title: "Laboratório de inovação confirma nova agenda",
       },
     });
 
     expect(created.revision.version).toBe(1);
+    expect(created.article.slug).toBe(
+      "laboratorio-de-inovacao-abre-nova-agenda",
+    );
+    expect(created.revision.readTimeMinutes).toBe(1);
     expect(saved.revision).toMatchObject({
       version: 2,
       title: "Laboratório de inovação confirma nova agenda",
     });
+    expect(saved.article.slug).toBe(created.article.slug);
     await expect(
       saveArticleRevision(database, {
         actor: publisher,
