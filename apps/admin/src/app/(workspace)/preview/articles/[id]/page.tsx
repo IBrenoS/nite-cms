@@ -37,7 +37,9 @@ export default async function ArticlePreviewPage({
         .limit(1)
     : [];
   const coverUrl =
-    cover?.status === "ready" ? getPublicMediaUrl(cover.objectKey) : undefined;
+    cover?.status === "ready"
+      ? getPublicMediaUrl(cover.publicObjectKey)
+      : undefined;
 
   return (
     <main className="mx-auto grid max-w-5xl gap-10 pb-20">

@@ -77,7 +77,8 @@ describe("comandos editoriais", () => {
       .returning();
     await database.insert(mediaAssets).values({
       id: firstDraft.coverMediaId,
-      objectKey: "news/capa-editorial.webp",
+      stagingObjectKey: "incoming/capa-editorial/original",
+      publicObjectKey: "news/capa-editorial/processed.webp",
       mimeType: "image/webp",
       byteSize: 4096,
       width: 1200,
@@ -147,7 +148,8 @@ describe("comandos editoriais", () => {
       .returning();
     await database.insert(mediaAssets).values({
       id: firstDraft.coverMediaId,
-      objectKey: "news/capa-editorial.webp",
+      stagingObjectKey: "incoming/capa-editorial/original",
+      publicObjectKey: "news/capa-editorial/processed.webp",
       mimeType: "image/webp",
       byteSize: 4096,
       width: 1200,
@@ -219,5 +221,82 @@ describe("comandos editoriais", () => {
         },
       ],
     });
+  });
+
+  it("bloqueia publicação quando uma imagem inline aninhada ainda não está pronta", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-oid",
+        displayName: "Publisher NITE",
+        role: "publisher",
+      })
+      .returning();
+    const inlineMediaId = "30000000-0000-4000-8000-000000000101";
+    await database.insert(mediaAssets).values([
+      {
+        id: firstDraft.coverMediaId,
+        stagingObjectKey: "incoming/capa-editorial/original",
+        publicObjectKey: "news/capa-editorial/processed.webp",
+        mimeType: "image/webp",
+        byteSize: 4096,
+        width: 1200,
+        height: 675,
+        checksumSha256:
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "ready",
+      },
+      {
+        id: inlineMediaId,
+        stagingObjectKey: "incoming/inline-pendente/original",
+        mimeType: "image/png",
+        byteSize: 4096,
+        status: "pending",
+      },
+    ]);
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: {
+        ...firstDraft,
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            {
+              type: "blockquote",
+              content: [
+                {
+                  type: "bulletList",
+                  content: [
+                    {
+                      type: "listItem",
+                      content: [
+                        {
+                          type: "image",
+                          attrs: {
+                            mediaId: inlineMediaId,
+                            alt: "Estudantes participando de uma oficina no laboratório.",
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    await expect(
+      publishArticle(database, {
+        actor: publisher,
+        articleId: created.article.id,
+        expectedRevisionId: created.revision.id,
+      }),
+    ).rejects.toThrow(/imagens inline.*processadas/i);
   });
 });

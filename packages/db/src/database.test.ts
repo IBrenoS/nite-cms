@@ -2,9 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
+const legacyRolesMigrationPath = fileURLToPath(
+  new URL("../drizzle/0005_editorial_roles.sql", import.meta.url),
+);
 
 describe("persistencia editorial", () => {
   let client: PGlite;
@@ -30,15 +34,15 @@ describe("persistencia editorial", () => {
 
     await client.query(
       `insert into media_assets
-        (id, object_key, mime_type, byte_size, width, height, checksum_sha256, status)
-       values ($1, 'news/capa.webp', 'image/webp', 2048, 1200, 675,
+        (id, staging_object_key, public_object_key, mime_type, byte_size, width, height, checksum_sha256, status)
+       values ($1, 'incoming/capa/original', 'news/capa.webp', 'image/webp', 2048, 1200, 675,
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'ready')`,
       [mediaId],
     );
     await client.query(
       `insert into media_assets
-        (id, object_key, mime_type, byte_size, width, height, checksum_sha256, status)
-       values ($1, 'news/imagem.webp', 'image/webp', 2048, 800, 600,
+        (id, staging_object_key, public_object_key, mime_type, byte_size, width, height, checksum_sha256, status)
+       values ($1, 'incoming/imagem/original', 'news/imagem.webp', 'image/webp', 2048, 800, 600,
         'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ready')`,
       [bodyMediaId],
     );
@@ -150,13 +154,13 @@ describe("persistencia editorial", () => {
 
     await client.query(
       `insert into media_assets
-        (id, object_key, mime_type, byte_size, width, height, checksum_sha256, status)
+        (id, staging_object_key, public_object_key, mime_type, byte_size, width, height, checksum_sha256, status)
        values
-        ($1, 'news/capa-aninhada.webp', 'image/webp', 2048, 1200, 675,
+        ($1, 'incoming/capa-aninhada/original', 'news/capa-aninhada.webp', 'image/webp', 2048, 1200, 675,
          '1111111111111111111111111111111111111111111111111111111111111111', 'ready'),
-        ($2, 'news/imagem-aninhada.webp', 'image/webp', 2048, 800, 600,
+        ($2, 'incoming/imagem-aninhada/original', 'news/imagem-aninhada.webp', 'image/webp', 2048, 800, 600,
          '2222222222222222222222222222222222222222222222222222222222222222', 'ready'),
-        ($3, 'news/imagem-pendente.webp', 'image/webp', 2048, 640, 480,
+        ($3, 'incoming/imagem-pendente/original', null, 'image/webp', 2048, 640, 480,
          '3333333333333333333333333333333333333333333333333333333333333333', 'processing')`,
       [coverMediaId, readyBodyMediaId, pendingBodyMediaId],
     );
@@ -255,10 +259,6 @@ describe("persistencia editorial", () => {
       ALTER COLUMN "role" TYPE "cms_role"
       USING "role"::text::"cms_role";
       DROP TYPE "cms_role_current";
-      DELETE FROM "drizzle"."__drizzle_migrations"
-      WHERE id >= (
-        SELECT max(id) - 1 FROM "drizzle"."__drizzle_migrations"
-      );
     `);
     await client.query(
       `insert into cms_memberships
@@ -268,7 +268,7 @@ describe("persistencia editorial", () => {
         ('tenant-nite', 'author-legado', 'Autora legada', 'author', true)`,
     );
 
-    await migrate(drizzle(client), { migrationsFolder });
+    await client.exec(await readFile(legacyRolesMigrationPath, "utf8"));
 
     const memberships = await client.query<{
       object_id: string;

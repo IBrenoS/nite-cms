@@ -10,8 +10,8 @@ export const sharpImageProcessor: ImageProcessor = {
     })
       .rotate()
       .resize({
-        width: 2000,
-        height: 2000,
+        width: 2400,
+        height: 2400,
         fit: "inside",
         withoutEnlargement: true,
       })

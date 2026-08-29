@@ -1,7 +1,6 @@
 import "server-only";
 
 import {
-  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -16,10 +15,61 @@ const storageConfigurationSchema = z.object({
   R2_ACCOUNT_ID: z.string().min(1),
   R2_ACCESS_KEY_ID: z.string().min(1),
   R2_SECRET_ACCESS_KEY: z.string().min(1),
-  R2_BUCKET: z.string().min(1),
+  R2_STAGING_BUCKET: z.string().min(1),
+  R2_PUBLIC_BUCKET: z.string().min(1),
 });
 
+type StorageConfiguration = z.infer<typeof storageConfigurationSchema>;
+type UploadUrlSigner = (
+  command: PutObjectCommand,
+  expiresInSeconds: number,
+) => Promise<string>;
+
 let objectStore: MediaObjectStore | undefined;
+
+export function createMediaObjectStore(input: {
+  configuration: StorageConfiguration;
+  client: S3Client;
+  signUploadUrl: UploadUrlSigner;
+}): MediaObjectStore {
+  const { configuration, client, signUploadUrl } = input;
+  return {
+    async createStagingUploadUrl(upload) {
+      const command = new PutObjectCommand({
+        Bucket: configuration.R2_STAGING_BUCKET,
+        Key: upload.stagingObjectKey,
+        ContentType: upload.contentType,
+        ContentLength: upload.byteSize,
+      });
+      return {
+        url: await signUploadUrl(command, upload.expiresInSeconds),
+        requiredHeaders: { "Content-Type": upload.contentType },
+        expiresAt: new Date(Date.now() + upload.expiresInSeconds * 1000),
+      };
+    },
+    async getStagingObject(stagingObjectKey) {
+      const response = await client.send(
+        new GetObjectCommand({
+          Bucket: configuration.R2_STAGING_BUCKET,
+          Key: stagingObjectKey,
+        }),
+      );
+      if (!response.Body) throw new Error("Objeto sem conteúdo.");
+      return response.Body.transformToByteArray();
+    },
+    async putPublicObject(output) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: configuration.R2_PUBLIC_BUCKET,
+          Key: output.publicObjectKey,
+          Body: output.body,
+          ContentType: output.contentType,
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+    },
+  };
+}
 
 export function getMediaObjectStore(): MediaObjectStore {
   if (objectStore) return objectStore;
@@ -33,52 +83,12 @@ export function getMediaObjectStore(): MediaObjectStore {
     },
   });
 
-  objectStore = {
-    async createUploadUrl(input) {
-      const command = new PutObjectCommand({
-        Bucket: configuration.R2_BUCKET,
-        Key: input.objectKey,
-        ContentType: input.contentType,
-        ContentLength: input.byteSize,
-      });
-      return {
-        url: await getSignedUrl(client, command, {
-          expiresIn: input.expiresInSeconds,
-        }),
-        requiredHeaders: { "Content-Type": input.contentType },
-        expiresAt: new Date(Date.now() + input.expiresInSeconds * 1000),
-      };
-    },
-    async getObject(objectKey) {
-      const response = await client.send(
-        new GetObjectCommand({
-          Bucket: configuration.R2_BUCKET,
-          Key: objectKey,
-        }),
-      );
-      if (!response.Body) throw new Error("Objeto sem conteúdo.");
-      return response.Body.transformToByteArray();
-    },
-    async putObject(input) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: configuration.R2_BUCKET,
-          Key: input.objectKey,
-          Body: input.body,
-          ContentType: input.contentType,
-          CacheControl: "public, max-age=31536000, immutable",
-        }),
-      );
-    },
-    async deleteObject(objectKey) {
-      await client.send(
-        new DeleteObjectCommand({
-          Bucket: configuration.R2_BUCKET,
-          Key: objectKey,
-        }),
-      );
-    },
-  };
+  objectStore = createMediaObjectStore({
+    configuration,
+    client,
+    signUploadUrl: (command, expiresInSeconds) =>
+      getSignedUrl(client, command, { expiresIn: expiresInSeconds }),
+  });
 
   return objectStore;
 }

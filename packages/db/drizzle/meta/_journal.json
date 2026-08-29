@@ -50,6 +50,13 @@
       "when": 1787966800000,
       "tag": "0006_rich_editorial_document",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788057600000,
+      "tag": "0007_media_two_buckets",
+      "breakpoints": true
     }
   ]
 }

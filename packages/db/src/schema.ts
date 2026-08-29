@@ -153,7 +153,8 @@ export const mediaAssets = pgTable(
   "media_assets",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    objectKey: text("object_key").notNull().unique(),
+    stagingObjectKey: text("staging_object_key").notNull().unique(),
+    publicObjectKey: text("public_object_key").unique(),
     mimeType: varchar("mime_type", { length: 127 }).notNull(),
     byteSize: integer("byte_size").notNull(),
     width: integer("width"),
@@ -174,7 +175,11 @@ export const mediaAssets = pgTable(
     ),
     check(
       "media_assets_ready_metadata_check",
-      sql`${table.status} <> 'ready' or (${table.checksumSha256} is not null and ${table.width} is not null and ${table.height} is not null)`,
+      sql`${table.status} <> 'ready' or (${table.publicObjectKey} is not null and ${table.checksumSha256} is not null and ${table.width} is not null and ${table.height} is not null)`,
+    ),
+    check(
+      "media_assets_non_ready_public_key_check",
+      sql`${table.status} = 'ready' or ${table.publicObjectKey} is null`,
     ),
     index("media_assets_status_idx").on(table.status),
   ],

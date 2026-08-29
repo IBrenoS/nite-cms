@@ -15,8 +15,8 @@ definidos.
 - PostgreSQL/Neon com conexões SSL e três logins separados para migration,
   Admin e portal.
 - Tenant e aplicação Microsoft Entra configurados para o domínio do Admin.
-- Bucket R2 com CORS de upload limitado à origem do Admin e leitura pública só
-  para o prefixo processado.
+- Dois buckets R2: staging privado com CORS de upload limitado à origem do
+  Admin e público com leitura somente dos WebPs processados.
 - Uma matéria real, aprovada e autorizada para o smoke test público.
 - Um secret aleatório compartilhado exclusivamente pela revalidação e outro
   secret exclusivo do cron.
@@ -50,7 +50,10 @@ group roles correspondentes.
 - `R2_ACCOUNT_ID`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET`
+- `R2_STAGING_BUCKET`: bucket privado de uploads originais; a aplicação não os
+  exclui automaticamente.
+- `R2_PUBLIC_BUCKET`: bucket público exclusivo para WebPs processados com
+  chaves imutáveis.
 - `R2_PUBLIC_BASE_URL`
 - `WEB_REVALIDATION_URL`: URL HTTPS exata de
   `/api/revalidate/news` no projeto Web.

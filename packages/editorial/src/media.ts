@@ -21,8 +21,8 @@ export const mediaUploadFileSchema = z.object({
 });
 
 export interface MediaObjectStore {
-  createUploadUrl(input: {
-    objectKey: string;
+  createStagingUploadUrl(input: {
+    stagingObjectKey: string;
     contentType: string;
     byteSize: number;
     expiresInSeconds: number;
@@ -31,13 +31,12 @@ export interface MediaObjectStore {
     requiredHeaders: Readonly<Record<string, string>>;
     expiresAt: Date;
   }>;
-  getObject(objectKey: string): Promise<Uint8Array>;
-  putObject(input: {
-    objectKey: string;
+  getStagingObject(stagingObjectKey: string): Promise<Uint8Array>;
+  putPublicObject(input: {
+    publicObjectKey: string;
     body: Uint8Array;
     contentType: "image/webp";
   }): Promise<void>;
-  deleteObject(objectKey: string): Promise<void>;
 }
 
 export interface ImageProcessor {
@@ -112,11 +111,11 @@ export async function createMediaUpload<TQueryResult extends PgQueryResultHKT>(
   const file = mediaUploadFileSchema.parse(command.file);
   const actor = await requireActiveCmsMembership(database, command.actor.id);
   const mediaId = randomUUID();
-  const objectKey = `incoming/${mediaId}`;
+  const stagingObjectKey = `incoming/${mediaId}/original`;
 
   await database.insert(mediaAssets).values({
     id: mediaId,
-    objectKey,
+    stagingObjectKey,
     mimeType: file.mimeType,
     byteSize: file.byteSize,
     status: "pending",
@@ -124,8 +123,8 @@ export async function createMediaUpload<TQueryResult extends PgQueryResultHKT>(
   });
 
   try {
-    const upload = await objectStore.createUploadUrl({
-      objectKey,
+    const upload = await objectStore.createStagingUploadUrl({
+      stagingObjectKey,
       contentType: file.mimeType,
       byteSize: file.byteSize,
       expiresInSeconds: UPLOAD_EXPIRATION_SECONDS,
@@ -167,7 +166,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
   }
 
   try {
-    const source = await objectStore.getObject(claimed.objectKey);
+    const source = await objectStore.getStagingObject(claimed.stagingObjectKey);
     const detectedMimeType = detectImageMimeType(source);
     if (
       source.byteLength !== claimed.byteSize ||
@@ -184,20 +183,20 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
     if (output.width < 1 || output.height < 1 || output.body.byteLength < 1) {
       throw new MediaProcessingError();
     }
-    const objectKey = `news/${mediaId}.webp`;
+    const publicObjectKey = `news/${mediaId}/${randomUUID()}.webp`;
     const checksumSha256 = createHash("sha256")
       .update(output.body)
       .digest("hex");
 
-    await objectStore.putObject({
-      objectKey,
+    await objectStore.putPublicObject({
+      publicObjectKey,
       body: output.body,
       contentType: "image/webp",
     });
     const [ready] = await database
       .update(mediaAssets)
       .set({
-        objectKey,
+        publicObjectKey,
         mimeType: "image/webp",
         byteSize: output.body.byteLength,
         width: output.width,
@@ -213,7 +212,6 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
     if (!ready) {
       throw new MediaProcessingError();
     }
-    await objectStore.deleteObject(claimed.objectKey);
     return ready;
   } catch (error) {
     if (error instanceof MediaQuarantinedError) throw error;

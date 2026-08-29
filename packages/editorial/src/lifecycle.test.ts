@@ -89,7 +89,8 @@ describe("ciclo editorial", () => {
       .returning();
     await database.insert(mediaAssets).values({
       id: coverMediaId,
-      objectKey: "news/capa-editorial.webp",
+      stagingObjectKey: "incoming/capa-editorial/original",
+      publicObjectKey: "news/capa-editorial/processed.webp",
       mimeType: "image/webp",
       byteSize: 4096,
       width: 1200,

@@ -21,35 +21,31 @@ const migrationsFolder = fileURLToPath(
 class MemoryObjectStore implements MediaObjectStore {
   readonly objects = new Map<string, Uint8Array>();
 
-  async createUploadUrl(input: {
-    objectKey: string;
+  async createStagingUploadUrl(input: {
+    stagingObjectKey: string;
     contentType: string;
     byteSize: number;
     expiresInSeconds: number;
   }) {
     return {
-      url: `https://upload.nite.test/${input.objectKey}`,
+      url: `https://upload.nite.test/${input.stagingObjectKey}`,
       requiredHeaders: { "Content-Type": input.contentType },
       expiresAt: new Date("2026-08-27T18:05:00.000Z"),
     };
   }
 
-  async getObject(objectKey: string) {
-    const object = this.objects.get(objectKey);
+  async getStagingObject(stagingObjectKey: string) {
+    const object = this.objects.get(stagingObjectKey);
     if (!object) throw new Error("Objeto ausente no fake store.");
     return object;
   }
 
-  async putObject(input: {
-    objectKey: string;
+  async putPublicObject(input: {
+    publicObjectKey: string;
     body: Uint8Array;
     contentType: "image/webp";
   }) {
-    this.objects.set(input.objectKey, input.body);
-  }
-
-  async deleteObject(objectKey: string) {
-    this.objects.delete(objectKey);
+    this.objects.set(input.publicObjectKey, input.body);
   }
 }
 
@@ -75,7 +71,7 @@ describe("mídia editorial", () => {
     await client.close();
   });
 
-  it("emite upload restrito e publica somente a imagem processada", async () => {
+  it("mantém o original no staging e publica uma chave pública imutável", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [actor] = await database
       .insert(cmsMemberships)
@@ -100,7 +96,7 @@ describe("mídia editorial", () => {
       requiredHeaders: { "Content-Type": "image/png" },
     });
     store.objects.set(
-      `incoming/${upload.mediaId}`,
+      `incoming/${upload.mediaId}/original`,
       new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
     );
 
@@ -110,7 +106,10 @@ describe("mídia editorial", () => {
 
     expect(processed).toMatchObject({
       id: upload.mediaId,
-      objectKey: `news/${upload.mediaId}.webp`,
+      stagingObjectKey: `incoming/${upload.mediaId}/original`,
+      publicObjectKey: expect.stringMatching(
+        new RegExp(`^news/${upload.mediaId}/[0-9a-f-]+\\.webp$`),
+      ),
       mimeType: "image/webp",
       byteSize: 14,
       width: 1600,
@@ -119,8 +118,55 @@ describe("mídia editorial", () => {
         "6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb",
       status: "ready",
     });
-    expect(store.objects.has(`incoming/${upload.mediaId}`)).toBe(false);
-    expect(store.objects.has(`news/${upload.mediaId}.webp`)).toBe(true);
+    expect(store.objects.has(`incoming/${upload.mediaId}/original`)).toBe(true);
+    expect(
+      [...store.objects.keys()].some((key) =>
+        key.startsWith(`news/${upload.mediaId}/`),
+      ),
+    ).toBe(true);
+  });
+
+  it("marca como falha sem expor chave pública quando a publicação no destino falha", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    store.objects.set(
+      `incoming/${upload.mediaId}/original`,
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
+    );
+    store.putPublicObject = async () => {
+      throw new Error("bucket público indisponível");
+    };
+
+    await expect(
+      processMediaAsset(database, store, imageProcessor, {
+        mediaId: upload.mediaId,
+      }),
+    ).rejects.toThrow(/processar/i);
+    await expect(
+      database
+        .select()
+        .from(mediaAssets)
+        .where(eq(mediaAssets.id, upload.mediaId)),
+    ).resolves.toMatchObject([
+      {
+        status: "failed",
+        stagingObjectKey: `incoming/${upload.mediaId}/original`,
+        publicObjectKey: null,
+      },
+    ]);
   });
 
   it("coloca em quarentena objeto cujo conteúdo não corresponde ao MIME", async () => {
@@ -140,7 +186,7 @@ describe("mídia editorial", () => {
       file: { mimeType: "image/png", byteSize: 12 },
     });
     store.objects.set(
-      `incoming/${upload.mediaId}`,
+      `incoming/${upload.mediaId}/original`,
       new TextEncoder().encode("not-an-image"),
     );
 
@@ -155,5 +201,47 @@ describe("mídia editorial", () => {
         .from(mediaAssets)
         .where(eq(mediaAssets.id, upload.mediaId)),
     ).resolves.toEqual([{ status: "quarantined" }]);
+  });
+
+  it("impede tornar ready sem saída pública e alterar chaves após sua definição", async () => {
+    await client.query(`
+      INSERT INTO media_assets (
+        id, staging_object_key, mime_type, byte_size, status
+      ) VALUES (
+        '30000000-0000-4000-8000-000000000201',
+        'incoming/immutable/original',
+        'image/png',
+        12,
+        'pending'
+      )
+    `);
+
+    await expect(
+      client.query(`
+        UPDATE media_assets
+        SET status = 'ready'
+        WHERE id = '30000000-0000-4000-8000-000000000201'
+      `),
+    ).rejects.toThrow(/media_assets_ready_metadata_check/);
+    await client.query(`
+      UPDATE media_assets
+      SET
+        public_object_key = 'news/immutable/processed.webp',
+        mime_type = 'image/webp',
+        byte_size = 10,
+        width = 2,
+        height = 2,
+        checksum_sha256 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        status = 'ready'
+      WHERE id = '30000000-0000-4000-8000-000000000201'
+    `);
+
+    await expect(
+      client.query(`
+        UPDATE media_assets
+        SET public_object_key = 'news/immutable/replaced.webp'
+        WHERE id = '30000000-0000-4000-8000-000000000201'
+      `),
+    ).rejects.toThrow(/imutáveis/);
   });
 });

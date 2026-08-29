@@ -210,6 +210,28 @@ export const persistedEditorialDocumentV1Schema =
     }
   });
 
+export function getEditorialImageMediaIds(input: unknown): string[] {
+  const document = persistedEditorialDocumentV1Schema.parse(input);
+  const mediaIds: string[] = [];
+  function collect(nodes: EditorialContentNode[]) {
+    nodes.forEach((node) => {
+      if (node.type === "image") {
+        mediaIds.push(node.attrs.mediaId);
+        return;
+      }
+      if (node.type === "blockquote") {
+        collect(node.content);
+        return;
+      }
+      if (node.type === "bulletList" || node.type === "orderedList") {
+        node.content.forEach((item) => collect(item.content));
+      }
+    });
+  }
+  collect(document.content);
+  return [...new Set(mediaIds)];
+}
+
 function hasMeaningfulContent(nodes: EditorialContentNode[]): boolean {
   return nodes.some((node) => {
     if (node.type === "image") return true;

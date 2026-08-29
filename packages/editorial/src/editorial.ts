@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 import { newsCategoryValues } from "./article-schema";
 import {
   calculateEditorialReadTime,
+  getEditorialImageMediaIds,
   persistedEditorialDocumentV1Schema,
 } from "./editor-document";
 import {
@@ -266,6 +267,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
     const [revision] = await transaction
       .select({
         coverMediaId: articleRevisions.coverMediaId,
+        body: articleRevisions.body,
         featured: articleRevisions.featured,
         category: articleRevisions.category,
       })
@@ -286,6 +288,21 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
       throw new EditorialPublicationError(
         "A capa ainda não terminou de ser processada.",
       );
+    }
+    const inlineMediaIds = getEditorialImageMediaIds(revision.body);
+    if (inlineMediaIds.length > 0) {
+      const inlineAssets = await transaction
+        .select({ id: mediaAssets.id, status: mediaAssets.status })
+        .from(mediaAssets)
+        .where(inArray(mediaAssets.id, inlineMediaIds));
+      if (
+        inlineAssets.length !== inlineMediaIds.length ||
+        inlineAssets.some((asset) => asset.status !== "ready")
+      ) {
+        throw new EditorialPublicationError(
+          "Todas as imagens inline devem estar processadas antes de publicar.",
+        );
+      }
     }
 
     const publishedAt = article.publishedAt ?? new Date();
