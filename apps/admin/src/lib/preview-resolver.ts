@@ -25,6 +25,7 @@ export const previewArticleDtoSchema = z
       .string()
       .min(3)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    publishedAt: z.iso.datetime().nullable(),
     title: z.string().min(12).max(100),
     summary: z.string().min(48).max(220),
     category: z.enum(newsCategoryValues),
@@ -55,7 +56,7 @@ export const previewArticleDtoSchema = z
 
 type PreviewClaims = { articleId: string; revisionId: string };
 type PreviewRevision = {
-  article: { id: string; slug: string };
+  article: { id: string; slug: string; publishedAt: Date | null };
   revision: {
     id: string;
     title: string;
@@ -135,6 +136,7 @@ export async function resolvePreviewRequest(
       articleId: result.article.id,
       revisionId: result.revision.id,
       slug: result.article.slug,
+      publishedAt: result.article.publishedAt?.toISOString() ?? null,
       title: result.revision.title,
       summary: result.revision.summary,
       category: result.revision.category,

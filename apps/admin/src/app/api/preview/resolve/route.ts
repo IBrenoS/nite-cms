@@ -43,7 +43,14 @@ export async function POST(request: Request) {
     },
     async findRevision(claims) {
       const [result] = await database
-        .select({ article: articles, revision: articleRevisions })
+        .select({
+          article: {
+            id: articles.id,
+            slug: articles.slug,
+            publishedAt: articles.publishedAt,
+          },
+          revision: articleRevisions,
+        })
         .from(articles)
         .innerJoin(
           articleRevisions,

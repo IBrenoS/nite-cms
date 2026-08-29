@@ -17,7 +17,11 @@ describe("resolução do preview privado", () => {
       {
         getClaims: () => ({ articleId, revisionId }),
         findRevision: async () => ({
-          article: { id: articleId, slug: "preview-privado" },
+          article: {
+            id: articleId,
+            slug: "preview-privado",
+            publishedAt: null,
+          },
           revision: {
             id: revisionId,
             title: "Uma matéria privada para preview",
@@ -69,6 +73,7 @@ describe("resolução do preview privado", () => {
       schemaVersion: 1,
       articleId,
       revisionId,
+      publishedAt: null,
       cover: { src: "https://media.nite.test/news/cover.webp" },
     });
   });
@@ -79,7 +84,11 @@ describe("resolução do preview privado", () => {
       {
         getClaims: () => ({ articleId, revisionId }),
         findRevision: async () => ({
-          article: { id: articleId, slug: "preview-privado" },
+          article: {
+            id: articleId,
+            slug: "preview-privado",
+            publishedAt: new Date("2026-08-29T12:00:00.000Z"),
+          },
           revision: {
             id: revisionId,
             title: "curto",
@@ -112,5 +121,61 @@ describe("resolução do preview privado", () => {
 
     expect(response.status).toBe(409);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("aceita somente publishedAt ISO datetime ou null no contrato versionado", () => {
+    expect(
+      previewArticleDtoSchema.parse({
+        schemaVersion: 1,
+        articleId,
+        revisionId,
+        slug: "preview-privado",
+        title: "Uma matéria privada para preview",
+        summary:
+          "Este resumo tem extensão suficiente para o contrato de preview privado.",
+        category: "tecnologia",
+        publishedAt: "2026-08-29T12:00:00.000Z",
+        readTimeMinutes: 2,
+        byline: "Redação NITE",
+        featured: false,
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Conteúdo." }],
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ publishedAt: "2026-08-29T12:00:00.000Z" });
+
+    expect(() =>
+      previewArticleDtoSchema.parse({
+        schemaVersion: 1,
+        articleId,
+        revisionId,
+        slug: "preview-privado",
+        title: "Uma matéria privada para preview",
+        summary:
+          "Este resumo tem extensão suficiente para o contrato de preview privado.",
+        category: "tecnologia",
+        publishedAt: "2026-08-29",
+        readTimeMinutes: 2,
+        byline: "Redação NITE",
+        featured: false,
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Conteúdo." }],
+            },
+          ],
+        },
+      }),
+    ).toThrow();
   });
 });
