@@ -102,6 +102,7 @@ describe("documento editorial v1", () => {
     "javascript:alert(1)",
     "data:text/html,unsafe",
     "//externo.nite.test",
+    "/\\externo.nite.test",
     "ftp://arquivos.nite.test/materia",
   ])("rejeita link fora da allowlist: %s", (href) => {
     expect(() =>

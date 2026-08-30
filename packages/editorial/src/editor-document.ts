@@ -3,7 +3,9 @@ import { z } from "zod";
 const allowedLinkProtocols = new Set(["http:", "https:", "mailto:"]);
 
 function isAllowedEditorialLink(href: string) {
-  if (href.startsWith("/")) return !href.startsWith("//");
+  if (href.startsWith("/")) {
+    return !href.startsWith("//") && !href.includes("\\");
+  }
 
   try {
     return allowedLinkProtocols.has(new URL(href).protocol);
