@@ -4,7 +4,7 @@
 
 - Monorepo independente npm workspaces/Turbo.
 - `apps/admin`: painel editorial, Better Auth/Entra, Server Actions, preview e cron/outbox.
-- `apps/api`: API pública read-only versionada em `/v1`.
+- `apps/api`: API pública read-only versionada em `/v2`.
 - `packages/db`: schema Drizzle, migrations, roles e conexão PostgreSQL.
 - `packages/editorial`: domínio editorial, validações, publicação, mídia, auditoria e outbox.
 - `packages/cms-ui`: UI exclusiva do CMS.

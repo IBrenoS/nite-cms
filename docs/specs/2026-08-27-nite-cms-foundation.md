@@ -1,149 +1,129 @@
 # Fundação do CMS NITE
 
-**Status:** implementação local das etapas 1–8 concluída; provisionamento pendente
-**Escopo desta entrega:** contrato, persistência, fronteiras, admin, autenticação, editor, mídia, preview, publicação transacional, auditoria, outbox, cron, revalidação e leitura pública pela view
-**Fora desta entrega:** provisionamento/deploy, conteúdo oficial e validação E2E com Entra, Neon, R2 e domínios reais
+**Status:** implementação local concluída; provisionamento e smoke test de homologação pendentes
+**Escopo:** contrato, persistência, Admin, API pública v2, autenticação, memberships, editor, mídia, preview, ciclo editorial, auditoria, outbox e revalidação
+**Fora do escopo:** provisionamento/deploy, conteúdo oficial, compatibilidade `/v1`, aprovação, agendamento, autosave, exclusão e validação E2E com recursos reais
 
-## Objetivo
+## Objetivo e topologia aprovada
 
-Criar a fundação de um CMS editorial próprio para o Nite News sem acoplar o
-portal público a detalhes administrativos. O CMS pertence ao mesmo produto e ao
-mesmo monorepo como aplicação separada. O contrato de domínio continua
-centralizado em `@nite/content`.
-
-## Topologia aprovada
+O CMS é um repositório independente do Portal NITE. O Portal não importa
+packages, arquivos, migrations, banco ou credenciais editoriais do CMS.
 
 ```text
-apps/web                         apps/admin
-   │ leitura publicada               │ leitura e escrita autenticadas
-   └──────────────┬───────────────────┘
-                  ▼
-           @nite/content
-      ┌───────────┴───────────┐
-      │                       │
-@nite/content/public   @nite/content/admin
-      │                       │
-      └───────────┬───────────┘
-                  ▼
-        Neon PostgreSQL + Drizzle
+Portal apps/web ── HTTPS GET /v2/news ──> CMS apps/api ── SELECT ──> PostgreSQL
+CMS apps/admin ── escrita autenticada ──> PostgreSQL
+CMS apps/admin ── staging/processamento ──> R2 privado + R2 público/CDN
+CMS apps/admin ── webhook HMAC ──> Portal /api/revalidate/news
+Portal /api/preview ── HTTPS POST ──> CMS apps/admin/api/preview/resolve
 ```
 
-Não foram criados `apps/api`, `packages/db` ou `packages/auth`: Route Handlers e
-Server Actions de `apps/admin` formam a camada HTTP. `packages/ui` foi extraído
-quando web e admin passaram a compartilhar tokens, primitives e o renderer do
-corpo editorial.
+`apps/admin` concentra Better Auth/Entra, comandos editoriais e escrita R2.
+`apps/api` é read-only e publica somente a view `published_articles`.
+`packages/editorial` contém o domínio; `packages/db`, schema e migrations; e
+`packages/cms-ui`, a UI exclusiva do painel. Nenhum package é compartilhado
+com o Portal.
 
-## Fronteiras do package
+## Persistência e ciclo editorial
 
-- `@nite/content`: tipos e domínios compartilhados, além das APIs legadas de
-  projetos, pessoas e linha do tempo.
-- `@nite/content/public`: consultas assíncronas que só retornam o read model
-  publicado. O portal público importa News exclusivamente desta entrada.
-- `@nite/content/admin`: schema Drizzle e contratos administrativos. Esta
-  entrada nunca pode ser importada por `apps/web`.
+- `articles`: identidade, slug, estado, primeira publicação e ponteiros de
+  revisão.
+- `article_revisions`: snapshots imutáveis; cada salvamento explícito cria uma
+  nova versão.
+- `media_assets`: chaves imutáveis distintas para staging e objeto público.
+- `cms_memberships`: identidade Entra por `tid + oid`, papel e estado ativo.
+- `audit_events`: trilha append-only.
+- `outbox_events`: entrega idempotente da revalidação.
+- `published_articles`: read model exclusivo da API pública.
 
-As regras de publicação, ordenação, filtros, resolução por slug e indexação
-permanecem no package. O portal usa o adapter PostgreSQL e lê somente a view
-`published_articles`. O adapter local mantém os oito registros demonstrativos
-apenas quando `NITE_NEWS_SOURCE=static` é escolhido explicitamente.
+Os estados são `draft | published | archived`. Publicar faz
+`draft -> published`; despublicar, `published -> draft`; arquivar aceita draft
+ou published; restaurar sempre volta para draft. Toda ação recebe
+`expectedRevisionId` e conflito não produz alteração parcial. `publishedAt`
+registra a primeira publicação e nunca volta a nulo; por isso o slug permanece
+bloqueado depois da primeira publicação.
 
-## Persistência
+Publicação, despublicação e arquivamento de conteúdo público gravam auditoria e
+outbox na mesma transação. O Portal invalida cache, lista, artigo, filtros e
+sitemap. O worker usa claim concorrente, lease, token, tentativas e backoff.
 
-### Entidades
+## RBAC e memberships
 
-- `articles`: identidade estável, slug, estado e ponteiros para as revisões
-  atual e publicada.
-- `article_revisions`: snapshots imutáveis do conteúdo; cada salvamento
-  explícito cria uma versão crescente.
-- `media_assets`: metadados de objetos armazenados; o banco não armazena o
-  arquivo binário.
-- `cms_memberships`: vínculo de uma identidade externa com papel editorial.
-- `audit_events`: trilha append-only das ações relevantes.
-- `outbox_events`: efeitos assíncronos idempotentes, como revalidação e limpeza
-  de mídia.
-- `published_articles`: view de leitura pública, composta somente pela revisão
-  fixada como publicada.
+Os únicos papéis são `publisher | admin`. Ambos criam, editam, salvam,
+pré-visualizam, publicam, despublicam, arquivam e restauram qualquer matéria.
+Somente `admin` cria, ativa, desativa ou troca o papel de memberships.
 
-### Estados e invariantes
+O tenant é fixado por `MICROSOFT_TENANT_ID`. O login atualiza nome e e-mail a
+partir de claims Entra verificados. Memberships são desativadas, não excluídas;
+auto-desativação, auto-rebaixamento e remoção do último admin ativo são
+bloqueados e toda alteração gera auditoria.
 
-- Artigo: `draft | published | archived`.
-- Membro: `admin | editor | author`.
-- Mídia: `pending | ready | quarantined | failed`.
-- Outbox: `pending | processing | succeeded | failed`.
-- `slug` é único.
-- `(article_id, version)` é único e revisões não são atualizadas.
-- Um artigo publicado precisa ter `published_revision_id` e `published_at`.
-- A view pública exclui rascunhos, arquivados e publicações futuras.
-- O read model público deriva `public = true` e `contentState = "real"`; esses
-  valores não são escolhas do painel.
+## Contrato editorial v2
 
-O corpo editorial é JSONB versionado por `content_schema_version`. A versão 1
-preserva o contrato atual de blocos do Nite News; ampliações do editor devem ser
-aditivas e acompanhadas por validação/migração explícita.
+A API expõe `GET /v2/news` e `GET /v2/news/{slug}` com envelope
+`version: 2`. Não existe rota ou payload legado `/v1`.
 
-## Acesso ao banco
+`NewsArticle.body` é exclusivamente `EditorialDocumentV1`, com raiz
+`{ schemaVersion: 1, type: "doc", content: [...] }`. O documento aceita
+parágrafos, H2/H3, listas ordenadas e não ordenadas, citações e imagens; texto
+pode ter bold, italic e link. Links são limitados a HTTP(S), `mailto:` e
+caminhos internos seguros. HTML livre, vídeo, embeds, nós e marks desconhecidos
+são rejeitados no servidor.
 
-Produção terá três credenciais independentes, nunca armazenadas no repositório:
+Imagens do AST referenciam assets `ready`; na fronteira pública, a referência é
+resolvida para URL, dimensões e alt. Capa e imagens inline exigem alt. O tempo
+de leitura não é entrada editorial: o servidor conta o texto visível a 200
+palavras por minuto, arredonda para cima e limita a 1–30 minutos.
 
-- `DATABASE_MIGRATION_URL`: ownership/DDL e concessão de privilégios.
-- `DATABASE_ADMIN_URL`: leitura e escrita nas tabelas editoriais.
-- `DATABASE_PUBLIC_URL`: somente `SELECT` em `published_articles`.
+## Mídia em dois buckets
 
-As migrations criam os group roles `nite_admin` e `nite_public` como
-`NOLOGIN`. O provisionamento do ambiente cria logins e concede membership; não
-há senha ou secret em SQL versionado. `nite_public` não recebe privilégios nas
-tabelas-base.
+Uploads JPEG/PNG/WebP de até 10 MB recebem presigned URL somente para
+`R2_STAGING_BUCKET`, privado e com CORS limitado ao Admin. O processamento
+confere tamanho, magic bytes e MIME, normaliza orientação, remove EXIF, limita
+a 2400 px, converte para WebP e grava uma chave content-addressed imutável em
+`R2_PUBLIC_BUCKET`. `R2_PUBLIC_BASE_URL` serve os objetos prontos com cache
+immutable.
 
-## Contrato de consulta assíncrona
+O original é retido no staging e o MVP não requer `DeleteObject`. A migration
+dos dois buckets pressupõe ausência de objetos reais legados; não existe
+backfill, cópia ou fallback para `object_key`.
 
-Todas as consultas News retornam `Promise`, inclusive as atualmente atendidas
-por JSON local. Isso evita uma segunda quebra de API quando a fonte padrão for
-alterada para PostgreSQL. `normalizeNewsFilter` continua síncrona porque é uma
-função pura sem I/O.
+## Preview privado
 
-Uma fonte pública implementa apenas `listPublishedArticles()`. As operações de
-slug, destaque, agenda, relacionadas, filtros e indexação são derivadas no
-domínio, garantindo o mesmo comportamento entre o adapter transitório e o
-PostgreSQL.
+O Admin assina por `PREVIEW_HMAC_SECRET` um token de até dez minutos contendo
+`articleId`, `revisionId`, `expiresAt` e `nonce`, e monta a entrada do Portal a
+partir de `PORTAL_PREVIEW_URL`. `POST /api/preview/resolve` verifica assinatura
+e expiração, carrega exatamente a revisão indicada, resolve mídia e responde
+sempre `private, no-store`.
 
-## Publicação, outbox e revalidação
+O Portal encaminha o mesmo token ao resolver do Admin por
+`CMS_PREVIEW_RESOLVE_URL`. O secret HMAC nunca é entregue ao Portal. Token
+inválido, expirado, adulterado ou sem revisão não habilita Draft Mode.
 
-A publicação fixa a revisão, atualiza o artigo, grava a auditoria e insere
-`news.article.published` na outbox dentro de uma única transação. O evento só é
-enviado depois do commit. Um disparo de baixa latência em `after()` e um cron de
-recuperação usam o mesmo processador, com claim concorrente, lease, token,
-limite de tentativas e backoff exponencial.
+## Banco e credenciais
 
-O Admin envia ao portal um payload validado e assinado sobre os bytes exatos do
-corpo. O endpoint público rejeita bodies grandes, content type incorreto,
-timestamp fora da janela, assinatura inválida e payload incompatível. Quando o
-evento é aceito, a tag compartilhada de News e os caminhos afetados são
-revalidados. O TTL de cinco minutos limita staleness mesmo se a chamada de baixa
-latência falhar; a outbox mantém a recuperação durável.
+- `DATABASE_MIGRATION_URL`: ownership/DDL.
+- `DATABASE_ADMIN_URL`: leitura e escrita editorial.
+- `DATABASE_PUBLIC_URL`: leitura somente da view pública.
 
-## Critérios de aceite desta entrega
+As migrations criam `nite_admin` e `nite_public` como group roles `NOLOGIN`.
+Logins e secrets são provisionados fora do repositório; `nite_public` não
+recebe privilégios nas tabelas-base.
 
-1. A migration roda do zero em PGlite e cria tabelas, enums, índices, roles e
-   view.
-2. A view devolve apenas a revisão publicada de artigos elegíveis.
-3. Sob `SET ROLE nite_public`, a view pode ser lida e as tabelas-base não.
-4. O adapter PostgreSQL valida o read model antes de entregá-lo ao portal.
-5. `apps/web` importa News por `@nite/content/public`; ESLint bloqueia o caminho
-   administrativo.
-6. As páginas, metadata e sitemap aguardam as consultas assíncronas sem alterar
-   URLs, metadata, JSON-LD ou layout; slugs publicados são resolvidos
-   dinamicamente.
-7. O portal usa a view por padrão e falha fechado quando a configuração pública
-   está ausente; a fonte estática exige opt-in explícito.
-8. Publicação, auditoria e criação do evento são atômicas; workers concorrentes
-   não entregam o mesmo claim ativo e falhas são reagendadas.
-9. Revalidação e cron são autenticados, validam entrada e não registram secrets.
+## Critérios de aceite local
 
-## Sequência operacional posterior
+1. Migrations partem do zero, convertem papéis defensivamente e criam as
+   constraints e a view pública.
+2. Permissões, proteção do último admin, transições, concorrência, auditoria e
+   outbox são cobertas no domínio.
+3. AST, Tiptap, links, mídia e tempo de leitura são validados no servidor.
+4. A API pública publica somente v2 e conteúdo elegível.
+5. Upload/processamento seleciona os dois buckets e não usa deleção.
+6. Admin cobre memberships, editor, conflitos e ciclo editorial.
+7. Preview resolve a revisão exata sem expor conteúdo à cache pública.
 
-1. Executar o runbook `docs/runbooks/cms-rollout.md` em homologação.
-2. Provisionar banco, logins, Entra, R2, domínios e secrets fora do repositório.
-3. Validar login, bootstrap, CORS, upload/processamento, publicação, auditoria,
-   outbox, cron, revalidação e leitura pública.
-4. Criar a primeira matéria institucional aprovada e executar o corte do portal.
-5. Manter a fonte estática somente como rollback até a estabilização operacional.
+## Aceite operacional pendente
+
+O rollout permanece bloqueado até homologar Entra autorizado/não autorizado,
+PostgreSQL com os três logins, os dois buckets R2, domínios reais, API v2,
+preview entre projetos, revalidação e o fluxo editorial completo. Não publicar
+a primeira matéria real até CMS/API e Portal estarem no contrato v2.
