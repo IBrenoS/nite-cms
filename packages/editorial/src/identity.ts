@@ -114,6 +114,20 @@ function assertActiveMembership(
   return membership;
 }
 
+function getChangedProfileFields(
+  membership: CmsMembership,
+  identity: EntraIdentity,
+) {
+  const changedFields: Array<"displayName" | "email"> = [];
+  if (membership.displayName !== identity.displayName) {
+    changedFields.push("displayName");
+  }
+  if (membership.email !== (identity.email ?? null)) {
+    changedFields.push("email");
+  }
+  return changedFields;
+}
+
 function assertAdminMembership(membership: CmsMembership) {
   if (membership.role !== "admin") {
     throw new CmsAuthorizationError();
@@ -217,29 +231,65 @@ export async function resolveCmsMembership<
     throw new CmsAuthorizationError();
   }
 
-  const existingMembership = await findMembership(database, identity);
-  if (existingMembership) {
-    return assertActiveMembership(existingMembership);
-  }
+  return database.transaction(async (transaction) => {
+    const [existingMembership] = await transaction
+      .select()
+      .from(cmsMemberships)
+      .where(
+        and(
+          eq(cmsMemberships.tenantId, identity.tenantId),
+          eq(cmsMemberships.objectId, identity.objectId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (existingMembership) {
+      const activeMembership = assertActiveMembership(existingMembership);
+      const changedFields = getChangedProfileFields(activeMembership, identity);
+      if (changedFields.length === 0) return activeMembership;
 
-  if (identity.objectId !== bootstrap.adminObjectId) {
-    throw new CmsAuthorizationError();
-  }
+      const [updatedMembership] = await transaction
+        .update(cmsMemberships)
+        .set({
+          displayName: identity.displayName,
+          email: identity.email ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(cmsMemberships.id, activeMembership.id))
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: activeMembership.id,
+        action: "membership.profile.updated",
+        aggregateType: "membership",
+        aggregateId: activeMembership.id,
+        metadata: {
+          tenantId: activeMembership.tenantId,
+          objectId: activeMembership.objectId,
+          changedFields,
+        },
+      });
+      return updatedMembership;
+    }
 
-  await database
-    .insert(cmsMemberships)
-    .values({
-      tenantId: identity.tenantId,
-      objectId: identity.objectId,
-      displayName: identity.displayName,
-      email: identity.email,
-      role: "admin",
-    })
-    .onConflictDoNothing({
-      target: [cmsMemberships.tenantId, cmsMemberships.objectId],
-    });
+    if (identity.objectId !== bootstrap.adminObjectId) {
+      throw new CmsAuthorizationError();
+    }
 
-  return assertActiveMembership(await findMembership(database, identity));
+    await transaction
+      .insert(cmsMemberships)
+      .values({
+        tenantId: identity.tenantId,
+        objectId: identity.objectId,
+        displayName: identity.displayName,
+        email: identity.email,
+        role: "admin",
+      })
+      .onConflictDoNothing({
+        target: [cmsMemberships.tenantId, cmsMemberships.objectId],
+      });
+
+    return assertActiveMembership(await findMembership(transaction, identity));
+  });
 }
 
 export async function createCmsMembership<

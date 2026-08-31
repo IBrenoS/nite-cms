@@ -99,9 +99,10 @@ describe("comandos editoriais", () => {
       actor: publisher,
       articleId: created.article.id,
       expectedRevisionId: created.revision.id,
+      slugManuallyEdited: false,
       input: {
         ...firstDraft,
-        slug: "",
+        slug: created.article.slug,
         title: "Laboratório de inovação confirma nova agenda",
       },
     });
@@ -110,6 +111,7 @@ describe("comandos editoriais", () => {
     expect(created.article.slug).toBe(
       "laboratorio-de-inovacao-abre-nova-agenda",
     );
+    expect(created.article.slugManuallyEdited).toBe(false);
     expect(created.revision.readTimeMinutes).toBe(1);
     expect(created.revision.coverAlt).toBe(
       "Estudantes reunidos em um laboratório de inovação universitário.",
@@ -123,6 +125,7 @@ describe("comandos editoriais", () => {
     expect(saved.article.slug).toBe(
       "laboratorio-de-inovacao-confirma-nova-agenda",
     );
+    expect(saved.article.slugManuallyEdited).toBe(false);
     await expect(
       saveArticleRevision(database, {
         actor: publisher,
@@ -134,13 +137,96 @@ describe("comandos editoriais", () => {
         },
       }),
     ).rejects.toBeInstanceOf(EditorialConflictError);
+    await expect(
+      database
+        .select({
+          currentRevisionId: articles.currentRevisionId,
+          slug: articles.slug,
+          slugManuallyEdited: articles.slugManuallyEdited,
+        })
+        .from(articles)
+        .where(eq(articles.id, created.article.id)),
+    ).resolves.toEqual([
+      {
+        currentRevisionId: saved.revision.id,
+        slug: "laboratorio-de-inovacao-confirma-nova-agenda",
+        slugManuallyEdited: false,
+      },
+    ]);
+
+    const savedAgain = await saveArticleRevision(database, {
+      actor: publisher,
+      articleId: created.article.id,
+      expectedRevisionId: saved.revision.id,
+      slugManuallyEdited: false,
+      input: {
+        ...firstDraft,
+        slug: saved.article.slug,
+        title: "Laboratório de inovação divulga a programação final",
+      },
+    });
+    expect(savedAgain.article).toMatchObject({
+      slug: "laboratorio-de-inovacao-divulga-a-programacao-final",
+      slugManuallyEdited: false,
+    });
 
     await expect(
       database
         .select({ version: articleRevisions.version })
         .from(articleRevisions)
         .where(eq(articleRevisions.articleId, created.article.id)),
-    ).resolves.toEqual([{ version: 1 }, { version: 2 }]);
+    ).resolves.toEqual([{ version: 1 }, { version: 2 }, { version: 3 }]);
+  });
+
+  it("preserva o modo manual mesmo quando o cliente tenta voltar ao automatico", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-manual-oid",
+        displayName: "Publisher Manual",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-manual/original",
+      publicObjectKey: "news/capa-manual/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      status: "ready",
+    });
+
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      slugManuallyEdited: true,
+      input: { ...firstDraft, slug: "agenda-personalizada" },
+    });
+    const saved = await saveArticleRevision(database, {
+      actor: publisher,
+      articleId: created.article.id,
+      expectedRevisionId: created.revision.id,
+      slugManuallyEdited: false,
+      input: {
+        ...firstDraft,
+        slug: "agenda-personalizada",
+        title: "Laboratório de inovação confirma outra programação",
+      },
+    });
+
+    expect(created.article).toMatchObject({
+      slug: "agenda-personalizada",
+      slugManuallyEdited: true,
+    });
+    expect(saved.article).toMatchObject({
+      slug: "agenda-personalizada",
+      slugManuallyEdited: true,
+    });
   });
 
   it("publica e registra auditoria e outbox para publisher", async () => {

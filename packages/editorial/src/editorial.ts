@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { newsCategoryValues } from "./article-schema";
+import { deriveEditorialSlug, newsCategoryValues } from "./article-schema";
 import {
   calculateEditorialReadTime,
   getEditorialImageMediaIds,
@@ -93,28 +93,28 @@ function revisionValues(
   };
 }
 
-function deriveSlug(title: string) {
-  const normalized = title
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120)
-    .replace(/-+$/g, "");
-  return editableSlugSchema.parse(normalized);
-}
-
-function resolveRequestedSlug(input: EditorialArticleInput) {
-  return input.slug || deriveSlug(input.title);
+function resolveDraftSlug(
+  input: EditorialArticleInput,
+  slugManuallyEdited: boolean,
+) {
+  return editableSlugSchema.parse(
+    slugManuallyEdited ? input.slug : deriveEditorialSlug(input.title),
+  );
 }
 
 export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
-  command: { actor: CmsMembership; input: EditorialArticleInput },
+  command: {
+    actor: CmsMembership;
+    input: EditorialArticleInput;
+    slugManuallyEdited?: boolean;
+  },
 ) {
   const input = editorialArticleInputSchema.parse(command.input);
-  const slug = resolveRequestedSlug(input);
+  const slugManuallyEdited = z
+    .boolean()
+    .parse(command.slugManuallyEdited ?? false);
+  const slug = resolveDraftSlug(input, slugManuallyEdited);
 
   return database.transaction(async (transaction) => {
     const actor = await requireActiveCmsMembership(
@@ -125,6 +125,7 @@ export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
       .insert(articles)
       .values({
         slug,
+        slugManuallyEdited,
         featured: input.featured,
         createdByMembershipId: actor.id,
         updatedByMembershipId: actor.id,
@@ -161,6 +162,7 @@ export async function saveArticleRevision<
     articleId: string;
     expectedRevisionId: string;
     input: EditorialArticleInput;
+    slugManuallyEdited?: boolean;
   },
 ) {
   const input = editorialArticleInputSchema.parse(command.input);
@@ -179,13 +181,27 @@ export async function saveArticleRevision<
     if (!article || article.currentRevisionId !== command.expectedRevisionId) {
       throw new EditorialConflictError();
     }
-    const requestedSlug = resolveRequestedSlug(input);
-    if (article.publishedAt && input.slug && requestedSlug !== article.slug) {
+    const requestedSlug = input.slug
+      ? editableSlugSchema.parse(input.slug)
+      : undefined;
+    if (
+      article.publishedAt &&
+      requestedSlug !== undefined &&
+      requestedSlug !== article.slug
+    ) {
       throw new EditorialPublicationError(
         "O slug de uma matéria publicada não pode ser alterado.",
       );
     }
-    const slug = article.publishedAt ? article.slug : requestedSlug;
+    const requestedManualState = z
+      .boolean()
+      .parse(command.slugManuallyEdited ?? false);
+    const slugManuallyEdited = article.publishedAt
+      ? article.slugManuallyEdited
+      : article.slugManuallyEdited || requestedManualState;
+    const slug = article.publishedAt
+      ? article.slug
+      : resolveDraftSlug(input, slugManuallyEdited);
 
     const [currentRevision] = await transaction
       .select({ version: articleRevisions.version })
@@ -211,6 +227,7 @@ export async function saveArticleRevision<
       .update(articles)
       .set({
         slug,
+        slugManuallyEdited,
         currentRevisionId: revision.id,
         updatedByMembershipId: actor.id,
         updatedAt: new Date(),

@@ -13,6 +13,17 @@ export const newsCategoryValues = [
 
 export const newsContentStateValues = ["demonstrativo", "real"] as const;
 
+export function deriveEditorialSlug(title: string) {
+  return title
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120)
+    .replace(/-+$/g, "");
+}
+
 export const newsArticleSchema = z.object({
   slug: z
     .string()

@@ -190,6 +190,9 @@ export const articles = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     slug: varchar("slug", { length: 120 }).notNull().unique(),
+    slugManuallyEdited: boolean("slug_manually_edited")
+      .default(false)
+      .notNull(),
     status: articleStatusEnum("status").default("draft").notNull(),
     currentRevisionId: uuid("current_revision_id").references(
       (): AnyPgColumn => articleRevisions.id,

@@ -38,6 +38,7 @@ const formSchema = z.object({
   expectedRevisionId: z.union([z.literal(""), z.uuid()]),
   intent: z.enum(["save", "publish"]),
   slug: z.string(),
+  slugManuallyEdited: z.enum(["true", "false"]),
   title: z.string(),
   summary: z.string(),
   category: z.string(),
@@ -61,6 +62,7 @@ function parseEditorialForm(formData: FormData) {
     expectedRevisionId: readString(formData, "expectedRevisionId"),
     intent: readString(formData, "intent"),
     slug: readString(formData, "slug"),
+    slugManuallyEdited: readString(formData, "slugManuallyEdited"),
     title: readString(formData, "title"),
     summary: readString(formData, "summary"),
     category: readString(formData, "category"),
@@ -104,10 +106,12 @@ export async function submitEditorialArticle(
           actor: context.membership,
           articleId: fields.articleId,
           expectedRevisionId: fields.expectedRevisionId,
+          slugManuallyEdited: fields.slugManuallyEdited === "true",
           input,
         })
       : await createArticleDraft(context.database, {
           actor: context.membership,
+          slugManuallyEdited: fields.slugManuallyEdited === "true",
           input,
         });
 

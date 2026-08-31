@@ -57,6 +57,13 @@
       "when": 1788057600000,
       "tag": "0007_media_two_buckets",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788144000000,
+      "tag": "0008_slug_manual_state",
+      "breakpoints": true
     }
   ]
 }

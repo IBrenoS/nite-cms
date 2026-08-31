@@ -9,6 +9,9 @@ const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 const legacyRolesMigrationPath = fileURLToPath(
   new URL("../drizzle/0005_editorial_roles.sql", import.meta.url),
 );
+const slugStateMigrationPath = fileURLToPath(
+  new URL("../drizzle/0008_slug_manual_state.sql", import.meta.url),
+);
 
 describe("persistencia editorial", () => {
   let client: PGlite;
@@ -291,6 +294,61 @@ describe("persistencia editorial", () => {
          values ('tenant-nite', 'role-legada', 'Role legada', 'editor')`,
       ),
     ).rejects.toThrow(/invalid input value for enum cms_role/i);
+  });
+
+  it("preserva slugs existentes como manuais e deixa novos artigos no modo automatico", async () => {
+    await client.exec(`
+      ALTER TABLE "articles" DROP COLUMN IF EXISTS "slug_manually_edited";
+      INSERT INTO "articles" ("slug", "status")
+      VALUES ('slug-legado-preservado', 'draft');
+    `);
+    const migration = await readFile(slugStateMigrationPath, "utf8").catch(
+      () => "",
+    );
+
+    await client.exec(migration);
+
+    const migrated = await client.query<{
+      column_default: string;
+      is_nullable: string;
+      slug: string;
+      slug_manually_edited: boolean;
+    }>(`
+      SELECT columns.column_default, columns.is_nullable,
+             articles.slug,
+             (to_jsonb(articles) ->> 'slug_manually_edited')::boolean
+               AS slug_manually_edited
+      FROM information_schema.columns AS columns
+      CROSS JOIN articles
+      WHERE columns.table_schema = 'public'
+        AND columns.table_name = 'articles'
+        AND columns.column_name = 'slug_manually_edited'
+    `);
+    expect(migrated.rows).toEqual([
+      {
+        column_default: "false",
+        is_nullable: "NO",
+        slug: "slug-legado-preservado",
+        slug_manually_edited: true,
+      },
+    ]);
+
+    await client.query(
+      `INSERT INTO "articles" ("slug", "status")
+       VALUES ('novo-slug-automatico', 'draft')`,
+    );
+    const articles = await client.query<{
+      slug: string;
+      slug_manually_edited: boolean;
+    }>(`
+      SELECT slug, slug_manually_edited
+      FROM articles
+      ORDER BY slug
+    `);
+    expect(articles.rows).toEqual([
+      { slug: "novo-slug-automatico", slug_manually_edited: false },
+      { slug: "slug-legado-preservado", slug_manually_edited: true },
+    ]);
   });
 
   it("impede alteracao de uma revisao criada", async () => {

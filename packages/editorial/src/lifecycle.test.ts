@@ -101,6 +101,7 @@ describe("ciclo editorial", () => {
     });
     const created = await createArticleDraft(database, {
       actor: publisher,
+      slugManuallyEdited: true,
       input: draftInput,
     });
     const published = await publishArticle(database, {

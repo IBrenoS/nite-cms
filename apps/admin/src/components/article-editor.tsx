@@ -6,6 +6,7 @@ import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import { Button, Input, StatusBadge, Textarea } from "@nite/cms-ui";
 
 import {
+  deriveEditorialSlug,
   newsCategoryValues,
   type EditorialArticleInput,
 } from "@nite/editorial";
@@ -25,6 +26,8 @@ type ArticleEditorProps = {
     revisionId: string;
     version: number;
     status: "draft" | "published" | "archived";
+    slugManuallyEdited: boolean;
+    slugLocked: boolean;
   };
   canPublish: boolean;
 };
@@ -51,6 +54,14 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
         })()
       : emptyDocument,
   );
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [slug, setSlug] = useState(
+    initial?.slug ?? deriveEditorialSlug(initial?.title ?? ""),
+  );
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(
+    initial?.slugManuallyEdited ?? false,
+  );
+  const slugLocked = initial?.slugLocked ?? false;
   const [mediaId, setMediaId] = useState(initial?.coverMediaId ?? "");
   const [mediaState, setMediaState] = useState<
     "idle" | "uploading" | "processing" | "ready" | "error"
@@ -212,6 +223,11 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
       <input type="hidden" name="coverMediaId" value={mediaId} />
       <input
         type="hidden"
+        name="slugManuallyEdited"
+        value={String(slugManuallyEdited)}
+      />
+      <input
+        type="hidden"
         name="bodyDocument"
         value={JSON.stringify(bodyDocument)}
       />
@@ -228,7 +244,14 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
               required
               minLength={12}
               maxLength={100}
-              defaultValue={initial?.title}
+              value={title}
+              onChange={(event) => {
+                const nextTitle = event.target.value;
+                setTitle(nextTitle);
+                if (!slugManuallyEdited && !slugLocked) {
+                  setSlug(deriveEditorialSlug(nextTitle));
+                }
+              }}
             />
           </div>
           <div className="grid gap-2">
@@ -253,8 +276,20 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
                 id="slug"
                 name="slug"
                 pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                defaultValue={initial?.slug}
+                value={slug}
+                readOnly={slugLocked}
+                aria-describedby={slugLocked ? "slug-lock-help" : undefined}
+                onChange={(event) => {
+                  if (slugLocked) return;
+                  setSlug(event.target.value);
+                  setSlugManuallyEdited(true);
+                }}
               />
+              {slugLocked ? (
+                <p id="slug-lock-help" className="text-xs text-nite-text-muted">
+                  O slug foi bloqueado permanentemente na primeira publicação.
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-2">
               <label htmlFor="category" className="font-medium">

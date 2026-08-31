@@ -73,6 +73,8 @@ export default async function EditArticlePage({
           revisionId: result.revision.id,
           version: result.revision.version,
           status: result.article.status,
+          slugManuallyEdited: result.article.slugManuallyEdited,
+          slugLocked: result.article.publishedAt !== null,
         }}
       />
       <section className="grid gap-4 border-t border-nite-border-subtle pt-8">
