@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, EmptyState, StatusBadge } from "@nite/cms-ui";
+import { buttonVariants, EmptyState, StatusBadge } from "@nite/cms-ui";
 
 import { listEditorialArticles } from "@nite/editorial";
 import { requireCmsPageContext } from "@/lib/auth";
@@ -25,7 +25,9 @@ export default async function DashboardPage() {
             Rascunhos, revisões fixadas e publicações do Nite News.
           </p>
         </div>
-        <Button render={<Link href="/articles/new" />}>Nova matéria</Button>
+        <Link className={buttonVariants()} href="/articles/new">
+          Nova matéria
+        </Link>
       </div>
 
       {records.length === 0 ? (

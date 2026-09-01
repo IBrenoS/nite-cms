@@ -10,7 +10,8 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:postgres:local": "node --env-file=.env.postgres.local ../../node_modules/vitest/vitest.mjs run src/membership.postgres.test.ts"
   },
   "dependencies": {
     "@nite/cms-db": "0.1.0",

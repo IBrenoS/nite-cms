@@ -20,6 +20,12 @@ alteração de secrets ou publicação de conteúdo em produção.
 
 Nenhum valor de credencial deve ser armazenado no repositório ou em logs.
 
+No checkout em submodule do Portal, `npm run env:setup` na raiz
+`D:\portal_nite` cria os arquivos locais e gera os quatro secrets internos sem
+exibi-los. Os templates versionados ficam ao lado de cada aplicação/package;
+credenciais externas continuam sendo preenchidas manualmente. Consulte também
+`docs/runbooks/cms-local-environment.md` no repositório do Portal.
+
 ## Configuração por responsabilidade
 
 ### Migration
@@ -105,6 +111,14 @@ credenciais R2. Não há fallback automático se API ou configuração falharem.
 
 Os storage states são artefatos sensíveis do ambiente de teste e não devem ser
 versionados.
+
+O comando `npm run test:e2e:configured` carrega
+`apps/admin/.env.e2e.local`. O teste PostgreSQL real usa
+`packages/editorial/.env.postgres.local` por meio de
+`npm run test:postgres:up` e `npm run test:postgres:local`; encerre o container
+descartável com `npm run test:postgres:down`. A migration local pode carregar
+`packages/db/.env.local` com `npm run db:migrate:local`; nenhum desses comandos
+é executado automaticamente no build.
 
 ## Ordem de homologação
 
