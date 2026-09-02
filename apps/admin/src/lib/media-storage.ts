@@ -9,6 +9,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 
 import type { MediaObjectStore } from "@nite/editorial";
+import { readPublicMediaConfiguration } from "./public-media-config";
 export { sharpImageProcessor } from "./sharp-image-processor";
 
 const storageConfigurationSchema = z.object({
@@ -95,11 +96,10 @@ export function getMediaObjectStore(): MediaObjectStore {
 
 export function getPublicMediaUrl(objectKey: string | null | undefined) {
   if (!objectKey) return undefined;
-  const result = z.url().safeParse(process.env.R2_PUBLIC_BASE_URL);
-  if (!result.success) return undefined;
-  const baseUrl = result.data.endsWith("/") ? result.data : `${result.data}/`;
+  const publicMedia = readPublicMediaConfiguration(process.env);
+  if (!publicMedia.configured) return undefined;
   return new URL(
     objectKey.split("/").map(encodeURIComponent).join("/"),
-    baseUrl,
+    publicMedia.baseUrl,
   ).toString();
 }

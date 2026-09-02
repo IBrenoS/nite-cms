@@ -3,51 +3,14 @@ import {
   PutObjectCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-import * as mediaStorage from "./media-storage";
+import { createMediaObjectStore, getPublicMediaUrl } from "./media-storage";
 
-type StagedMediaStore = {
-  createStagingUploadUrl(input: {
-    stagingObjectKey: string;
-    contentType: string;
-    byteSize: number;
-    expiresInSeconds: number;
-  }): Promise<unknown>;
-  getStagingObject(stagingObjectKey: string): Promise<Uint8Array>;
-  putPublicObject(input: {
-    publicObjectKey: string;
-    body: Uint8Array;
-    contentType: "image/webp";
-  }): Promise<void>;
-};
-
-type StoreFactory = (input: {
-  configuration: {
-    R2_ACCOUNT_ID: string;
-    R2_ACCESS_KEY_ID: string;
-    R2_SECRET_ACCESS_KEY: string;
-    R2_STAGING_BUCKET: string;
-    R2_PUBLIC_BUCKET: string;
-  };
-  client: S3Client;
-  signUploadUrl: (command: PutObjectCommand) => Promise<string>;
-}) => StagedMediaStore;
-
-function factory(): StoreFactory {
-  const candidate: unknown = Reflect.get(
-    mediaStorage,
-    "createMediaObjectStore",
-  );
-  expect(candidate, "fábrica de storage com dois buckets").toBeTypeOf(
-    "function",
-  );
-  if (typeof candidate !== "function") {
-    throw new Error("createMediaObjectStore ausente");
-  }
-  return candidate as StoreFactory;
-}
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("storage de mídia R2", () => {
   it("envia e lê somente no staging, mas publica somente no bucket público sem deleção", async () => {
@@ -66,7 +29,7 @@ describe("storage de mídia R2", () => {
         return {};
       },
     } as unknown as S3Client;
-    const store = factory()({
+    const store = createMediaObjectStore({
       configuration: {
         R2_ACCOUNT_ID: "account",
         R2_ACCESS_KEY_ID: "key",
@@ -111,5 +74,19 @@ describe("storage de mídia R2", () => {
       CacheControl: "public, max-age=31536000, immutable",
     });
     expect("deleteObject" in store).toBe(false);
+  });
+
+  it("resolve a chave pública sobre a mesma URL-base normalizada", () => {
+    vi.stubEnv("R2_PUBLIC_BASE_URL", "https://media.nite.test/media");
+
+    expect(getPublicMediaUrl("news/article/cover image.webp")).toBe(
+      "https://media.nite.test/media/news/article/cover%20image.webp",
+    );
+  });
+
+  it("mantém mídia indisponível quando a URL-base não está configurada", () => {
+    vi.stubEnv("R2_PUBLIC_BASE_URL", "");
+
+    expect(getPublicMediaUrl("news/article/cover.webp")).toBe(undefined);
   });
 });

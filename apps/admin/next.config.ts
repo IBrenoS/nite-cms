@@ -1,19 +1,15 @@
 import type { NextConfig } from "next";
 
-const publicMediaUrl = process.env.R2_PUBLIC_BASE_URL;
-let mediaRemotePattern: URL | undefined;
-try {
-  mediaRemotePattern = publicMediaUrl ? new URL(publicMediaUrl) : undefined;
-} catch {
-  mediaRemotePattern = undefined;
-}
+import { readPublicMediaConfiguration } from "./src/lib/public-media-config";
+
+const publicMedia = readPublicMediaConfiguration(process.env);
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ["@nite/cms-db", "@nite/cms-ui", "@nite/editorial"],
   typedRoutes: true,
   images: {
-    remotePatterns: mediaRemotePattern ? [mediaRemotePattern] : [],
+    remotePatterns: publicMedia.configured ? [publicMedia.remotePattern] : [],
   },
   async headers() {
     return [
