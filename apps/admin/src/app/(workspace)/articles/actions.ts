@@ -184,7 +184,8 @@ export async function createPrivatePreviewLink(input: unknown) {
       return {
         status: "operation_error" as const,
         code: "preview_unavailable" as const,
-        message: "O preview privado não está configurado neste ambiente.",
+        message:
+          "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
         retryable: false,
       };
     }

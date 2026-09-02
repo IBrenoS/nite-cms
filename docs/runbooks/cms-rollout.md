@@ -76,6 +76,11 @@ staging, leitura do staging e escrita no bucket público. `DeleteObject` não é
 necessário. Configure CORS do staging somente para origem, métodos e headers do
 Admin.
 
+Em desenvolvimento local, `PORTAL_PREVIEW_URL` vazio é um estado válido e
+significa que o Preview no Portal ainda não foi integrado. O Admin permanece
+operacional, o Preview no CMS continua disponível e tentativas de usar o Preview
+no Portal recebem uma indisponibilidade explícita, sem emitir token.
+
 O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
 tentativa em `after()` reduz a latência; o cron é a recuperação durável. No
 plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
@@ -101,6 +106,13 @@ escrita, `PREVIEW_HMAC_SECRET`, `REVALIDATION_SECRET` ou `CRON_SECRET`.
 
 O Portal não recebe `PREVIEW_HMAC_SECRET`, credenciais de banco do CMS ou
 credenciais R2. Não há fallback automático se API ou configuração falharem.
+
+Quando a integração privada for habilitada, configure os dois endpoints HTTPS
+em conjunto: `PORTAL_PREVIEW_URL=https://<portal>/api/preview` no Admin e
+`CMS_PREVIEW_RESOLVE_URL=https://<admin>/api/preview/resolve` no Portal. O Admin
+precisa estar acessível ao servidor do Portal por deploy ou túnel HTTPS. Reinicie
+o processo local depois de alterar `.env.local` e faça novo deploy quando a
+variável for alterada no provedor do Portal.
 
 ### Playwright do Admin em homologação
 

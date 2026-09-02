@@ -317,4 +317,69 @@ describe("ArticleEditor", () => {
     );
     expect(preview).toBeEnabled();
   });
+
+  it("explica quando o Preview no Portal não está configurado", async () => {
+    mocks.preview.mockResolvedValue({
+      status: "operation_error",
+      code: "preview_unavailable",
+      message:
+        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+      retryable: false,
+    });
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Alteração local ainda não salva" },
+    });
+    const preview = screen.getByRole("button", { name: "Preview no Portal" });
+
+    fireEvent.click(preview);
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+      ),
+    );
+    expect(screen.getByLabelText("Título")).toHaveValue(
+      "Alteração local ainda não salva",
+    );
+    expect(open).not.toHaveBeenCalled();
+    expect(preview).toBeEnabled();
+    open.mockRestore();
+  });
+
+  it("mostra o código de suporte em falha inesperada do preview", async () => {
+    mocks.preview.mockResolvedValue({
+      status: "unexpected_error",
+      message: "Não foi possível concluir a operação editorial.",
+      errorId: "preview-error-id",
+    });
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview no Portal" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Código de suporte: preview-error-id.",
+      ),
+    );
+  });
 });

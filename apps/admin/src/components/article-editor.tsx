@@ -359,7 +359,11 @@ export function ArticleEditor({ initial, canPublish }: ArticleEditorProps) {
       if (result.status === "success") {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       } else {
-        setPreviewMessage(result.message);
+        setPreviewMessage(
+          result.status === "unexpected_error"
+            ? `${result.message} Código de suporte: ${result.errorId}.`
+            : result.message,
+        );
         if (result.status === "validation_error") {
           setClientFieldErrors(result.fieldErrors);
           setDismissedServerFields({});

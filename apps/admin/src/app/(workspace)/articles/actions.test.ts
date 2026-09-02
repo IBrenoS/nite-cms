@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   submit: vi.fn(),
@@ -52,6 +52,10 @@ function draftForm(intent: "save" | "publish" = "save") {
 }
 
 describe("ações do editor", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     mocks.submit.mockReset();
     mocks.requireContext.mockReset();
@@ -169,5 +173,47 @@ describe("ações do editor", () => {
         coverMedia: expect.any(Array),
       },
     });
+  });
+
+  it("trata preview não configurado como indisponibilidade esperada", async () => {
+    mocks.getPreview.mockResolvedValue({ article: {}, revision: {} });
+    mocks.validatePreview.mockResolvedValue({});
+    vi.stubEnv("PREVIEW_HMAC_SECRET", "x".repeat(32));
+    vi.stubEnv("PORTAL_PREVIEW_URL", "");
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await createPrivatePreviewLink({
+      articleId: "10000000-0000-4000-8000-000000000001",
+      revisionId: "20000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result).toEqual({
+      status: "operation_error",
+      code: "preview_unavailable",
+      message:
+        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+      retryable: false,
+    });
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("continua emitindo um link assinado quando o preview está configurado", async () => {
+    mocks.getPreview.mockResolvedValue({ article: {}, revision: {} });
+    mocks.validatePreview.mockResolvedValue({});
+    vi.stubEnv("PREVIEW_HMAC_SECRET", "x".repeat(32));
+    vi.stubEnv("PORTAL_PREVIEW_URL", "https://portal.nite.test/api/preview");
+
+    const result = await createPrivatePreviewLink({
+      articleId: "10000000-0000-4000-8000-000000000001",
+      revisionId: "20000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("Preview não emitido.");
+    const url = new URL(result.data.url);
+    expect(url.origin).toBe("https://portal.nite.test");
+    expect(url.pathname).toBe("/api/preview");
+    expect(url.searchParams.get("token")).toMatch(/^v1\.[^.]+\.[^.]+$/u);
   });
 });
