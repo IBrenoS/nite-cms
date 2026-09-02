@@ -8,10 +8,14 @@ import { fileURLToPath } from "node:url";
 import {
   EditorialConflictError,
   EditorialPublicationError,
+  EditorialSlugConflictError,
   createArticleDraft,
+  editorialDraftInputSchema,
+  editorialPublishableInputSchema,
   mapPublishedArticle,
   publishArticle,
   saveArticleRevision,
+  submitEditorialRevision,
 } from "@nite/editorial";
 import {
   articleRevisions,
@@ -406,8 +410,8 @@ describe("comandos editoriais", () => {
     ).rejects.toThrow(/imagens inline.*processadas/i);
   });
 
-  it.each(["            ", "curta"])(
-    "rejeita capa inválida ao salvar: %s",
+  it.each(["", "curta"])(
+    "aceita texto alternativo de capa incompleto ao salvar rascunho: %s",
     async (coverAlt) => {
       const database = drizzle(client, { schema: cmsSchema });
       const [publisher] = await database
@@ -437,9 +441,206 @@ describe("comandos editoriais", () => {
           actor: publisher,
           input: { ...firstDraft, coverAlt },
         }),
-      ).rejects.toThrow();
+      ).resolves.toMatchObject({ revision: { coverAlt } });
     },
   );
+
+  it("aceita rascunho parcial e reserva as exigências editoriais para publicação", () => {
+    const partialDraft = {
+      title: "Rascunho",
+      summary: "",
+      category: "" as const,
+      byline: "",
+      coverMediaId: null,
+      coverAlt: "",
+      featured: false,
+      body: {
+        schemaVersion: 1 as const,
+        type: "doc" as const,
+        content: [{ type: "paragraph" as const, content: [] }],
+      },
+      seo: { title: "SEO parcial", description: "" },
+    };
+
+    expect(editorialDraftInputSchema.parse(partialDraft)).toEqual(partialDraft);
+    const published = editorialPublishableInputSchema.safeParse(partialDraft);
+    expect(published.success).toBe(false);
+    if (!published.success) {
+      expect(
+        published.error.issues.map((issue) => issue.path.join(".")),
+      ).toEqual(
+        expect.arrayContaining([
+          "slug",
+          "title",
+          "summary",
+          "category",
+          "byline",
+          "coverMediaId",
+          "coverAlt",
+          "body.content",
+          "seo.title",
+          "seo.description",
+        ]),
+      );
+    }
+  });
+
+  it("persiste um rascunho parcial sem capa, categoria ou corpo significativo", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-partial-oid",
+        displayName: "Publisher Parcial",
+        role: "publisher",
+      })
+      .returning();
+
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: {
+        title: "Rascunho parcial",
+        summary: "",
+        category: "",
+        byline: "",
+        coverMediaId: null,
+        coverAlt: "",
+        featured: false,
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [{ type: "paragraph", content: [] }],
+        },
+      },
+    });
+
+    expect(created.article.slug).toBe("rascunho-parcial");
+    expect(created.revision).toMatchObject({
+      summary: "",
+      category: "",
+      byline: "",
+      coverMediaId: null,
+      coverAlt: "",
+    });
+  });
+
+  it("reverte criação e revisão quando a publicação falha após a persistência", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-atomic-oid",
+        displayName: "Publisher Atômico",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-atomica/original",
+      mimeType: "image/png",
+      byteSize: 4096,
+      status: "pending",
+    });
+
+    await expect(
+      submitEditorialRevision(database, {
+        actor: publisher,
+        intent: "publish",
+        target: { kind: "new" },
+        slugManuallyEdited: false,
+        input: firstDraft,
+      }),
+    ).rejects.toThrow(/capa.*processada/i);
+
+    await expect(database.select().from(articles)).resolves.toHaveLength(0);
+    await expect(
+      database.select().from(articleRevisions),
+    ).resolves.toHaveLength(0);
+    await expect(database.select().from(auditEvents)).resolves.toHaveLength(0);
+    await expect(database.select().from(outboxEvents)).resolves.toHaveLength(0);
+  });
+
+  it("salva e publica uma matéria nova na mesma operação", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-submit-oid",
+        displayName: "Publisher Submit",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-submit/original",
+      publicObjectKey: "news/capa-submit/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      status: "ready",
+    });
+
+    const result = await submitEditorialRevision(database, {
+      actor: publisher,
+      intent: "publish",
+      target: { kind: "new" },
+      input: firstDraft,
+    });
+
+    expect(result.article).toMatchObject({
+      status: "published",
+      publishedRevisionId: result.revision.id,
+    });
+    await expect(database.select().from(auditEvents)).resolves.toHaveLength(2);
+    await expect(database.select().from(outboxEvents)).resolves.toHaveLength(1);
+  });
+
+  it("traduz colisão de slug para um erro editorial tipado", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-slug-oid",
+        displayName: "Publisher Slug",
+        role: "publisher",
+      })
+      .returning();
+    const input = {
+      title: "Rascunho com slug manual",
+      summary: "",
+      category: "" as const,
+      byline: "",
+      featured: false,
+      coverMediaId: null,
+      coverAlt: "",
+      body: {
+        schemaVersion: 1 as const,
+        type: "doc" as const,
+        content: [{ type: "paragraph" as const, content: [] }],
+      },
+      slug: "slug-repetido",
+    };
+
+    await createArticleDraft(database, {
+      actor: publisher,
+      input,
+      slugManuallyEdited: true,
+    });
+    await expect(
+      createArticleDraft(database, {
+        actor: publisher,
+        input,
+        slugManuallyEdited: true,
+      }),
+    ).rejects.toBeInstanceOf(EditorialSlugConflictError);
+  });
 
   it("rejeita publicação de revisão persistida com alt de capa em branco", async () => {
     const database = drizzle(client, { schema: cmsSchema });

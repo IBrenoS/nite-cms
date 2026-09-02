@@ -59,17 +59,17 @@ export default async function ArticlePreviewPage({
       <article className="grid gap-10">
         <div className="grid gap-5">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-nite-brand-accent">
-            {result.revision.category}
+            {result.revision.category || "Sem categoria"}
           </p>
           <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,6vw,4.75rem)] leading-[1.04] font-semibold tracking-[-0.035em]">
             {result.revision.title}
           </h1>
           <p className="max-w-3xl text-lg leading-8 text-nite-text-secondary">
-            {result.revision.summary}
+            {result.revision.summary || "Resumo ainda não informado."}
           </p>
           <p className="font-mono text-xs uppercase tracking-[0.08em] text-nite-text-muted">
             {result.revision.readTimeMinutes} min de leitura ·{" "}
-            {result.revision.byline}
+            {result.revision.byline || "Assinatura ainda não informada"}
           </p>
         </div>
 

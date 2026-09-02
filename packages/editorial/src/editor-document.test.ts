@@ -4,6 +4,7 @@ import {
   calculateEditorialReadTime,
   editorialDocumentV1Schema,
   persistedEditorialDocumentV1Schema,
+  storableEditorialDocumentV1Schema,
   resolveEditorialDocumentMedia,
   tiptapDocumentToEditorialDocumentV1,
 } from "@nite/editorial";
@@ -96,6 +97,19 @@ describe("documento editorial v1", () => {
     expect(tiptapDocumentToEditorialDocumentV1(tiptapDocument)).toEqual(
       document,
     );
+  });
+
+  it("preserva um parágrafo vazio ao normalizar um rascunho sem corpo", () => {
+    expect(
+      tiptapDocumentToEditorialDocumentV1({
+        type: "doc",
+        content: [{ type: "paragraph" }],
+      }),
+    ).toEqual({
+      schemaVersion: 1,
+      type: "doc",
+      content: [{ type: "paragraph", content: [] }],
+    });
   });
 
   it.each([
@@ -301,6 +315,21 @@ describe("documento editorial v1", () => {
         ],
       }),
     ).toThrow(/conteúdo significativo/i);
+  });
+
+  it("permite armazenar um corpo vazio em uma revisão de rascunho", () => {
+    const emptyDraft = {
+      schemaVersion: 1 as const,
+      type: "doc" as const,
+      content: [{ type: "paragraph" as const, content: [] }],
+    };
+
+    expect(storableEditorialDocumentV1Schema.parse(emptyDraft)).toEqual(
+      emptyDraft,
+    );
+    expect(() => persistedEditorialDocumentV1Schema.parse(emptyDraft)).toThrow(
+      /conteúdo significativo/i,
+    );
   });
 
   it("aceita documento persistido composto somente por imagem", () => {

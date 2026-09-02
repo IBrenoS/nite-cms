@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
-  editorialArticleInputSchema,
+  editorialDraftInputSchema,
   getEditorialArticle,
   listEditorialRevisions,
 } from "@nite/editorial";
@@ -28,7 +28,7 @@ export default async function EditArticlePage({
     result.article.id,
   );
 
-  const input = editorialArticleInputSchema.parse({
+  const input = editorialDraftInputSchema.parse({
     slug: result.article.slug,
     title: result.revision.title,
     summary: result.revision.summary,

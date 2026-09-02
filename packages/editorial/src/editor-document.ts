@@ -194,7 +194,7 @@ function resolvedImagePaths(
   });
 }
 
-export const persistedEditorialDocumentV1Schema =
+export const storableEditorialDocumentV1Schema =
   editorialDocumentV1Schema.superRefine((document, context) => {
     resolvedImagePaths(document.content).forEach((path) => {
       context.addIssue({
@@ -203,6 +203,10 @@ export const persistedEditorialDocumentV1Schema =
         message: "A resolução pública de imagem não pode ser persistida.",
       });
     });
+  });
+
+export const persistedEditorialDocumentV1Schema =
+  storableEditorialDocumentV1Schema.superRefine((document, context) => {
     if (!hasMeaningfulContent(document.content)) {
       context.addIssue({
         code: "custom",
@@ -390,6 +394,9 @@ export function tiptapDocumentToEditorialDocumentV1(
   const document = tiptapDocumentSchema.parse(input);
   const content = [...document.content];
   while (isTrailingEmptyParagraph(content.at(-1))) content.pop();
+  if (content.length === 0) {
+    content.push({ type: "paragraph", content: [] });
+  }
   return editorialDocumentV1Schema.parse({
     schemaVersion: 1,
     type: "doc",

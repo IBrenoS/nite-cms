@@ -2,7 +2,14 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { deriveEditorialSlug, newsCategoryValues } from "./article-schema";
+import {
+  deriveEditorialSlug,
+  editableEditorialSlugSchema,
+  editorialDraftInputSchema,
+  editorialPublishableInputSchema,
+  newsCategoryValues,
+  type EditorialDraftInput,
+} from "./article-schema";
 import {
   calculateEditorialReadTime,
   getEditorialImageMediaIds,
@@ -18,11 +25,7 @@ import {
 } from "@nite/cms-db";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 
-const editableSlugSchema = z
-  .string()
-  .trim()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(120);
+const editableSlugSchema = editableEditorialSlugSchema;
 const coverAltSchema = z.string().trim().min(12);
 
 export const editorialArticleInputSchema = z
@@ -68,8 +71,32 @@ export class EditorialPublicationError extends Error {
   }
 }
 
+export class EditorialSlugConflictError extends Error {
+  constructor() {
+    super("Já existe uma matéria com este slug.");
+    this.name = "EditorialSlugConflictError";
+  }
+}
+
+function isSlugConstraintError(error: unknown) {
+  let current = error;
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    const candidate = current as Error & {
+      cause?: unknown;
+      code?: unknown;
+      constraint?: unknown;
+    };
+    const identifiesSlugConstraint =
+      candidate.constraint === "articles_slug_unique" ||
+      candidate.message.includes("articles_slug_unique");
+    if (candidate.code === "23505" && identifiesSlugConstraint) return true;
+    current = candidate.cause;
+  }
+  return false;
+}
+
 function revisionValues(
-  input: EditorialArticleInput,
+  input: EditorialDraftInput,
   articleId: string,
   version: number,
   actorId: string,
@@ -94,7 +121,7 @@ function revisionValues(
 }
 
 function resolveDraftSlug(
-  input: EditorialArticleInput,
+  input: EditorialDraftInput,
   slugManuallyEdited: boolean,
 ) {
   return editableSlugSchema.parse(
@@ -106,51 +133,56 @@ export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
   command: {
     actor: CmsMembership;
-    input: EditorialArticleInput;
+    input: EditorialDraftInput;
     slugManuallyEdited?: boolean;
   },
 ) {
-  const input = editorialArticleInputSchema.parse(command.input);
+  const input = editorialDraftInputSchema.parse(command.input);
   const slugManuallyEdited = z
     .boolean()
     .parse(command.slugManuallyEdited ?? false);
   const slug = resolveDraftSlug(input, slugManuallyEdited);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireActiveCmsMembership(
-      transaction,
-      command.actor.id,
-    );
-    const [article] = await transaction
-      .insert(articles)
-      .values({
-        slug,
-        slugManuallyEdited,
-        featured: input.featured,
-        createdByMembershipId: actor.id,
-        updatedByMembershipId: actor.id,
-      })
-      .returning();
-    const [revision] = await transaction
-      .insert(articleRevisions)
-      .values(revisionValues(input, article.id, 1, actor.id))
-      .returning();
-    const [updatedArticle] = await transaction
-      .update(articles)
-      .set({ currentRevisionId: revision.id, updatedAt: new Date() })
-      .where(eq(articles.id, article.id))
-      .returning();
+  try {
+    return await database.transaction(async (transaction) => {
+      const actor = await requireActiveCmsMembership(
+        transaction,
+        command.actor.id,
+      );
+      const [article] = await transaction
+        .insert(articles)
+        .values({
+          slug,
+          slugManuallyEdited,
+          featured: input.featured,
+          createdByMembershipId: actor.id,
+          updatedByMembershipId: actor.id,
+        })
+        .returning();
+      const [revision] = await transaction
+        .insert(articleRevisions)
+        .values(revisionValues(input, article.id, 1, actor.id))
+        .returning();
+      const [updatedArticle] = await transaction
+        .update(articles)
+        .set({ currentRevisionId: revision.id, updatedAt: new Date() })
+        .where(eq(articles.id, article.id))
+        .returning();
 
-    await transaction.insert(auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "article.created",
-      aggregateType: "article",
-      aggregateId: article.id,
-      metadata: { revisionId: revision.id, version: 1 },
+      await transaction.insert(auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "article.created",
+        aggregateType: "article",
+        aggregateId: article.id,
+        metadata: { revisionId: revision.id, version: 1 },
+      });
+
+      return { article: updatedArticle, revision };
     });
-
-    return { article: updatedArticle, revision };
-  });
+  } catch (error) {
+    if (isSlugConstraintError(error)) throw new EditorialSlugConflictError();
+    throw error;
+  }
 }
 
 export async function saveArticleRevision<
@@ -161,98 +193,184 @@ export async function saveArticleRevision<
     actor: CmsMembership;
     articleId: string;
     expectedRevisionId: string;
-    input: EditorialArticleInput;
+    input: EditorialDraftInput;
     slugManuallyEdited?: boolean;
   },
 ) {
-  const input = editorialArticleInputSchema.parse(command.input);
+  const input = editorialDraftInputSchema.parse(command.input);
 
-  return database.transaction(async (transaction) => {
-    const actor = await requireActiveCmsMembership(
-      transaction,
-      command.actor.id,
+  try {
+    return await database.transaction(async (transaction) => {
+      const actor = await requireActiveCmsMembership(
+        transaction,
+        command.actor.id,
+      );
+      const [article] = await transaction
+        .select()
+        .from(articles)
+        .where(eq(articles.id, command.articleId))
+        .limit(1);
+
+      if (
+        !article ||
+        article.currentRevisionId !== command.expectedRevisionId
+      ) {
+        throw new EditorialConflictError();
+      }
+      const requestedSlug = input.slug
+        ? editableSlugSchema.parse(input.slug)
+        : undefined;
+      if (
+        article.publishedAt &&
+        requestedSlug !== undefined &&
+        requestedSlug !== article.slug
+      ) {
+        throw new EditorialPublicationError(
+          "O slug de uma matéria publicada não pode ser alterado.",
+        );
+      }
+      const requestedManualState = z
+        .boolean()
+        .parse(command.slugManuallyEdited ?? false);
+      const slugManuallyEdited = article.publishedAt
+        ? article.slugManuallyEdited
+        : article.slugManuallyEdited || requestedManualState;
+      const slug = article.publishedAt
+        ? article.slug
+        : resolveDraftSlug(input, slugManuallyEdited);
+
+      const [currentRevision] = await transaction
+        .select({ version: articleRevisions.version })
+        .from(articleRevisions)
+        .where(eq(articleRevisions.id, command.expectedRevisionId))
+        .limit(1);
+      if (!currentRevision) {
+        throw new EditorialConflictError();
+      }
+
+      const [revision] = await transaction
+        .insert(articleRevisions)
+        .values(
+          revisionValues(
+            input,
+            article.id,
+            currentRevision.version + 1,
+            actor.id,
+          ),
+        )
+        .returning();
+      const [updatedArticle] = await transaction
+        .update(articles)
+        .set({
+          slug,
+          slugManuallyEdited,
+          currentRevisionId: revision.id,
+          updatedByMembershipId: actor.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(articles.id, article.id),
+            eq(articles.currentRevisionId, command.expectedRevisionId),
+          ),
+        )
+        .returning();
+      if (!updatedArticle) {
+        throw new EditorialConflictError();
+      }
+
+      await transaction.insert(auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "article.revision.saved",
+        aggregateType: "article",
+        aggregateId: article.id,
+        metadata: { revisionId: revision.id, version: revision.version },
+      });
+
+      return { article: updatedArticle, revision };
+    });
+  } catch (error) {
+    if (isSlugConstraintError(error)) throw new EditorialSlugConflictError();
+    throw error;
+  }
+}
+
+async function getPublishableRevision<TQueryResult extends PgQueryResultHKT>(
+  database: CmsDatabase<TQueryResult>,
+  article: typeof articles.$inferSelect,
+  revisionId: string,
+) {
+  const [revision] = await database
+    .select({
+      title: articleRevisions.title,
+      summary: articleRevisions.summary,
+      category: articleRevisions.category,
+      eventDate: articleRevisions.eventDate,
+      byline: articleRevisions.byline,
+      coverMediaId: articleRevisions.coverMediaId,
+      coverAlt: articleRevisions.coverAlt,
+      body: articleRevisions.body,
+      featured: articleRevisions.featured,
+      seo: articleRevisions.seo,
+    })
+    .from(articleRevisions)
+    .where(eq(articleRevisions.id, revisionId))
+    .limit(1);
+  if (!revision) throw new EditorialConflictError();
+  const publishable = editorialPublishableInputSchema.parse({
+    ...revision,
+    slug: article.slug,
+    eventDate: revision.eventDate ?? undefined,
+    seo: revision.seo ?? undefined,
+  });
+  const [cover] = await database
+    .select({ status: mediaAssets.status })
+    .from(mediaAssets)
+    .where(eq(mediaAssets.id, publishable.coverMediaId))
+    .limit(1);
+  if (cover?.status !== "ready") {
+    throw new EditorialPublicationError(
+      "A capa ainda não terminou de ser processada.",
     );
-    const [article] = await transaction
-      .select()
-      .from(articles)
-      .where(eq(articles.id, command.articleId))
-      .limit(1);
-
-    if (!article || article.currentRevisionId !== command.expectedRevisionId) {
-      throw new EditorialConflictError();
-    }
-    const requestedSlug = input.slug
-      ? editableSlugSchema.parse(input.slug)
-      : undefined;
+  }
+  const inlineMediaIds = getEditorialImageMediaIds(publishable.body);
+  if (inlineMediaIds.length > 0) {
+    const inlineAssets = await database
+      .select({ id: mediaAssets.id, status: mediaAssets.status })
+      .from(mediaAssets)
+      .where(inArray(mediaAssets.id, inlineMediaIds));
     if (
-      article.publishedAt &&
-      requestedSlug !== undefined &&
-      requestedSlug !== article.slug
+      inlineAssets.length !== inlineMediaIds.length ||
+      inlineAssets.some((asset) => asset.status !== "ready")
     ) {
       throw new EditorialPublicationError(
-        "O slug de uma matéria publicada não pode ser alterado.",
+        "Todas as imagens inline devem estar processadas antes de publicar.",
       );
     }
-    const requestedManualState = z
-      .boolean()
-      .parse(command.slugManuallyEdited ?? false);
-    const slugManuallyEdited = article.publishedAt
-      ? article.slugManuallyEdited
-      : article.slugManuallyEdited || requestedManualState;
-    const slug = article.publishedAt
-      ? article.slug
-      : resolveDraftSlug(input, slugManuallyEdited);
+  }
+  return publishable;
+}
 
-    const [currentRevision] = await transaction
-      .select({ version: articleRevisions.version })
-      .from(articleRevisions)
-      .where(eq(articleRevisions.id, command.expectedRevisionId))
-      .limit(1);
-    if (!currentRevision) {
-      throw new EditorialConflictError();
-    }
-
-    const [revision] = await transaction
-      .insert(articleRevisions)
-      .values(
-        revisionValues(
-          input,
-          article.id,
-          currentRevision.version + 1,
-          actor.id,
-        ),
-      )
-      .returning();
-    const [updatedArticle] = await transaction
-      .update(articles)
-      .set({
-        slug,
-        slugManuallyEdited,
-        currentRevisionId: revision.id,
-        updatedByMembershipId: actor.id,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(articles.id, article.id),
-          eq(articles.currentRevisionId, command.expectedRevisionId),
-        ),
-      )
-      .returning();
-    if (!updatedArticle) {
-      throw new EditorialConflictError();
-    }
-
-    await transaction.insert(auditEvents).values({
-      actorMembershipId: actor.id,
-      action: "article.revision.saved",
-      aggregateType: "article",
-      aggregateId: article.id,
-      metadata: { revisionId: revision.id, version: revision.version },
-    });
-
-    return { article: updatedArticle, revision };
-  });
+export async function validateEditorialRevisionForPublication<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    articleId: string;
+    expectedRevisionId: string;
+  },
+) {
+  await requireActiveCmsMembership(database, command.actor.id);
+  const [article] = await database
+    .select()
+    .from(articles)
+    .where(eq(articles.id, command.articleId))
+    .limit(1);
+  if (!article || article.currentRevisionId !== command.expectedRevisionId) {
+    throw new EditorialConflictError();
+  }
+  return getPublishableRevision(database, article, command.expectedRevisionId);
 }
 
 export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
@@ -282,48 +400,11 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
       );
     }
 
-    const [revision] = await transaction
-      .select({
-        coverMediaId: articleRevisions.coverMediaId,
-        coverAlt: articleRevisions.coverAlt,
-        body: articleRevisions.body,
-        featured: articleRevisions.featured,
-        category: articleRevisions.category,
-      })
-      .from(articleRevisions)
-      .where(eq(articleRevisions.id, command.expectedRevisionId))
-      .limit(1);
-    if (!revision?.coverMediaId) {
-      throw new EditorialPublicationError(
-        "Selecione uma capa processada antes de publicar.",
-      );
-    }
-    coverAltSchema.parse(revision.coverAlt);
-    const [cover] = await transaction
-      .select({ status: mediaAssets.status })
-      .from(mediaAssets)
-      .where(eq(mediaAssets.id, revision.coverMediaId))
-      .limit(1);
-    if (cover?.status !== "ready") {
-      throw new EditorialPublicationError(
-        "A capa ainda não terminou de ser processada.",
-      );
-    }
-    const inlineMediaIds = getEditorialImageMediaIds(revision.body);
-    if (inlineMediaIds.length > 0) {
-      const inlineAssets = await transaction
-        .select({ id: mediaAssets.id, status: mediaAssets.status })
-        .from(mediaAssets)
-        .where(inArray(mediaAssets.id, inlineMediaIds));
-      if (
-        inlineAssets.length !== inlineMediaIds.length ||
-        inlineAssets.some((asset) => asset.status !== "ready")
-      ) {
-        throw new EditorialPublicationError(
-          "Todas as imagens inline devem estar processadas antes de publicar.",
-        );
-      }
-    }
+    const publishable = await getPublishableRevision(
+      transaction,
+      article,
+      command.expectedRevisionId,
+    );
 
     const publishedAt = article.publishedAt ?? new Date();
     const [publishedArticle] = await transaction
@@ -332,7 +413,7 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
         status: "published",
         publishedRevisionId: command.expectedRevisionId,
         publishedAt,
-        featured: revision.featured,
+        featured: publishable.featured,
         updatedByMembershipId: actor.id,
         updatedAt: new Date(),
       })
@@ -361,11 +442,56 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
         articleId: article.id,
         revisionId: command.expectedRevisionId,
         slug: article.slug,
-        category: revision.category,
+        category: publishable.category,
       },
     });
 
     return publishedArticle;
+  });
+}
+
+type EditorialSubmitTarget =
+  | { kind: "new" }
+  | { kind: "existing"; articleId: string; expectedRevisionId: string };
+
+export async function submitEditorialRevision<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    intent: "save" | "publish";
+    target: EditorialSubmitTarget;
+    input: EditorialDraftInput;
+    slugManuallyEdited?: boolean;
+  },
+) {
+  return database.transaction(async (transaction) => {
+    const saved =
+      command.target.kind === "new"
+        ? await createArticleDraft(transaction, {
+            actor: command.actor,
+            input: command.input,
+            slugManuallyEdited: command.slugManuallyEdited,
+          })
+        : await saveArticleRevision(transaction, {
+            actor: command.actor,
+            articleId: command.target.articleId,
+            expectedRevisionId: command.target.expectedRevisionId,
+            input: command.input,
+            slugManuallyEdited: command.slugManuallyEdited,
+          });
+
+    const article =
+      command.intent === "publish"
+        ? await publishArticle(transaction, {
+            actor: command.actor,
+            articleId: saved.article.id,
+            expectedRevisionId: saved.revision.id,
+          })
+        : saved.article;
+
+    return { article, revision: saved.revision };
   });
 }
 

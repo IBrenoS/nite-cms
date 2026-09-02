@@ -46,6 +46,25 @@ test.describe("CMS Admin — fluxos críticos em staging", () => {
       ).toBeVisible();
     });
 
+    test("explica pendências sem salto nativo ao publicar uma matéria nova", async ({
+      page,
+    }) => {
+      await page.goto(`${staging.baseUrl}/articles/new`);
+      await expect(page.getByRole("button", { name: "Arquivar" })).toHaveCount(
+        0,
+      );
+      await expect(
+        page.getByLabel("Texto alternativo da imagem inline"),
+      ).not.toHaveAttribute("required", "");
+
+      await page.getByRole("button", { name: "Publicar revisão" }).click();
+
+      await expect(page.getByRole("alert").first()).toContainText(
+        "Revise os campos destacados.",
+      );
+      await expect(page.getByLabel("Título")).toBeFocused();
+    });
+
     test("confirma lifecycle para o artigo de staging explicitamente informado", async ({
       page,
     }) => {
