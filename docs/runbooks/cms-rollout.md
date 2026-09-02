@@ -81,6 +81,17 @@ significa que o Preview no Portal ainda não foi integrado. O Admin permanece
 operacional, o Preview no CMS continua disponível e tentativas de usar o Preview
 no Portal recebem uma indisponibilidade explícita, sem emitir token.
 
+Para integrar temporariamente o Admin local ao Portal publicado em
+`https://portal-nite.vercel.app`, defina:
+
+```text
+PORTAL_PREVIEW_URL=https://portal-nite.vercel.app/api/preview
+```
+
+Reinicie o Admin depois de alterar `.env.local`. `BETTER_AUTH_URL` e o redirect
+URI do Microsoft Entra permanecem locais; o túnel descrito abaixo não publica
+rotas de autenticação ou do workspace.
+
 O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
 tentativa em `after()` reduz a latência; o cron é a recuperação durável. No
 plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
@@ -113,6 +124,44 @@ em conjunto: `PORTAL_PREVIEW_URL=https://<portal>/api/preview` no Admin e
 precisa estar acessível ao servidor do Portal por deploy ou túnel HTTPS. Reinicie
 o processo local depois de alterar `.env.local` e faça novo deploy quando a
 variável for alterada no provedor do Portal.
+
+### Quick Tunnel para desenvolvimento do preview
+
+Enquanto o CMS Admin não tiver deploy próprio, exponha somente o resolver por
+um proxy local restritivo. Inicie, em terminais separados e nesta ordem:
+
+```text
+npm run dev
+npm run dev:preview-proxy
+cloudflared tunnel --url http://127.0.0.1:3011
+```
+
+O proxy escuta apenas em `127.0.0.1:3011`, aceita exclusivamente
+`POST /api/preview/resolve` e encaminha para o Admin em `127.0.0.1:3001`.
+Qualquer outra rota recebe `404`; indisponibilidade ou timeout do Admin recebe
+`502 preview_proxy_unavailable`, sempre com cache privado e sem registrar token
+ou conteúdo editorial.
+
+Copie a origem HTTPS aleatória emitida pelo `cloudflared` e configure no ambiente
+Production do projeto Vercel `portal-nite`:
+
+```text
+CMS_PREVIEW_RESOLVE_URL=https://<origem-gerada>.trycloudflare.com/api/preview/resolve
+```
+
+Faça redeploy do Portal para aplicar a variável. A origem muda toda vez que o
+Quick Tunnel é recriado; portanto a variável e o deployment precisam ser
+atualizados em cada nova sessão. Nenhum domínio `nite.tec.br` participa deste
+fluxo. Quick Tunnel é somente uma ponte de desenvolvimento, sem SLA, e depende
+do Admin, proxy e `cloudflared` permanecerem ativos.
+
+Antes de abrir uma revisão, confirme que um `POST` sem token retorna `401` tanto
+em `http://127.0.0.1:3011/api/preview/resolve` quanto na URL pública, e que `/`,
+`/articles` e `/api/auth/session` retornam `404` pela URL pública.
+
+Para desativar a integração, remova `CMS_PREVIEW_RESOLVE_URL` da Vercel, faça
+novo deployment, esvazie `PORTAL_PREVIEW_URL` no Admin, reinicie-o e encerre o
+proxy e o `cloudflared`. O Preview do CMS continua disponível.
 
 ### Playwright do Admin em homologação
 

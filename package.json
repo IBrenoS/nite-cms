@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "turbo run dev --filter=@nite/admin",
     "dev:api": "turbo run dev --filter=@nite/cms-api",
+    "dev:preview-proxy": "node scripts/preview-tunnel-proxy.mjs",
     "db:migrate": "npm run db:migrate --workspace=@nite/cms-db",
     "db:migrate:local": "npm run db:migrate:local --workspace=@nite/cms-db",
     "test:postgres:up": "docker compose --env-file .env.postgres-test.local -f compose.postgres-test.yml up -d --wait",
@@ -23,10 +24,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:preview-proxy": "node --test scripts/preview-tunnel-proxy.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:deadcode": "knip",
-    "check": "npm run format:check && npm run check:deadcode && turbo run lint typecheck && turbo run test && turbo run build"
+    "check": "npm run format:check && npm run check:deadcode && npm run test:preview-proxy && turbo run lint typecheck && turbo run test && turbo run build"
   },
   "devDependencies": {
     "eslint": "^9",
