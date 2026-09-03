@@ -38,6 +38,17 @@ npm run db:migrate
 
 Não execute migrations de produção a partir de builds do Admin ou da API.
 
+## Deploy
+
+O repositório privado `IBrenoS/nite-cms` usa a integração Git nativa da Vercel
+com dois projetos independentes na branch `main`:
+
+- `nite-cms-admin`, com Root Directory `apps/admin`;
+- `nite-cms-api`, com Root Directory `apps/api`.
+
+Cada projeto mantém somente as variáveis exigidas pela sua responsabilidade.
+Migrations não fazem parte do build ou do deploy.
+
 Consulte `docs/runbooks/cms-rollout.md` para as variáveis separadas do Admin,
 API, Portal e migration. O runbook não contém valores de credenciais e não
 autoriza deploy ou migration.
