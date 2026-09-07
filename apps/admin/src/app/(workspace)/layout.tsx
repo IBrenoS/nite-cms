@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Chip } from "@nite/cms-ui";
 
 import { getCmsContext } from "@/lib/auth";
 import { SignOutButton } from "@/components/sign-out-button";
+import { WorkspaceNavigation } from "@/components/workspace-navigation";
 
 export default async function WorkspaceLayout({
   children,
@@ -34,39 +34,12 @@ export default async function WorkspaceLayout({
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-nite-border-subtle bg-nite-background/90 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-16 max-w-[90rem] items-center justify-between gap-5 px-5 sm:px-8">
-          <div className="flex items-center gap-5">
-            <Link
-              href="/"
-              className="font-heading font-semibold tracking-tight"
-            >
-              NITE CMS
-            </Link>
-            <span className="hidden font-mono text-xs uppercase tracking-[0.12em] text-nite-text-muted sm:inline">
-              {context.membership.role}
-            </span>
-            {context.membership.role === "admin" ? (
-              <Link
-                href="/memberships"
-                className="rounded-md text-sm text-nite-text-secondary outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Memberships
-              </Link>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-nite-text-secondary md:inline">
-              {context.membership.displayName}
-            </span>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
-      <div className="mx-auto max-w-[90rem] px-5 py-8 sm:px-8 sm:py-10">
-        {children}
-      </div>
+    <div className="min-h-screen bg-nite-background">
+      <WorkspaceNavigation
+        displayName={context.membership.displayName}
+        role={context.membership.role}
+      />
+      <div className="min-w-0 flex-1 lg:pl-[220px]">{children}</div>
     </div>
   );
 }

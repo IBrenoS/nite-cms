@@ -1,17 +1,22 @@
 "use client";
 
-import { Button } from "@nite/cms-ui";
+import { Button, LogOutIcon } from "@nite/cms-ui";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
-export function SignOutButton() {
+export function SignOutButton({ sidebar = false }: { sidebar?: boolean }) {
   const router = useRouter();
 
   return (
     <Button
       type="button"
-      size="sm"
+      size={sidebar ? "sm" : "sm"}
       variant="quiet"
+      className={
+        sidebar
+          ? "min-h-9 w-full justify-start border-transparent px-2.5 text-xs text-nite-text-secondary hover:border-transparent hover:bg-nite-section hover:text-nite-text-primary focus-visible:border-transparent"
+          : undefined
+      }
       onClick={() =>
         authClient.signOut({
           fetchOptions: {
@@ -23,6 +28,7 @@ export function SignOutButton() {
         })
       }
     >
+      {sidebar ? <LogOutIcon aria-hidden="true" /> : null}
       Sair
     </Button>
   );

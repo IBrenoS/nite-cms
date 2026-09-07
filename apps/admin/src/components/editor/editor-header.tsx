@@ -1,0 +1,167 @@
+"use client";
+
+import Link from "next/link";
+import {
+  ArrowLeftIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  EyeIcon,
+  SaveIcon,
+  StatusBadge,
+  type StatusBadgeStatus,
+} from "@nite/cms-ui";
+
+type EditorHeaderProps = {
+  isExisting: boolean;
+  articleId?: string;
+  currentRevisionId: string;
+  status: { status: StatusBadgeStatus; label: string };
+  pending: boolean;
+  operationPending: boolean;
+  canPublish: boolean;
+  currentStatus?: "draft" | "published" | "archived";
+  isDirty: boolean;
+  openPrivatePreview: () => void;
+};
+
+export function EditorHeader({
+  isExisting,
+  articleId,
+  currentRevisionId,
+  status,
+  pending,
+  operationPending,
+  canPublish,
+  currentStatus,
+  isDirty,
+  openPrivatePreview,
+}: EditorHeaderProps) {
+  return (
+    <header className="sticky top-14 z-30 flex min-h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur sm:px-6 lg:top-0 lg:px-8">
+      <div className="flex min-w-0 items-center gap-3">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-nite-text-secondary transition-colors hover:text-nite-text-primary"
+        >
+          <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Matérias</span>
+        </Link>
+        <span className="h-4 w-px bg-nite-border-subtle" aria-hidden="true" />
+        <h1 className="truncate text-sm font-semibold tracking-tight text-nite-text-primary">
+          {isExisting ? "Editar matéria" : "Nova matéria"}
+        </h1>
+        <StatusBadge
+          status={status.status}
+          label={status.label}
+          size="sm"
+          variant="outline"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          form="article-editor-form"
+          name="intent"
+          value="save"
+          disabled={operationPending}
+          className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          <SaveIcon className="size-3.5" aria-hidden="true" />
+          <span>
+            {pending
+              ? "Salvando…"
+              : isExisting
+                ? "Salvar revisão"
+                : "Salvar rascunho"}
+          </span>
+        </button>
+
+        {isExisting && articleId ? (
+          <details className="group relative">
+            <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section">
+              <EyeIcon className="size-3.5" aria-hidden="true" />
+              <span>Visualizar</span>
+              <ChevronDownIcon
+                className="size-3 text-nite-text-secondary transition-transform group-open:rotate-180"
+                aria-hidden="true"
+              />
+            </summary>
+            <div className="absolute top-full right-0 z-50 mt-1.5 w-64 rounded-lg border border-nite-border-subtle bg-nite-surface p-1.5 shadow-lg">
+              <Link
+                href={`/preview/articles/${articleId}?revision=${currentRevisionId}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Preview no CMS"
+                className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-xs font-medium text-nite-text-primary hover:bg-nite-section"
+              >
+                <span>
+                  <span className="block font-semibold">Preview no CMS</span>
+                  <span className="block text-[11px] text-nite-text-secondary">
+                    Snapshot da revisão salva.
+                  </span>
+                </span>
+                <ExternalLinkIcon
+                  className="size-3 text-nite-text-secondary"
+                  aria-hidden="true"
+                />
+              </Link>
+              <button
+                type="button"
+                aria-label="Preview no Portal"
+                disabled={operationPending}
+                onClick={openPrivatePreview}
+                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
+              >
+                <span>
+                  <span className="block font-semibold">Preview no Portal</span>
+                  <span className="block text-[11px] text-nite-text-secondary">
+                    Exige dados de publicação.
+                  </span>
+                </span>
+                <ExternalLinkIcon
+                  className="size-3 text-nite-text-secondary"
+                  aria-hidden="true"
+                />
+              </button>
+              {isDirty ? (
+                <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-1.5 text-[11px] leading-4 text-status-warning">
+                  Salve a revisão para visualizar as alterações.
+                </p>
+              ) : null}
+            </div>
+          </details>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled
+              aria-describedby="new-preview-help"
+              className="inline-flex min-h-8 cursor-not-allowed items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-section px-3 text-xs font-semibold text-nite-text-secondary opacity-60"
+            >
+              <EyeIcon className="size-3.5" aria-hidden="true" />
+              <span>Visualizar</span>
+            </button>
+            <span id="new-preview-help" className="sr-only">
+              Salve o primeiro rascunho para habilitar a visualização.
+            </span>
+          </>
+        )}
+
+        {canPublish ? (
+          <button
+            type="submit"
+            form="article-editor-form"
+            name="intent"
+            value="publish"
+            aria-label="Publicar revisão"
+            disabled={operationPending || currentStatus === "archived"}
+            className="inline-flex min-h-8 items-center justify-center rounded-md bg-nite-brand-primary px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            {pending ? "Publicando…" : "Publicar"}
+          </button>
+        ) : null}
+      </div>
+    </header>
+  );
+}

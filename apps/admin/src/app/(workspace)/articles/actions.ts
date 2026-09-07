@@ -26,7 +26,13 @@ import {
 } from "@/lib/editorial-errors";
 import { parseEditorialFormData } from "@/lib/editorial-form";
 
-type EditorialSubmitData = { articleId: string; revisionId: string };
+type EditorialSubmitData = {
+  articleId: string;
+  revisionId: string;
+  version: number;
+  status: "draft" | "published" | "archived";
+  publishedRevisionId: string | null;
+};
 export type EditorialActionState =
   { status: "idle" } | EditorialActionResult<EditorialSubmitData>;
 
@@ -66,6 +72,9 @@ export async function submitEditorialArticle(
       data: {
         articleId: result.article.id,
         revisionId: result.revision.id,
+        version: result.revision.version,
+        status: result.article.status,
+        publishedRevisionId: result.article.publishedRevisionId,
       },
     };
   } catch (error) {

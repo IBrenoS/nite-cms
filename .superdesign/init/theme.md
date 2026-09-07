@@ -1,3 +1,21 @@
+# Theme context
+
+## Compact token summary
+
+- Default scene: dark.
+- Light background/surface: `#f4f7fa` / translucent white; dark background/surface: `#09090a` / `rgb(24 25 28 / 0.88)`.
+- Brand colors: light primary `#1d4ed8`, light accent `#0369a1`; dark primary `#2563eb`, dark accent `#38bdf8`.
+- Text: light primary `#0b1220`, secondary `#334155`; dark primary `#f0f0f0`, secondary `#a1a4a5`.
+- Semantic tones: draft slate, progress cyan, validated violet, done emerald, warning amber, error rose.
+- Current font aliases: sans Geist/Bahnschrift/Segoe UI; heading Sora/Bahnschrift/Segoe UI; mono Geist Mono/Cascadia Mono/Consolas. The variables are not loaded by the Admin root layout, so system fallbacks are the verified current behavior.
+- Base radius: `0.5rem`; controls generally use rounded-lg/rounded-xl.
+- Motion: 220ms micro, 560ms medium, `cubic-bezier(0.22, 1, 0.36, 1)`.
+- Elevation: restrained border-led surfaces with dark lift `0 24px 70px rgb(0 0 0 / 0.42)` and light lift `0 18px 48px rgb(15 23 42 / 0.14)`.
+- Tailwind CSS 4 is configured through CSS imports and `@theme inline`; there is no Tailwind config file.
+
+## Raw source: `packages/cms-ui/src/theme.css`
+
+```css
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -5,11 +23,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-source-sans), "Segoe UI", sans-serif;
-  --font-heading: var(--font-source-sans), "Segoe UI", sans-serif;
-  --font-editorial: var(--font-newsreader), Georgia, serif;
+  --font-sans: var(--font-geist), "Bahnschrift", "Segoe UI", sans-serif;
+  --font-heading: var(--font-sora), "Bahnschrift", "Segoe UI", sans-serif;
   --font-resend: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-ibm-plex-mono), "Cascadia Mono", monospace;
+  --font-mono: var(--font-geist-mono), "Cascadia Mono", "Consolas", monospace;
   --color-nite-background: var(--nite-background);
   --color-nite-section: var(--nite-section);
   --color-nite-surface: var(--nite-surface);
@@ -30,7 +47,6 @@
   --color-nite-icon-muted: var(--nite-icon-muted);
   --color-nite-brand-primary: var(--nite-brand-primary);
   --color-nite-brand-accent: var(--nite-brand-accent);
-  --color-nite-sidebar: #11151b;
   --color-status-draft: var(--nite-status-draft);
   --color-status-progress: var(--nite-status-progress);
   --color-status-validated: var(--nite-status-validated);
@@ -62,19 +78,19 @@
 
 :root {
   color-scheme: dark light;
-  --nite-light-background: #f6f7f9;
-  --nite-light-section: #f6f7f9;
-  --nite-light-surface: #ffffff;
-  --nite-light-surface-focus: #ffffff;
-  --nite-light-surface-elevated: #f6f7f9;
-  --nite-light-surface-subtle: #f6f7f9;
-  --nite-light-border-subtle: #dde2e8;
-  --nite-light-border-soft: #dde2e8;
-  --nite-light-border-strong: #c6ced8;
+  --nite-light-background: #f4f7fa;
+  --nite-light-section: #e8eef5;
+  --nite-light-surface: rgb(255 255 255 / 0.92);
+  --nite-light-surface-focus: rgb(255 255 255 / 0.98);
+  --nite-light-surface-elevated: rgb(235 241 248 / 0.94);
+  --nite-light-surface-subtle: rgb(15 23 42 / 0.04);
+  --nite-light-border-subtle: rgb(15 23 42 / 0.14);
+  --nite-light-border-soft: rgb(15 23 42 / 0.16);
+  --nite-light-border-strong: rgb(15 23 42 / 0.24);
   --nite-light-border-hover: rgb(29 78 216 / 0.42);
-  --nite-light-text-primary: #18202a;
-  --nite-light-text-secondary: #66717f;
-  --nite-light-text-muted: #66717f;
+  --nite-light-text-primary: #0b1220;
+  --nite-light-text-secondary: #334155;
+  --nite-light-text-muted: #5c6878;
   --nite-light-overlay: rgb(248 250 252 / 0.94);
   --nite-light-action-text: #0b1220;
   --nite-light-action-hover: #0b1220;
@@ -91,7 +107,7 @@
     0 1px 3px rgb(15 23 42 / 0.1), 0 1px 2px -1px rgb(15 23 42 / 0.1);
   --nite-light-action-shadow-hover: 0 18px 48px rgb(15 23 42 / 0.18);
   --nite-light-brand-primary: #1d4ed8;
-  --nite-light-brand-accent: #0ea5e9;
+  --nite-light-brand-accent: #0369a1;
   --nite-light-brand-glow: rgb(29 78 216 / 0.16);
   --nite-light-brand-soft: rgb(37 99 235 / 0.085);
   --nite-light-status-draft: #475569;
@@ -100,7 +116,7 @@
   --nite-light-status-done: #047857;
   --nite-light-status-warning: #92400e;
   --nite-light-status-error: #be123c;
-  --nite-light-shadow-lift: 0 1px 2px rgb(24 32 42 / 0.06);
+  --nite-light-shadow-lift: 0 18px 48px rgb(15 23 42 / 0.14);
   --nite-dark-background: #09090a;
   --nite-dark-section: #0d111c;
   --nite-dark-surface: rgb(24 25 28 / 0.88);
@@ -429,3 +445,42 @@ body {
     color: transparent;
   }
 }
+```
+
+## Raw source: `apps/admin/src/app/globals.css`
+
+```css
+@import "@nite/cms-ui/theme.css";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+@layer utilities {
+  .admin-grid {
+    background-image:
+      linear-gradient(var(--nite-border-subtle) 1px, transparent 1px),
+      linear-gradient(90deg, var(--nite-border-subtle) 1px, transparent 1px);
+    background-size: 2rem 2rem;
+    mask-image: linear-gradient(to bottom, black, transparent 68%);
+  }
+
+  .editor-surface .tiptap {
+    min-height: 24rem;
+    outline: none;
+  }
+
+  .editor-surface .tiptap > * + * {
+    margin-top: 1rem;
+  }
+
+  .editor-surface .tiptap h2 {
+    color: var(--nite-text-primary);
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .editor-surface .tiptap blockquote {
+    border-left: 2px solid var(--nite-brand-accent);
+    padding-left: 1.25rem;
+  }
+}
+```

@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/": {
+      "targetKind": "existing-ui",
+      "projectId": "e1895b38-ef0d-4b6e-93f1-2bfd5d037e8f",
+      "baselineDraftId": "0e112b5f-7949-4eea-a694-0db95afab794",
+      "activeDraftId": "0e112b5f-7949-4eea-a694-0db95afab794",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "apps/admin/src/app/layout.tsx",
+        "apps/admin/src/app/(workspace)/layout.tsx",
+        "apps/admin/src/components/sign-out-button.tsx",
+        "apps/admin/src/components/workspace-navigation.tsx",
+        "apps/admin/src/app/(workspace)/page.tsx",
+        "apps/admin/src/components/article-filters.tsx",
+        "packages/cms-ui/src/button.tsx",
+        "packages/cms-ui/src/chip.tsx",
+        "packages/cms-ui/src/empty-state.tsx",
+        "packages/cms-ui/src/status-badge.tsx",
+        "packages/cms-ui/src/icons.ts",
+        "packages/cms-ui/src/utils.ts",
+        "apps/admin/src/app/globals.css",
+        "packages/cms-ui/src/theme.css"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "1d198f6075252f59d83f9aa6afdebd2925f3238051b28d800abb71174bee33b9",
+        "apps/admin/src/app/layout.tsx": "4fb45fbd16dea9e03f290074d228fd75b308ee65af0eb22a6aa966c3f49f72f8",
+        "apps/admin/src/app/(workspace)/layout.tsx": "b9fbad491caccd7d9cb384210159e47d269cab8b32d6f4c6300b306abf2ad2d9",
+        "apps/admin/src/components/sign-out-button.tsx": "11f61108842fdcee78b55a89ee51a025d0a7ab411ab7135fbdc6d0f1f3abb13d",
+        "apps/admin/src/components/workspace-navigation.tsx": "951ed6a2bfc3e5352054327ebaa9a315dd6c39faa1e1b82155d4cee8140c73ff",
+        "apps/admin/src/app/(workspace)/page.tsx": "9425f2429f25a60947d09cddc61bfd84167700423a8abb82a70b2207b0b8e866",
+        "apps/admin/src/components/article-filters.tsx": "0c86df73b1f6a3ca194f8751341fad32a206725803bdc7b564b656efcbf8cb3a",
+        "packages/cms-ui/src/button.tsx": "9e544b5c2e1406e95f477234c0afdafd73d07053902de74c7c27205f193cffa6",
+        "packages/cms-ui/src/chip.tsx": "6f3a1ef5287df3449c3d05398d3a66800ddbbdc8ecbdd1d6ded842be3214a794",
+        "packages/cms-ui/src/empty-state.tsx": "4fcef825f44599b260c73bb1ff2f89115a16eeb2cd23926819c7d047e1e7e80d",
+        "packages/cms-ui/src/status-badge.tsx": "c3697f4103db5455dc34d8e81c9d70ae5008f91a175b9a3429f5d68f63723be2",
+        "packages/cms-ui/src/icons.ts": "31751f6e3ff413e5dd788950b9493d19e27408ed1a7237c7b751c926477f31ac",
+        "packages/cms-ui/src/utils.ts": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27",
+        "apps/admin/src/app/globals.css": "f36115ee3e6f7b9b96e923ac8cc3eeebd64a9011dfde61b42b82caa38652afc1",
+        "packages/cms-ui/src/theme.css": "e92cd163fbe21a1b7f8e2c4029986ed92ae63e3e590565f28bd40108260f33e2"
+      },
+      "drafts": {
+        "0e112b5f-7949-4eea-a694-0db95afab794": {
+          "title": "Matérias — NITE CMS Redação Digital",
+          "visualDirection": "Redação Digital — central de matérias",
+          "currentVersion": 3
+        }
+      },
+      "updatedAt": "2026-09-06T17:00:38.4236824Z"
+    },
+    "/memberships": {
+      "targetKind": "existing-ui",
+      "projectId": "e1895b38-ef0d-4b6e-93f1-2bfd5d037e8f",
+      "baselineDraftId": "dad72920-50d1-4c2f-a1d5-b1c8240c2e1f",
+      "activeDraftId": "dad72920-50d1-4c2f-a1d5-b1c8240c2e1f",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "apps/admin/src/app/layout.tsx",
+        "apps/admin/src/app/(workspace)/layout.tsx",
+        "apps/admin/src/components/sign-out-button.tsx",
+        "apps/admin/src/components/workspace-navigation.tsx",
+        "apps/admin/src/app/(workspace)/memberships/page.tsx",
+        "apps/admin/src/components/memberships-panel.tsx",
+        "packages/cms-ui/src/button.tsx",
+        "packages/cms-ui/src/chip.tsx",
+        "packages/cms-ui/src/input.tsx",
+        "packages/cms-ui/src/icons.ts",
+        "packages/cms-ui/src/utils.ts",
+        "apps/admin/src/app/globals.css",
+        "packages/cms-ui/src/theme.css"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "1d198f6075252f59d83f9aa6afdebd2925f3238051b28d800abb71174bee33b9",
+        "apps/admin/src/app/layout.tsx": "4fb45fbd16dea9e03f290074d228fd75b308ee65af0eb22a6aa966c3f49f72f8",
+        "apps/admin/src/app/(workspace)/layout.tsx": "b9fbad491caccd7d9cb384210159e47d269cab8b32d6f4c6300b306abf2ad2d9",
+        "apps/admin/src/components/sign-out-button.tsx": "11f61108842fdcee78b55a89ee51a025d0a7ab411ab7135fbdc6d0f1f3abb13d",
+        "apps/admin/src/components/workspace-navigation.tsx": "951ed6a2bfc3e5352054327ebaa9a315dd6c39faa1e1b82155d4cee8140c73ff",
+        "apps/admin/src/app/(workspace)/memberships/page.tsx": "136ded4f228ebdfd3eca3b867f330a77e9adf059d3f4639c286193352feb6bf5",
+        "apps/admin/src/components/memberships-panel.tsx": "0849cc8ffa6d6084f85f842388296d6af471b5933b5c8b2aedec4679ead417bc",
+        "packages/cms-ui/src/button.tsx": "9e544b5c2e1406e95f477234c0afdafd73d07053902de74c7c27205f193cffa6",
+        "packages/cms-ui/src/chip.tsx": "6f3a1ef5287df3449c3d05398d3a66800ddbbdc8ecbdd1d6ded842be3214a794",
+        "packages/cms-ui/src/input.tsx": "20de756e317a7ee774c62cbaed7882b680cf4844b178adf581d2452af58051d4",
+        "packages/cms-ui/src/icons.ts": "31751f6e3ff413e5dd788950b9493d19e27408ed1a7237c7b751c926477f31ac",
+        "packages/cms-ui/src/utils.ts": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27",
+        "apps/admin/src/app/globals.css": "f36115ee3e6f7b9b96e923ac8cc3eeebd64a9011dfde61b42b82caa38652afc1",
+        "packages/cms-ui/src/theme.css": "e92cd163fbe21a1b7f8e2c4029986ed92ae63e3e590565f28bd40108260f33e2"
+      },
+      "drafts": {
+        "dad72920-50d1-4c2f-a1d5-b1c8240c2e1f": {
+          "title": "Memberships — NITE CMS",
+          "visualDirection": "Redação Digital — equipe e acessos",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-09-06T17:00:38.4236824Z"
+    },
+    "/articles/new": {
+      "targetKind": "existing-ui",
+      "projectId": "e1895b38-ef0d-4b6e-93f1-2bfd5d037e8f",
+      "baselineDraftId": "c25f9b32-5751-4328-afa6-c01df0b3fe56",
+      "activeDraftId": "c25f9b32-5751-4328-afa6-c01df0b3fe56",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "apps/admin/src/app/layout.tsx",
+        "apps/admin/src/app/(workspace)/layout.tsx",
+        "apps/admin/src/components/sign-out-button.tsx",
+        "apps/admin/src/components/workspace-navigation.tsx",
+        "apps/admin/src/app/(workspace)/articles/new/page.tsx",
+        "apps/admin/src/components/article-editor.tsx:580:1541",
+        "packages/cms-ui/src/button.tsx",
+        "packages/cms-ui/src/chip.tsx",
+        "packages/cms-ui/src/input.tsx",
+        "packages/cms-ui/src/textarea.tsx",
+        "packages/cms-ui/src/status-badge.tsx",
+        "packages/cms-ui/src/icons.ts",
+        "packages/cms-ui/src/utils.ts",
+        "apps/admin/src/app/globals.css",
+        "packages/cms-ui/src/theme.css"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "1d198f6075252f59d83f9aa6afdebd2925f3238051b28d800abb71174bee33b9",
+        "apps/admin/src/app/layout.tsx": "4fb45fbd16dea9e03f290074d228fd75b308ee65af0eb22a6aa966c3f49f72f8",
+        "apps/admin/src/app/(workspace)/layout.tsx": "b9fbad491caccd7d9cb384210159e47d269cab8b32d6f4c6300b306abf2ad2d9",
+        "apps/admin/src/components/sign-out-button.tsx": "11f61108842fdcee78b55a89ee51a025d0a7ab411ab7135fbdc6d0f1f3abb13d",
+        "apps/admin/src/components/workspace-navigation.tsx": "951ed6a2bfc3e5352054327ebaa9a315dd6c39faa1e1b82155d4cee8140c73ff",
+        "apps/admin/src/app/(workspace)/articles/new/page.tsx": "5adb0c021e2230ecda86f1b4424830f412fd9fd05cd074fade92b50f0b021446",
+        "apps/admin/src/components/article-editor.tsx": "adf73c330f78f844c67566a0370e906ba2f4ebd72b35a8524921741b6cc27d05",
+        "packages/cms-ui/src/button.tsx": "9e544b5c2e1406e95f477234c0afdafd73d07053902de74c7c27205f193cffa6",
+        "packages/cms-ui/src/chip.tsx": "6f3a1ef5287df3449c3d05398d3a66800ddbbdc8ecbdd1d6ded842be3214a794",
+        "packages/cms-ui/src/input.tsx": "20de756e317a7ee774c62cbaed7882b680cf4844b178adf581d2452af58051d4",
+        "packages/cms-ui/src/textarea.tsx": "1a2b4a79e50c3198909cbce655b2ccc022dd6c283ec7625373cd99ed5b11986b",
+        "packages/cms-ui/src/status-badge.tsx": "c3697f4103db5455dc34d8e81c9d70ae5008f91a175b9a3429f5d68f63723be2",
+        "packages/cms-ui/src/icons.ts": "31751f6e3ff413e5dd788950b9493d19e27408ed1a7237c7b751c926477f31ac",
+        "packages/cms-ui/src/utils.ts": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27",
+        "apps/admin/src/app/globals.css": "f36115ee3e6f7b9b96e923ac8cc3eeebd64a9011dfde61b42b82caa38652afc1",
+        "packages/cms-ui/src/theme.css": "e92cd163fbe21a1b7f8e2c4029986ed92ae63e3e590565f28bd40108260f33e2"
+      },
+      "drafts": {
+        "c25f9b32-5751-4328-afa6-c01df0b3fe56": {
+          "title": "Nova matéria — NITE CMS",
+          "visualDirection": "Redação Digital — criação guiada de matéria",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-09-06T17:00:38.4236824Z"
+    }
+  }
+}

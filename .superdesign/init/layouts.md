@@ -1,0 +1,145 @@
+# Shared layouts
+
+## `apps/admin/src/app/layout.tsx`
+
+Root Next.js layout. Forces dynamic rendering, dark theme and global CMS styles.
+
+```tsx
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "NITE CMS",
+  description: "Ambiente editorial administrativo do Portal NITE.",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="pt-BR" data-theme="dark">
+      <body className="min-h-screen bg-nite-background font-sans text-nite-text-primary antialiased">
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+## `apps/admin/src/app/(workspace)/layout.tsx`
+
+Authenticated CMS shell. Resolves the current membership, handles anonymous/forbidden states and renders the shared top navigation.
+
+```tsx
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Chip } from "@nite/cms-ui";
+
+import { getCmsContext } from "@/lib/auth";
+import { SignOutButton } from "@/components/sign-out-button";
+
+export default async function WorkspaceLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const context = await getCmsContext();
+  if (context.status === "anonymous" || context.status === "unconfigured") {
+    redirect("/login");
+  }
+  if (context.status === "forbidden") {
+    return (
+      <main className="grid min-h-screen place-items-center px-5">
+        <section className="nite-panel grid max-w-lg gap-4 rounded-xl border border-status-error/35 p-7">
+          <Chip variant="quiet">Acesso negado</Chip>
+          <h1 className="font-heading text-2xl font-semibold">
+            Membership editorial necessária
+          </h1>
+          <p className="leading-7 text-nite-text-secondary">
+            A identidade Microsoft está válida, mas o par de tenant e objeto não
+            está autorizado no CMS.
+          </p>
+          <SignOutButton />
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 border-b border-nite-border-subtle bg-nite-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-[90rem] items-center justify-between gap-5 px-5 sm:px-8">
+          <div className="flex items-center gap-5">
+            <Link
+              href="/"
+              className="font-heading font-semibold tracking-tight"
+            >
+              NITE CMS
+            </Link>
+            <span className="hidden font-mono text-xs uppercase tracking-[0.12em] text-nite-text-muted sm:inline">
+              {context.membership.role}
+            </span>
+            {context.membership.role === "admin" ? (
+              <Link
+                href="/memberships"
+                className="rounded-md text-sm text-nite-text-secondary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Memberships
+              </Link>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-nite-text-secondary md:inline">
+              {context.membership.displayName}
+            </span>
+            <SignOutButton />
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-[90rem] px-5 py-8 sm:px-8 sm:py-10">
+        {children}
+      </div>
+    </div>
+  );
+}
+```
+
+## `apps/admin/src/components/sign-out-button.tsx`
+
+Client-side session exit action used by the workspace shell.
+
+```tsx
+"use client";
+
+import { Button } from "@nite/cms-ui";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
+export function SignOutButton() {
+  const router = useRouter();
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="quiet"
+      onClick={() =>
+        authClient.signOut({
+          fetchOptions: {
+            onSuccess: () => {
+              router.replace("/login");
+              router.refresh();
+            },
+          },
+        })
+      }
+    >
+      Sair
+    </Button>
+  );
+}
+```

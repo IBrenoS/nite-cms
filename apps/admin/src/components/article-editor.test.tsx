@@ -61,6 +61,7 @@ const initialArticle = {
   revisionId: "20000000-0000-4000-8000-000000000001",
   version: 1,
   status: "draft" as const,
+  publishedRevisionId: null,
   slug: "agenda-personalizada",
   title: "Laboratório de inovação abre nova agenda",
   summary:
@@ -172,6 +173,9 @@ describe("ArticleEditor", () => {
   it("não deixa o campo auxiliar de imagem bloquear o formulário principal", () => {
     const { container } = render(<ArticleEditor canPublish />);
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Inserir imagem no conteúdo" }),
+    );
     expect(
       screen.getByLabelText("Texto alternativo da imagem inline"),
     ).not.toBeRequired();
@@ -184,6 +188,15 @@ describe("ArticleEditor", () => {
   it("não oferece arquivamento nem preview antes do primeiro salvamento", () => {
     render(<ArticleEditor canPublish />);
 
+    expect(
+      screen.getByRole("heading", { name: "Nova matéria" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ainda não salva")).toBeInTheDocument();
+    expect(screen.getByText("1 de 6")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Salvar rascunho" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Visualizar" })).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "Arquivar" }),
     ).not.toBeInTheDocument();
@@ -217,9 +230,74 @@ describe("ArticleEditor", () => {
       screen.getByRole("button", { name: "Preview no Portal" }),
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Arquivar" })).toBeEnabled();
+    expect(
+      screen.getByRole("heading", { name: "Editar matéria" }),
+    ).toBeInTheDocument();
   });
 
-  it("mostra pendências antes de confirmar uma publicação inválida", () => {
+  it("mostra a capa atual e os rótulos editoriais do design aprovado", () => {
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          coverUrl: "https://media.nite.test/capa.webp",
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: initialArticle.coverAlt }),
+    ).toHaveAttribute("src", expect.stringContaining("capa.webp"));
+    expect(screen.getByRole("option", { name: "Inovação" })).toHaveValue(
+      "inovacao",
+    );
+    expect(screen.getByText("Preparação")).toBeInTheDocument();
+  });
+
+  it("atualiza revisão e sinaliza alterações ainda não publicadas após salvar", async () => {
+    const nextRevisionId = "20000000-0000-4000-8000-000000000002";
+    mocks.submit.mockResolvedValue({
+      status: "success",
+      message: "Nova revisão salva.",
+      data: {
+        articleId: initialArticle.articleId,
+        revisionId: nextRevisionId,
+        version: 2,
+        status: "published",
+        publishedRevisionId: initialArticle.revisionId,
+      },
+    });
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          status: "published",
+          publishedRevisionId: initialArticle.revisionId,
+          slugManuallyEdited: false,
+          slugLocked: true,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar revisão" }));
+
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    expect(
+      screen.getByText("Alterações não publicadas · v2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Preview no CMS" }),
+    ).toHaveAttribute(
+      "href",
+      `/preview/articles/${initialArticle.articleId}?revision=${nextRevisionId}`,
+    );
+  });
+
+  it("mostra pendências e leva ao título antes de confirmar uma publicação inválida", async () => {
     const confirm = vi.spyOn(window, "confirm");
     render(<ArticleEditor canPublish />);
 
@@ -233,6 +311,7 @@ describe("ArticleEditor", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Revise os campos destacados.",
     );
+    await waitFor(() => expect(screen.getByLabelText("Título")).toHaveFocus());
     confirm.mockRestore();
   });
 
@@ -243,6 +322,9 @@ describe("ArticleEditor", () => {
       data: {
         articleId: "10000000-0000-4000-8000-000000000099",
         revisionId: "20000000-0000-4000-8000-000000000099",
+        version: 1,
+        status: "draft",
+        publishedRevisionId: null,
       },
     });
     render(<ArticleEditor canPublish />);
@@ -250,7 +332,7 @@ describe("ArticleEditor", () => {
       target: { value: "Rascunho parcial" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Salvar revisão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
 
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(
@@ -279,6 +361,9 @@ describe("ArticleEditor", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     render(<ArticleEditor canPublish />);
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Inserir imagem no conteúdo" }),
+    );
     fireEvent.change(screen.getByLabelText("Imagem inline pronta"), {
       target: {
         files: [new File(["imagem"], "inline.png", { type: "image/png" })],

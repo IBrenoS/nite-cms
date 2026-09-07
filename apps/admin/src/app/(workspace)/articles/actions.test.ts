@@ -70,8 +70,15 @@ describe("ações do editor", () => {
 
   it("retorna os IDs persistidos ao salvar um rascunho parcial", async () => {
     mocks.submit.mockResolvedValue({
-      article: { id: "10000000-0000-4000-8000-000000000001" },
-      revision: { id: "20000000-0000-4000-8000-000000000001" },
+      article: {
+        id: "10000000-0000-4000-8000-000000000001",
+        status: "draft",
+        publishedRevisionId: null,
+      },
+      revision: {
+        id: "20000000-0000-4000-8000-000000000001",
+        version: 1,
+      },
     });
 
     await expect(
@@ -82,6 +89,9 @@ describe("ações do editor", () => {
       data: {
         articleId: "10000000-0000-4000-8000-000000000001",
         revisionId: "20000000-0000-4000-8000-000000000001",
+        version: 1,
+        status: "draft",
+        publishedRevisionId: null,
       },
     });
   });
@@ -106,8 +116,15 @@ describe("ações do editor", () => {
 
   it("agenda a outbox somente depois de uma publicação concluída", async () => {
     mocks.submit.mockResolvedValue({
-      article: { id: "10000000-0000-4000-8000-000000000001" },
-      revision: { id: "20000000-0000-4000-8000-000000000001" },
+      article: {
+        id: "10000000-0000-4000-8000-000000000001",
+        status: "published",
+        publishedRevisionId: "20000000-0000-4000-8000-000000000001",
+      },
+      revision: {
+        id: "20000000-0000-4000-8000-000000000001",
+        version: 1,
+      },
     });
     const data = draftForm("publish");
     data.set("slug", "materia-publicavel");

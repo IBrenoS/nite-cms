@@ -2,7 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { NewsArticleBody, StatusBadge } from "@nite/cms-ui";
+import {
+  ArrowLeftIcon,
+  EyeIcon,
+  NewsArticleBody,
+  StatusBadge,
+} from "@nite/cms-ui";
 
 import { getEditorialRevisionPreview } from "@nite/editorial";
 import { mediaAssets } from "@nite/cms-db";
@@ -43,25 +48,32 @@ export default async function ArticlePreviewPage({
 
   return (
     <main className="mx-auto grid max-w-5xl gap-10 pb-20">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-nite-border-subtle pb-5">
+      <header className="-mx-4 -mt-6 flex flex-wrap items-center justify-between gap-4 border-b border-nite-border-subtle bg-nite-surface px-4 py-4 shadow-nite-lift sm:-mx-6 sm:-mt-8 sm:px-6 lg:-mx-8 lg:-mt-10 lg:px-8">
         <Link
           href={`/articles/${result.article.id}/edit`}
-          className="rounded-md text-sm text-nite-brand-accent outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-nite-brand-primary outline-none hover:bg-nite-section focus-visible:ring-2 focus-visible:ring-ring"
         >
-          ← Voltar ao editor
+          <ArrowLeftIcon className="size-4" aria-hidden="true" />
+          Voltar ao editor
         </Link>
-        <StatusBadge
-          status="draft"
-          label={`Preview autenticado · revisão v${result.revision.version}`}
-        />
+        <div className="flex items-center gap-2">
+          <EyeIcon
+            className="size-4 text-nite-text-secondary"
+            aria-hidden="true"
+          />
+          <StatusBadge
+            status="draft"
+            label={`Preview autenticado · revisão v${result.revision.version}`}
+          />
+        </div>
       </header>
 
-      <article className="grid gap-10">
+      <article className="grid gap-10 rounded-[10px] border border-nite-border-subtle bg-nite-surface px-5 py-8 shadow-nite-lift sm:px-10 sm:py-12 lg:px-16">
         <div className="grid gap-5">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-nite-brand-accent">
             {result.revision.category || "Sem categoria"}
           </p>
-          <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,6vw,4.75rem)] leading-[1.04] font-semibold tracking-[-0.035em]">
+          <h1 className="max-w-4xl font-editorial text-[clamp(2.5rem,6vw,4.75rem)] leading-[1.04] font-semibold tracking-[-0.035em]">
             {result.revision.title}
           </h1>
           <p className="max-w-3xl text-lg leading-8 text-nite-text-secondary">
@@ -80,6 +92,7 @@ export default async function ArticlePreviewPage({
               alt={result.revision.coverAlt}
               fill
               priority
+              unoptimized
               sizes="(min-width: 1024px) 1024px, 100vw"
               className="object-cover"
             />

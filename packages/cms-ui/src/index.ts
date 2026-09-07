@@ -3,6 +3,7 @@ export * from "./card";
 export * from "./chip";
 export * from "./empty-state";
 export * from "./input";
+export * from "./icons";
 export * from "./news-article-body";
 export * from "./status-badge";
 export * from "./textarea";
