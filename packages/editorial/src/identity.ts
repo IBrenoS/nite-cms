@@ -1,10 +1,24 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PgDatabase } from "drizzle-orm/pg-core/db";
 import { z } from "zod";
 
 import * as schema from "@nite/cms-db/schema";
-import { cmsMemberships, type CmsMembership } from "@nite/cms-db";
+import {
+  cmsMembershipInvitations,
+  cmsMemberships,
+  type CmsMembership,
+} from "@nite/cms-db";
+
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
+const institutionalEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email().max(320))
+  .refine((email) => email.endsWith("@unijorge.com"), {
+    message: "Use um e-mail institucional @unijorge.com.",
+  });
 
 const entraIdentitySchema = z.object({
   tenantId: z.string().min(1).max(64),
@@ -12,10 +26,14 @@ const entraIdentitySchema = z.object({
   displayName: z.string().min(1).max(160),
   email: z.email().max(320).optional(),
 });
+const entraLoginIdentitySchema = entraIdentitySchema.extend({
+  tenantId: z.uuid(),
+  objectId: z.uuid(),
+});
 
 const bootstrapAdminSchema = z.object({
-  tenantId: z.string().min(1).max(64),
-  adminObjectId: z.string().min(1).max(128),
+  tenantId: z.uuid(),
+  adminObjectId: z.uuid(),
 });
 
 const cmsRoleSchema = z.enum(["admin", "publisher"]);
@@ -39,6 +57,25 @@ export class CmsMembershipManagementError extends Error {
     super(message);
     this.name = "CmsMembershipManagementError";
   }
+}
+
+export class CmsMembershipInvitationError extends Error {
+  constructor(
+    public readonly code:
+      | "duplicate"
+      | "expired"
+      | "invalid_state"
+      | "member_exists"
+      | "no_change"
+      | "not_found",
+  ) {
+    super(`Convite de acesso inválido: ${code}.`);
+    this.name = "CmsMembershipInvitationError";
+  }
+}
+
+export function normalizeCmsInvitationEmail(email: string): string {
+  return institutionalEmailSchema.parse(email);
 }
 
 export type CmsDatabase<TQueryResult extends PgQueryResultHKT> = PgDatabase<
@@ -224,110 +261,357 @@ export async function resolveCmsMembership<
   rawIdentity: EntraIdentity,
   rawBootstrap: BootstrapAdmin,
 ): Promise<CmsMembership> {
-  const identity = entraIdentitySchema.parse(rawIdentity);
+  const identity = entraLoginIdentitySchema.parse(rawIdentity);
   const bootstrap = bootstrapAdminSchema.parse(rawBootstrap);
 
   if (identity.tenantId !== bootstrap.tenantId) {
     throw new CmsAuthorizationError();
   }
 
-  return database.transaction(async (transaction) => {
-    const [existingMembership] = await transaction
-      .select()
-      .from(cmsMemberships)
-      .where(
-        and(
-          eq(cmsMemberships.tenantId, identity.tenantId),
-          eq(cmsMemberships.objectId, identity.objectId),
-        ),
-      )
-      .limit(1)
-      .for("update");
-    if (existingMembership) {
-      const activeMembership = assertActiveMembership(existingMembership);
-      const changedFields = getChangedProfileFields(activeMembership, identity);
-      if (changedFields.length === 0) return activeMembership;
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    identity.tenantId,
+    async (transaction) => {
+      const [existingMembership] = await transaction
+        .select()
+        .from(cmsMemberships)
+        .where(
+          and(
+            eq(cmsMemberships.tenantId, identity.tenantId),
+            eq(cmsMemberships.objectId, identity.objectId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (existingMembership) {
+        const activeMembership = assertActiveMembership(existingMembership);
+        const changedFields = getChangedProfileFields(
+          activeMembership,
+          identity,
+        );
+        if (changedFields.length === 0) return activeMembership;
 
-      const [updatedMembership] = await transaction
-        .update(cmsMemberships)
-        .set({
+        const [updatedMembership] = await transaction
+          .update(cmsMemberships)
+          .set({
+            displayName: identity.displayName,
+            email: identity.email ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(cmsMemberships.id, activeMembership.id))
+          .returning();
+        await transaction.insert(schema.auditEvents).values({
+          actorMembershipId: activeMembership.id,
+          action: "membership.profile.updated",
+          aggregateType: "membership",
+          aggregateId: activeMembership.id,
+          metadata: {
+            tenantId: activeMembership.tenantId,
+            objectId: activeMembership.objectId,
+            changedFields,
+          },
+        });
+        return updatedMembership;
+      }
+
+      if (identity.objectId === bootstrap.adminObjectId) {
+        await transaction
+          .insert(cmsMemberships)
+          .values({
+            tenantId: identity.tenantId,
+            objectId: identity.objectId,
+            displayName: identity.displayName,
+            email: identity.email ?? null,
+            role: "admin",
+          })
+          .onConflictDoNothing({
+            target: [cmsMemberships.tenantId, cmsMemberships.objectId],
+          });
+
+        return assertActiveMembership(
+          await findMembership(transaction, identity),
+        );
+      }
+
+      if (!identity.email) throw new CmsAuthorizationError();
+      const normalizedEmail = institutionalEmailSchema.safeParse(
+        identity.email,
+      );
+      if (!normalizedEmail.success) throw new CmsAuthorizationError();
+      const email = normalizedEmail.data;
+      const [membershipWithEmail] = await transaction
+        .select({ id: cmsMemberships.id })
+        .from(cmsMemberships)
+        .where(
+          and(
+            eq(cmsMemberships.tenantId, identity.tenantId),
+            sql`lower(${cmsMemberships.email}) = ${email}`,
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (membershipWithEmail) throw new CmsAuthorizationError();
+
+      const now = new Date();
+      const [invitation] = await transaction
+        .select()
+        .from(cmsMembershipInvitations)
+        .where(
+          and(
+            eq(cmsMembershipInvitations.tenantId, identity.tenantId),
+            eq(cmsMembershipInvitations.email, email),
+            eq(cmsMembershipInvitations.status, "pending"),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!invitation || invitation.expiresAt <= now) {
+        throw new CmsAuthorizationError();
+      }
+
+      const [membership] = await transaction
+        .insert(cmsMemberships)
+        .values({
+          tenantId: identity.tenantId,
+          objectId: identity.objectId,
           displayName: identity.displayName,
-          email: identity.email ?? null,
-          updatedAt: new Date(),
+          email,
+          role: invitation.role,
+          active: true,
         })
-        .where(eq(cmsMemberships.id, activeMembership.id))
         .returning();
-      await transaction.insert(schema.auditEvents).values({
-        actorMembershipId: activeMembership.id,
-        action: "membership.profile.updated",
-        aggregateType: "membership",
-        aggregateId: activeMembership.id,
-        metadata: {
-          tenantId: activeMembership.tenantId,
-          objectId: activeMembership.objectId,
-          changedFields,
+      const [acceptedInvitation] = await transaction
+        .update(cmsMembershipInvitations)
+        .set({
+          status: "accepted",
+          acceptedMembershipId: membership.id,
+          acceptedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(cmsMembershipInvitations.id, invitation.id),
+            eq(cmsMembershipInvitations.status, "pending"),
+          ),
+        )
+        .returning({ id: cmsMembershipInvitations.id });
+      if (!acceptedInvitation) throw new CmsAuthorizationError();
+      await transaction.insert(schema.auditEvents).values([
+        {
+          actorMembershipId: membership.id,
+          action: "membership.created",
+          aggregateType: "membership",
+          aggregateId: membership.id,
+          metadata: { role: membership.role, invitationId: invitation.id },
         },
-      });
-      return updatedMembership;
-    }
-
-    if (identity.objectId !== bootstrap.adminObjectId) {
-      throw new CmsAuthorizationError();
-    }
-
-    await transaction
-      .insert(cmsMemberships)
-      .values({
-        tenantId: identity.tenantId,
-        objectId: identity.objectId,
-        displayName: identity.displayName,
-        email: identity.email,
-        role: "admin",
-      })
-      .onConflictDoNothing({
-        target: [cmsMemberships.tenantId, cmsMemberships.objectId],
-      });
-
-    return assertActiveMembership(await findMembership(transaction, identity));
-  });
+        {
+          actorMembershipId: membership.id,
+          action: "membership.invitation.accepted",
+          aggregateType: "membership_invitation",
+          aggregateId: invitation.id,
+          metadata: { membershipId: membership.id, role: membership.role },
+        },
+      ]);
+      return membership;
+    },
+  );
 }
 
-export async function createCmsMembership<
+async function assertInvitationEmailAvailable<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  tenantId: string,
+  email: string,
+  excludingInvitationId?: string,
+) {
+  const [membership] = await database
+    .select({ id: cmsMemberships.id })
+    .from(cmsMemberships)
+    .where(
+      and(
+        eq(cmsMemberships.tenantId, tenantId),
+        sql`lower(${cmsMemberships.email}) = ${email}`,
+      ),
+    )
+    .limit(1);
+  if (membership) throw new CmsMembershipInvitationError("member_exists");
+
+  const conditions = [
+    eq(cmsMembershipInvitations.tenantId, tenantId),
+    eq(cmsMembershipInvitations.email, email),
+    eq(cmsMembershipInvitations.status, "pending"),
+  ];
+  if (excludingInvitationId) {
+    conditions.push(ne(cmsMembershipInvitations.id, excludingInvitationId));
+  }
+  const [invitation] = await database
+    .select({ id: cmsMembershipInvitations.id })
+    .from(cmsMembershipInvitations)
+    .where(and(...conditions))
+    .limit(1);
+  if (invitation) throw new CmsMembershipInvitationError("duplicate");
+}
+
+export async function createCmsMembershipInvitation<
   TQueryResult extends PgQueryResultHKT,
 >(
   database: CmsDatabase<TQueryResult>,
   command: {
     actor: CmsMembership;
-    identity: EntraIdentity;
+    email: string;
     role: z.infer<typeof cmsRoleSchema>;
   },
 ) {
-  const identity = entraIdentitySchema.parse(command.identity);
+  const email = normalizeCmsInvitationEmail(command.email);
   const role = cmsRoleSchema.parse(command.role);
-  assertTenantReference(command.actor.tenantId, identity.tenantId);
-
   return executeTenantScopedMutation(
     createDatabaseTenantMutationAdapter(database),
-    identity.tenantId,
+    command.actor.tenantId,
     async (transaction) => {
       const actor = await requireAdminMembership(transaction, command.actor.id);
-      assertTenantReference(actor.tenantId, identity.tenantId);
-      const [membership] = await transaction
-        .insert(cmsMemberships)
-        .values({ ...identity, role, active: true })
+      await assertInvitationEmailAvailable(transaction, actor.tenantId, email);
+      const now = new Date();
+      const [invitation] = await transaction
+        .insert(cmsMembershipInvitations)
+        .values({
+          tenantId: actor.tenantId,
+          email,
+          role,
+          expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
+          invitedByMembershipId: actor.id,
+        })
         .returning();
       await transaction.insert(schema.auditEvents).values({
         actorMembershipId: actor.id,
-        action: "membership.created",
-        aggregateType: "membership",
-        aggregateId: membership.id,
-        metadata: {
-          tenantId: membership.tenantId,
-          objectId: membership.objectId,
-          role,
-        },
+        action: "membership.invitation.created",
+        aggregateType: "membership_invitation",
+        aggregateId: invitation.id,
+        metadata: { role, replacesInvitationId: null },
       });
-      return membership;
+      return invitation;
+    },
+  );
+}
+
+export async function replaceCmsMembershipInvitation<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    invitationId: string;
+    email: string;
+    role: z.infer<typeof cmsRoleSchema>;
+  },
+) {
+  const invitationId = z.uuid().parse(command.invitationId);
+  const email = normalizeCmsInvitationEmail(command.email);
+  const role = cmsRoleSchema.parse(command.role);
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    command.actor.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      const [original] = await transaction
+        .select()
+        .from(cmsMembershipInvitations)
+        .where(eq(cmsMembershipInvitations.id, invitationId))
+        .limit(1)
+        .for("update");
+      if (!original || original.tenantId !== actor.tenantId) {
+        throw new CmsMembershipInvitationError("not_found");
+      }
+      if (original.status !== "pending") {
+        throw new CmsMembershipInvitationError("invalid_state");
+      }
+      if (original.email === email && original.role === role) {
+        throw new CmsMembershipInvitationError("no_change");
+      }
+      await assertInvitationEmailAvailable(
+        transaction,
+        actor.tenantId,
+        email,
+        original.id,
+      );
+      const now = new Date();
+      await transaction
+        .update(cmsMembershipInvitations)
+        .set({ status: "revoked", revokedAt: now, updatedAt: now })
+        .where(eq(cmsMembershipInvitations.id, original.id));
+      const [replacement] = await transaction
+        .insert(cmsMembershipInvitations)
+        .values({
+          tenantId: actor.tenantId,
+          email,
+          role,
+          expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
+          invitedByMembershipId: actor.id,
+          replacesInvitationId: original.id,
+        })
+        .returning();
+      await transaction.insert(schema.auditEvents).values([
+        {
+          actorMembershipId: actor.id,
+          action: "membership.invitation.revoked",
+          aggregateType: "membership_invitation",
+          aggregateId: original.id,
+          metadata: {
+            reason: "replaced",
+            replacementInvitationId: replacement.id,
+          },
+        },
+        {
+          actorMembershipId: actor.id,
+          action: "membership.invitation.created",
+          aggregateType: "membership_invitation",
+          aggregateId: replacement.id,
+          metadata: { role, replacesInvitationId: original.id },
+        },
+      ]);
+      return replacement;
+    },
+  );
+}
+
+export async function revokeCmsMembershipInvitation<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: { actor: CmsMembership; invitationId: string },
+) {
+  const invitationId = z.uuid().parse(command.invitationId);
+  return executeTenantScopedMutation(
+    createDatabaseTenantMutationAdapter(database),
+    command.actor.tenantId,
+    async (transaction) => {
+      const actor = await requireAdminMembership(transaction, command.actor.id);
+      const [invitation] = await transaction
+        .select()
+        .from(cmsMembershipInvitations)
+        .where(eq(cmsMembershipInvitations.id, invitationId))
+        .limit(1)
+        .for("update");
+      if (!invitation || invitation.tenantId !== actor.tenantId) {
+        throw new CmsMembershipInvitationError("not_found");
+      }
+      if (invitation.status !== "pending") {
+        throw new CmsMembershipInvitationError("invalid_state");
+      }
+      const now = new Date();
+      const [revoked] = await transaction
+        .update(cmsMembershipInvitations)
+        .set({ status: "revoked", revokedAt: now, updatedAt: now })
+        .where(eq(cmsMembershipInvitations.id, invitation.id))
+        .returning();
+      await transaction.insert(schema.auditEvents).values({
+        actorMembershipId: actor.id,
+        action: "membership.invitation.revoked",
+        aggregateType: "membership_invitation",
+        aggregateId: invitation.id,
+        metadata: { reason: "cancelled" },
+      });
+      return revoked;
     },
   );
 }

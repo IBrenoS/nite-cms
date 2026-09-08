@@ -55,7 +55,21 @@ describe("WorkspaceLayout", () => {
     ).toHaveAttribute("href", "/memberships");
     expect(screen.getByText("MC")).toBeInTheDocument();
     expect(screen.getByText("Marina Costa")).toBeInTheDocument();
-    expect(screen.getByText("Administradora")).toBeInTheDocument();
+    expect(screen.getByText("Acesso administrativo")).toBeInTheDocument();
     expect(screen.getByText("Conteúdo editorial")).toBeInTheDocument();
+  });
+
+  it("não exibe Equipe e acessos para acesso editorial", async () => {
+    mocks.getCmsContext.mockResolvedValue({
+      status: "authenticated",
+      membership: { displayName: "Pessoa Editorial", role: "publisher" },
+    });
+
+    render(await WorkspaceLayout({ children: <p>Conteúdo</p> }));
+
+    expect(
+      screen.queryByRole("link", { name: "Equipe e acessos" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Acesso editorial")).toBeInTheDocument();
   });
 });

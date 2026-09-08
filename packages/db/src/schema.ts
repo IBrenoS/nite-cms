@@ -23,6 +23,10 @@ export const articleStatusEnum = pgEnum("article_status", [
   "archived",
 ]);
 export const cmsRoleEnum = pgEnum("cms_role", ["admin", "publisher"]);
+export const cmsMembershipInvitationStatusEnum = pgEnum(
+  "cms_membership_invitation_status",
+  ["pending", "accepted", "revoked"],
+);
 export const mediaStatusEnum = pgEnum("media_status", [
   "pending",
   "processing",
@@ -146,6 +150,65 @@ export const cmsMemberships = pgTable(
       table.objectId,
     ),
     index("cms_memberships_role_idx").on(table.role),
+  ],
+);
+
+export const cmsMembershipInvitations = pgTable(
+  "cms_membership_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    role: cmsRoleEnum("role").notNull(),
+    status: cmsMembershipInvitationStatusEnum("status")
+      .default("pending")
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    invitedByMembershipId: uuid("invited_by_membership_id")
+      .notNull()
+      .references(() => cmsMemberships.id, { onDelete: "restrict" }),
+    acceptedMembershipId: uuid("accepted_membership_id").references(
+      () => cmsMemberships.id,
+      { onDelete: "restrict" },
+    ),
+    replacesInvitationId: uuid("replaces_invitation_id").references(
+      (): AnyPgColumn => cmsMembershipInvitations.id,
+      { onDelete: "restrict" },
+    ),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("cms_membership_invitations_pending_email_unique")
+      .on(table.tenantId, table.email)
+      .where(sql`${table.status} = 'pending'`),
+    uniqueIndex("cms_membership_invitations_accepted_membership_unique")
+      .on(table.acceptedMembershipId)
+      .where(sql`${table.acceptedMembershipId} is not null`),
+    index("cms_membership_invitations_tenant_status_idx").on(
+      table.tenantId,
+      table.status,
+      table.expiresAt,
+    ),
+    check(
+      "cms_membership_invitations_email_check",
+      sql`${table.email} = lower(btrim(${table.email}))
+        and ${table.email} ~ '^[a-z0-9.!#$%&''*+/=?^_{|}~-]+@unijorge[.]com$'
+        and split_part(${table.email}, '@', 1) not like '.%'
+        and split_part(${table.email}, '@', 1) not like '%.'
+        and split_part(${table.email}, '@', 1) not like '%..%'`,
+    ),
+    check(
+      "cms_membership_invitations_expiration_check",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "cms_membership_invitations_state_check",
+      sql`(${table.status} = 'pending' and ${table.acceptedAt} is null and ${table.revokedAt} is null and ${table.acceptedMembershipId} is null)
+        or (${table.status} = 'accepted' and ${table.acceptedAt} is not null and ${table.revokedAt} is null and ${table.acceptedMembershipId} is not null)
+        or (${table.status} = 'revoked' and ${table.acceptedAt} is null and ${table.revokedAt} is not null and ${table.acceptedMembershipId} is null)`,
+    ),
   ],
 );
 
@@ -360,6 +423,10 @@ export const publishedArticles = pgView("published_articles", {
 
 export type CmsMembership = typeof cmsMemberships.$inferSelect;
 export type NewCmsMembership = typeof cmsMemberships.$inferInsert;
+export type CmsMembershipInvitation =
+  typeof cmsMembershipInvitations.$inferSelect;
+export type NewCmsMembershipInvitation =
+  typeof cmsMembershipInvitations.$inferInsert;
 export type Article = typeof articles.$inferSelect;
 export type NewArticle = typeof articles.$inferInsert;
 export type ArticleRevision = typeof articleRevisions.$inferSelect;

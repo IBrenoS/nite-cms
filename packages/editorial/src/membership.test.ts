@@ -7,7 +7,11 @@ import { fileURLToPath } from "node:url";
 
 import * as editorial from "@nite/editorial";
 import { CmsAuthorizationError } from "@nite/editorial";
-import { auditEvents, cmsMemberships } from "@nite/cms-db";
+import {
+  auditEvents,
+  cmsMembershipInvitations,
+  cmsMemberships,
+} from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
 const migrationsFolder = fileURLToPath(
@@ -37,7 +41,7 @@ describe("administração de memberships", () => {
     await client.close();
   });
 
-  it("permite que admin crie publisher por tid + oid e impede publisher de administrar", async () => {
+  it("permite que admin convide publisher e impede publisher de administrar", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [admin, publisher] = await database
       .insert(cmsMemberships)
@@ -57,41 +61,26 @@ describe("administração de memberships", () => {
       ])
       .returning();
 
-    await Reflect.apply(command("createCmsMembership"), undefined, [
+    await Reflect.apply(command("createCmsMembershipInvitation"), undefined, [
       database,
       {
         actor: admin,
-        identity: {
-          tenantId: "tenant-nite",
-          objectId: "novo-oid",
-          displayName: "Nova Publisher",
-          email: "nova@nite.test",
-        },
+        email: "nova@unijorge.com",
         role: "publisher",
       },
     ]);
 
     await expect(
-      database
-        .select({ role: cmsMemberships.role, active: cmsMemberships.active })
-        .from(cmsMemberships)
-        .where(
-          and(
-            eq(cmsMemberships.tenantId, "tenant-nite"),
-            eq(cmsMemberships.objectId, "novo-oid"),
-          ),
-        ),
-    ).resolves.toEqual([{ role: "publisher", active: true }]);
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toMatchObject([
+      { email: "nova@unijorge.com", role: "publisher", status: "pending" },
+    ]);
     await expect(
-      Reflect.apply(command("createCmsMembership"), undefined, [
+      Reflect.apply(command("createCmsMembershipInvitation"), undefined, [
         database,
         {
           actor: publisher,
-          identity: {
-            tenantId: "tenant-nite",
-            objectId: "bloqueado-oid",
-            displayName: "Pessoa Bloqueada",
-          },
+          email: "bloqueada@unijorge.com",
           role: "publisher",
         },
       ]),
@@ -99,8 +88,8 @@ describe("administração de memberships", () => {
     await expect(database.select().from(auditEvents)).resolves.toMatchObject([
       {
         actorMembershipId: admin.id,
-        action: "membership.created",
-        aggregateType: "membership",
+        action: "membership.invitation.created",
+        aggregateType: "membership_invitation",
       },
     ]);
   });
@@ -233,18 +222,6 @@ describe("administração de memberships", () => {
       .returning();
 
     const results = await Promise.allSettled([
-      Reflect.apply(command("createCmsMembership"), undefined, [
-        database,
-        {
-          actor: admin,
-          identity: {
-            tenantId: foreignMembership.tenantId,
-            objectId: "novo-foreign-oid",
-            displayName: "Novo Externo",
-          },
-          role: "publisher",
-        },
-      ]),
       Reflect.apply(command("changeCmsMembershipRole"), undefined, [
         database,
         {
@@ -280,7 +257,6 @@ describe("administração de memberships", () => {
       "rejected",
       "rejected",
       "rejected",
-      "rejected",
     ]);
     await expect(
       database
@@ -294,17 +270,6 @@ describe("administração de memberships", () => {
     ).resolves.toEqual([
       { role: "admin", active: true, displayName: "Admin Externo" },
     ]);
-    await expect(
-      database
-        .select()
-        .from(cmsMemberships)
-        .where(
-          and(
-            eq(cmsMemberships.tenantId, "tenant-externo"),
-            eq(cmsMemberships.objectId, "novo-foreign-oid"),
-          ),
-        ),
-    ).resolves.toEqual([]);
     await expect(database.select().from(auditEvents)).resolves.toEqual([]);
   });
 

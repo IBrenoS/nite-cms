@@ -22,12 +22,14 @@ describe("configuração administrativa", () => {
     expect(
       toEntraIdentity(
         {
-          tenantId: "tenant-nite",
-          bootstrapAdminObjectId: "admin-oid",
+          tenantId: "10000000-0000-4000-8000-000000000001",
+          bootstrapAdminObjectId: "20000000-0000-4000-8000-000000000001",
         },
         {
-          accountId: "member-oid",
+          accountId: "20000000-0000-4000-8000-000000000002",
           providerId: "microsoft",
+          issuer:
+            "https://login.microsoftonline.com/10000000-0000-4000-8000-000000000001/v2.0",
         },
         {
           name: "Pessoa Editora",
@@ -35,10 +37,30 @@ describe("configuração administrativa", () => {
         },
       ),
     ).toEqual({
-      tenantId: "tenant-nite",
-      objectId: "member-oid",
+      tenantId: "10000000-0000-4000-8000-000000000001",
+      objectId: "20000000-0000-4000-8000-000000000002",
       displayName: "Pessoa Editora",
       email: "editora@nite.test",
     });
+  });
+
+  it("recusa issuer, provider ou oid que não correspondem ao tenant", () => {
+    const configuration = {
+      tenantId: "10000000-0000-4000-8000-000000000001",
+      bootstrapAdminObjectId: "20000000-0000-4000-8000-000000000001",
+    };
+    const user = { name: "Pessoa", email: "pessoa@unijorge.com" };
+
+    expect(() =>
+      toEntraIdentity(
+        configuration,
+        {
+          accountId: "20000000-0000-4000-8000-000000000002",
+          providerId: "microsoft",
+          issuer: "https://login.microsoftonline.com/outro/v2.0",
+        },
+        user,
+      ),
+    ).toThrow();
   });
 });

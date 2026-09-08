@@ -5,18 +5,19 @@ import { z } from "zod";
 
 import {
   changeCmsMembershipRole,
-  createCmsMembership,
+  createCmsMembershipInvitation,
+  replaceCmsMembershipInvitation,
+  revokeCmsMembershipInvitation,
   setCmsMembershipActive,
 } from "@nite/editorial";
 import { requireCmsContext } from "@/lib/auth";
 import { membershipActionError } from "./membership-errors";
 
-const membershipInputSchema = z.object({
-  objectId: z.string().trim().min(1).max(128),
-  displayName: z.string().trim().min(1).max(160),
-  email: z.email().max(320).optional(),
+const invitationInputSchema = z.object({
+  email: z.string().trim().min(1).max(320),
   role: z.enum(["admin", "publisher"]),
 });
+const invitationReferenceSchema = z.object({ invitationId: z.uuid() });
 const membershipChangeSchema = z.object({
   objectId: z.string().trim().min(1).max(128),
   role: z.enum(["admin", "publisher"]),
@@ -38,25 +39,54 @@ function failure(error: unknown): MembershipActionState {
   };
 }
 
-export async function createMembership(
+export async function createMembershipInvitation(
   _previous: MembershipActionState,
   formData: FormData,
 ): Promise<MembershipActionState> {
   try {
     const context = await requireCmsContext();
-    const input = membershipInputSchema.parse({
-      objectId: formData.get("objectId"),
-      displayName: formData.get("displayName"),
-      email: formData.get("email") || undefined,
+    const input = invitationInputSchema.parse({
+      email: formData.get("email"),
       role: formData.get("role"),
     });
-    await createCmsMembership(context.database, {
+    await createCmsMembershipInvitation(context.database, {
       actor: context.membership,
-      identity: { ...input, tenantId: context.membership.tenantId },
-      role: input.role,
+      ...input,
     });
     revalidatePath("/memberships");
-    return { status: "success", message: "Membership criada e ativada." };
+    return { status: "success", message: "Convite criado por 7 dias." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function replaceMembershipInvitation(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const parsed = invitationInputSchema
+      .and(invitationReferenceSchema)
+      .parse(input);
+    await replaceCmsMembershipInvitation(context.database, {
+      actor: context.membership,
+      ...parsed,
+    });
+    revalidatePath("/memberships");
+    return { status: "success" as const };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function revokeMembershipInvitation(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const parsed = invitationReferenceSchema.parse(input);
+    await revokeCmsMembershipInvitation(context.database, {
+      actor: context.membership,
+      ...parsed,
+    });
+    revalidatePath("/memberships");
+    return { status: "success" as const };
   } catch (error) {
     return failure(error);
   }

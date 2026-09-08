@@ -1,16 +1,23 @@
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { drizzle } from "drizzle-orm/pglite";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { fileURLToPath } from "node:url";
 
 import { CmsAuthorizationError, resolveCmsMembership } from "@nite/editorial";
-import { auditEvents, cmsMemberships } from "@nite/cms-db";
+import {
+  auditEvents,
+  cmsMembershipInvitations,
+  cmsMemberships,
+} from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
 const migrationsFolder = fileURLToPath(
   new URL("../../db/drizzle", import.meta.url),
 );
+const tenantId = "10000000-0000-4000-8000-000000000001";
+const adminObjectId = "20000000-0000-4000-8000-000000000001";
 
 describe("identidade editorial Entra", () => {
   let client: PGlite;
@@ -27,14 +34,14 @@ describe("identidade editorial Entra", () => {
   it("faz bootstrap idempotente somente para o par tid + oid configurado", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const identity = {
-      tenantId: "tenant-nite",
-      objectId: "entra-object-admin",
+      tenantId,
+      objectId: adminObjectId,
       displayName: "Admin NITE",
-      email: "admin@nite.test",
+      email: "admin@unijorge.com",
     };
     const bootstrap = {
-      tenantId: "tenant-nite",
-      adminObjectId: "entra-object-admin",
+      tenantId,
+      adminObjectId,
     };
 
     const first = await resolveCmsMembership(database, identity, bootstrap);
@@ -42,8 +49,8 @@ describe("identidade editorial Entra", () => {
 
     expect(first).toMatchObject({
       id: expect.any(String),
-      tenantId: "tenant-nite",
-      objectId: "entra-object-admin",
+      tenantId,
+      objectId: adminObjectId,
       role: "admin",
       active: true,
     });
@@ -58,14 +65,14 @@ describe("identidade editorial Entra", () => {
     await resolveCmsMembership(
       database,
       {
-        tenantId: "tenant-nite",
-        objectId: "entra-object-admin",
+        tenantId,
+        objectId: adminObjectId,
         displayName: "Admin NITE",
-        email: "admin@nite.test",
+        email: "admin@unijorge.com",
       },
       {
-        tenantId: "tenant-nite",
-        adminObjectId: "entra-object-admin",
+        tenantId,
+        adminObjectId,
       },
     );
 
@@ -73,14 +80,14 @@ describe("identidade editorial Entra", () => {
       resolveCmsMembership(
         database,
         {
-          tenantId: "tenant-nite",
-          objectId: "outro-oid",
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000002",
           displayName: "Pessoa não autorizada",
-          email: "admin@nite.test",
+          email: "admin@unijorge.com",
         },
         {
-          tenantId: "tenant-nite",
-          adminObjectId: "entra-object-admin",
+          tenantId,
+          adminObjectId,
         },
       ),
     ).rejects.toBeInstanceOf(CmsAuthorizationError);
@@ -93,10 +100,13 @@ describe("identidade editorial Entra", () => {
       const [membership] = await database
         .insert(cmsMemberships)
         .values({
-          tenantId: "tenant-nite",
-          objectId: `${role}-oid`,
+          tenantId,
+          objectId:
+            role === "admin"
+              ? "20000000-0000-4000-8000-000000000003"
+              : "20000000-0000-4000-8000-000000000004",
           displayName: "Nome anterior",
-          email: "anterior@nite.test",
+          email: "anterior@unijorge.com",
           role,
         })
         .returning();
@@ -104,11 +114,11 @@ describe("identidade editorial Entra", () => {
         tenantId: membership.tenantId,
         objectId: membership.objectId,
         displayName: "Nome verificado no Entra",
-        email: "atual@nite.test",
+        email: "atual@unijorge.com",
       };
       const bootstrap = {
-        tenantId: "tenant-nite",
-        adminObjectId: "bootstrap-admin-oid",
+        tenantId,
+        adminObjectId,
       };
 
       const synchronized = await resolveCmsMembership(
@@ -125,7 +135,7 @@ describe("identidade editorial Entra", () => {
       expect(synchronized).toMatchObject({
         id: membership.id,
         displayName: "Nome verificado no Entra",
-        email: "atual@nite.test",
+        email: "atual@unijorge.com",
         role,
       });
       expect(repeated).toMatchObject(synchronized);
@@ -136,8 +146,8 @@ describe("identidade editorial Entra", () => {
           aggregateType: "membership",
           aggregateId: membership.id,
           metadata: {
-            tenantId: "tenant-nite",
-            objectId: `${role}-oid`,
+            tenantId,
+            objectId: membership.objectId,
             changedFields: ["displayName", "email"],
           },
         },
@@ -150,14 +160,30 @@ describe("identidade editorial Entra", () => {
     const [membership] = await database
       .insert(cmsMemberships)
       .values({
-        tenantId: "tenant-nite",
-        objectId: "inactive-oid",
+        tenantId,
+        objectId: "20000000-0000-4000-8000-000000000005",
         displayName: "Nome preservado",
-        email: "preservado@nite.test",
+        email: "preservado@unijorge.com",
         role: "publisher",
         active: false,
       })
       .returning();
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await database.insert(cmsMembershipInvitations).values({
+      tenantId,
+      email: "nao-salvar@unijorge.com",
+      role: "publisher",
+      expiresAt: new Date(Date.now() + 60_000),
+      invitedByMembershipId: admin.id,
+    });
 
     await expect(
       resolveCmsMembership(
@@ -166,24 +192,251 @@ describe("identidade editorial Entra", () => {
           tenantId: membership.tenantId,
           objectId: membership.objectId,
           displayName: "Nome que não deve ser salvo",
-          email: "nao-salvar@nite.test",
+          email: "nao-salvar@unijorge.com",
         },
         {
-          tenantId: "tenant-nite",
-          adminObjectId: "bootstrap-admin-oid",
+          tenantId,
+          adminObjectId,
         },
       ),
     ).rejects.toBeInstanceOf(CmsAuthorizationError);
-    await expect(database.select().from(cmsMemberships)).resolves.toMatchObject(
-      [
-        {
-          id: membership.id,
-          displayName: "Nome preservado",
-          email: "preservado@nite.test",
-          active: false,
-        },
-      ],
+    await expect(
+      database
+        .select()
+        .from(cmsMemberships)
+        .where(eq(cmsMemberships.id, membership.id)),
+    ).resolves.toMatchObject([
+      {
+        id: membership.id,
+        displayName: "Nome preservado",
+        email: "preservado@unijorge.com",
+        active: false,
+      },
+    ]);
+    await expect(database.select().from(auditEvents)).resolves.toEqual([]);
+    await expect(
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toMatchObject([{ status: "pending" }]);
+  });
+
+  it("aceita convite uma vez e usa tid + oid nos logins seguintes", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        email: "admin@unijorge.com",
+        role: "admin",
+      })
+      .returning();
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "convidada@unijorge.com",
+        role: "publisher",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+      })
+      .returning();
+    const identity = {
+      tenantId,
+      objectId: "20000000-0000-4000-8000-000000000006",
+      displayName: "Pessoa Convidada",
+      email: "Convidada@UniJorge.com",
+    };
+
+    const accepted = await resolveCmsMembership(database, identity, {
+      tenantId,
+      adminObjectId,
+    });
+    const repeated = await resolveCmsMembership(
+      database,
+      { ...identity, email: "novo.email@unijorge.com" },
+      { tenantId, adminObjectId },
     );
+
+    expect(repeated.id).toBe(accepted.id);
+    await expect(
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toMatchObject([
+      {
+        id: invitation.id,
+        status: "accepted",
+        acceptedMembershipId: accepted.id,
+        acceptedAt: expect.any(Date),
+      },
+    ]);
+    await expect(database.select().from(auditEvents)).resolves.toMatchObject([
+      { action: "membership.created" },
+      { action: "membership.invitation.accepted" },
+      { action: "membership.profile.updated" },
+    ]);
+  });
+
+  it("recusa convite expirado sem criar membership ou auditoria", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await database.insert(cmsMembershipInvitations).values({
+      tenantId,
+      email: "expirada@unijorge.com",
+      role: "publisher",
+      expiresAt: new Date(Date.now() - 1),
+      invitedByMembershipId: admin.id,
+      createdAt: new Date(Date.now() - 60_000),
+    });
+
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000007",
+          displayName: "Convite Expirado",
+          email: "expirada@unijorge.com",
+        },
+        { tenantId, adminObjectId },
+      ),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+    await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
+      1,
+    );
+    await expect(database.select().from(auditEvents)).resolves.toEqual([]);
+  });
+
+  it("preserva o nível administrativo definido no convite", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await database.insert(cmsMembershipInvitations).values({
+      tenantId,
+      email: "nova.admin@unijorge.com",
+      role: "admin",
+      expiresAt: new Date(Date.now() + 60_000),
+      invitedByMembershipId: admin.id,
+    });
+
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000008",
+          displayName: "Nova Administração",
+          email: "nova.admin@unijorge.com",
+        },
+        { tenantId, adminObjectId },
+      ),
+    ).resolves.toMatchObject({ role: "admin", active: true });
+  });
+
+  it("não aceita convite revogado", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await database.insert(cmsMembershipInvitations).values({
+      tenantId,
+      email: "revogada@unijorge.com",
+      role: "publisher",
+      status: "revoked",
+      expiresAt: new Date(Date.now() + 60_000),
+      invitedByMembershipId: admin.id,
+      revokedAt: new Date(),
+    });
+
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000009",
+          displayName: "Convite Revogado",
+          email: "revogada@unijorge.com",
+        },
+        { tenantId, adminObjectId },
+      ),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+    await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
+      1,
+    );
+  });
+
+  it("reverte aceite, membership e auditoria quando a auditoria falha", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await database.insert(cmsMembershipInvitations).values({
+      tenantId,
+      email: "rollback@unijorge.com",
+      role: "publisher",
+      expiresAt: new Date(Date.now() + 60_000),
+      invitedByMembershipId: admin.id,
+    });
+    await client.exec(`
+      create function reject_invitation_audit() returns trigger as $$
+      begin
+        if new.action = 'membership.invitation.accepted' then
+          raise exception 'falha de auditoria simulada';
+        end if;
+        return new;
+      end;
+      $$ language plpgsql;
+      create trigger reject_invitation_audit_trigger
+      before insert on audit_events
+      for each row execute function reject_invitation_audit();
+    `);
+
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000010",
+          displayName: "Rollback",
+          email: "rollback@unijorge.com",
+        },
+        { tenantId, adminObjectId },
+      ),
+    ).rejects.toThrow();
+    await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
+      1,
+    );
+    await expect(
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toMatchObject([
+      { status: "pending", acceptedMembershipId: null, acceptedAt: null },
+    ]);
     await expect(database.select().from(auditEvents)).resolves.toEqual([]);
   });
 });

@@ -6,3 +6,12 @@ export type Membership = {
   role: "admin" | "publisher";
   active: boolean;
 };
+
+export type MembershipInvitation = {
+  id: string;
+  email: string;
+  role: "admin" | "publisher";
+  status: "pending" | "accepted" | "revoked";
+  expiresAt: string;
+  expired: boolean;
+};

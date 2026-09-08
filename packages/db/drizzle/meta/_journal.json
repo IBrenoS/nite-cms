@@ -64,6 +64,13 @@
       "when": 1788144000000,
       "tag": "0008_slug_manual_state",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788742800000,
+      "tag": "0009_membership_invitations",
+      "breakpoints": true
     }
   ]
 }

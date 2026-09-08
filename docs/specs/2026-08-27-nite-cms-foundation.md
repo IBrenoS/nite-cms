@@ -31,6 +31,8 @@ com o Portal.
   nova versão.
 - `media_assets`: chaves imutáveis distintas para staging e objeto público.
 - `cms_memberships`: identidade Entra por `tid + oid`, papel e estado ativo.
+- `cms_membership_invitations`: convites institucionais pendentes, aceitos ou
+  revogados, sem exclusão.
 - `audit_events`: trilha append-only.
 - `outbox_events`: entrega idempotente da revalidação.
 - `published_articles`: read model exclusivo da API pública.
@@ -50,12 +52,23 @@ sitemap. O worker usa claim concorrente, lease, token, tentativas e backoff.
 
 Os únicos papéis são `publisher | admin`. Ambos criam, editam, salvam,
 pré-visualizam, publicam, despublicam, arquivam e restauram qualquer matéria.
-Somente `admin` cria, ativa, desativa ou troca o papel de memberships.
+Somente `admin` cria convites, corrige ou revoga convites pendentes, ativa,
+desativa ou troca o papel de memberships existentes.
 
 O tenant é fixado por `MICROSOFT_TENANT_ID`. O login atualiza nome e e-mail a
 partir de claims Entra verificados. Memberships são desativadas, não excluídas;
 auto-desativação, auto-rebaixamento e remoção do último admin ativo são
 bloqueados e toda alteração gera auditoria.
+
+O primeiro acesso de uma nova pessoa começa por convite ao e-mail exato no
+domínio `@unijorge.com`, válido por 7 dias. O CMS não envia mensagens: a pessoa
+é avisada pelo responsável e entra normalmente com a conta Microsoft. Após
+validar provider, issuer, tenant e e-mail autenticado, o aceite cria a
+membership e vincula definitivamente o `oid` real em uma única transação.
+Logins posteriores usam exclusivamente `tid + oid`; o e-mail deixa de ser
+identificador de autorização e pode apenas sincronizar o perfil. Corrigir um
+convite revoga o registro anterior e cria outro ligado ao histórico. O fluxo
+não consulta Microsoft Graph nem requer `User.Read.All`.
 
 ## Contrato editorial v2
 

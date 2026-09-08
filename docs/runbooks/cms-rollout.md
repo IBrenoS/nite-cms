@@ -169,6 +169,8 @@ proxy e o `cloudflared`. O Preview do CMS continua disponível.
 - `ADMIN_E2E_ADMIN_STORAGE_STATE`
 - `ADMIN_E2E_PUBLISHER_STORAGE_STATE`
 - `ADMIN_E2E_ARTICLE_ID`
+- `ADMIN_E2E_INVITATION_EMAIL` (endereço institucional ainda sem membership;
+  use um valor exclusivo por execução)
 
 Os storage states são artefatos sensíveis do ambiente de teste e não devem ser
 versionados.
@@ -194,24 +196,31 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
 5. Publique o Portal já configurado para v2. Não publique a primeira matéria
    enquanto API e Portal não estiverem no mesmo contrato.
 6. Entre como identidade não autorizada, `publisher` e `admin`. Confirme acesso
-   negado, permissões editoriais e exclusividade da gestão de memberships.
-7. Faça upload JPEG/PNG/WebP autorizado. Confirme original no staging,
+   negado, permissões editoriais e exclusividade da gestão de equipe.
+7. Como admin, crie um convite para um e-mail `@unijorge.com`, comunique a
+   pessoa por um canal externo e confirme o aceite em até 7 dias. Verifique que
+   o convite ficou `accepted`, que a membership recebeu o `oid` real e que o
+   login seguinte continua válido mesmo após uma mudança de e-mail de perfil.
+   Para corrigir e-mail ou nível de acesso antes do aceite, use **Corrigir**:
+   o convite anterior deve ficar `revoked` e o substituto deve ganhar novo
+   prazo. Use **Revogar** para cancelar sem apagar o histórico.
+8. Faça upload JPEG/PNG/WebP autorizado. Confirme original no staging,
    processamento sem EXIF, dimensão máxima de 2400 px, WebP público, cache
    immutable, estado `ready` e alt obrigatório.
-8. Crie e salve uma matéria; confirme revisão imutável e conflito por
+9. Crie e salve uma matéria; confirme revisão imutável e conflito por
    `expectedRevisionId` desatualizado.
-9. Abra preview de uma matéria nunca publicada. Confirme Draft Mode, faixa
-   “Prévia — ainda não publicada”, isolamento por slug/revisão,
-   `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e
-   saída por POST.
-10. Teste tokens válido, expirado, adulterado e de revisão inexistente. Somente
+10. Abra preview de uma matéria nunca publicada. Confirme Draft Mode, faixa
+    “Prévia — ainda não publicada”, isolamento por slug/revisão,
+    `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e
+    saída por POST.
+11. Teste tokens válido, expirado, adulterado e de revisão inexistente. Somente
     o válido pode habilitar Draft Mode.
-11. Publique, despublique, republique, arquive e restaure. Confirme primeira
+12. Publique, despublique, republique, arquive e restaure. Confirme primeira
     `publishedAt`, slug bloqueado, auditoria, outbox, 404 quando fora do ar,
     revalidação de lista/artigo/filtros/sitemap e restauração em draft.
-12. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
+13. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
     em logs. Prove recuperação de uma falha transitória da outbox.
-13. Execute Playwright desktop/mobile do Admin com storage states dedicados e
+14. Execute Playwright desktop/mobile do Admin com storage states dedicados e
     faça smoke visual do corpo rico e preview no Portal.
 
 ## Corte de produção

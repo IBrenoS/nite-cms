@@ -14,9 +14,14 @@ import { MembershipAvatar, MembershipRowStatus } from "./membership-ui-atoms";
 type MembershipRowProps = {
   membership: Membership;
   isLast: boolean;
+  isCurrent: boolean;
 };
 
-export function MembershipRow({ membership, isLast }: MembershipRowProps) {
+export function MembershipRow({
+  membership,
+  isLast,
+  isCurrent,
+}: MembershipRowProps) {
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{
     type: "error" | "success";
@@ -39,7 +44,7 @@ export function MembershipRow({ membership, isLast }: MembershipRowProps) {
   return (
     <>
       <tr
-        className={`grid grid-cols-[1fr_130px_90px_90px] items-center gap-3 px-4 py-3 transition-colors hover:bg-nite-section/30 ${!isLast ? "border-b border-nite-border-subtle" : ""} ${isPending ? "opacity-60" : ""}`}
+        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-nite-section/30 md:grid-cols-[1fr_130px_90px_90px] ${!isLast ? "border-b border-nite-border-subtle" : ""} ${isPending ? "opacity-60" : ""}`}
       >
         {/* Member */}
         <td className="flex min-w-0 items-center gap-2.5">
@@ -47,6 +52,11 @@ export function MembershipRow({ membership, isLast }: MembershipRowProps) {
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-nite-text-primary">
               {membership.displayName}
+              {isCurrent ? (
+                <span className="ml-2 text-[11px] font-medium text-nite-brand-accent">
+                  Você
+                </span>
+              ) : null}
             </p>
             <p className="truncate font-mono text-[11px] text-nite-text-muted">
               {membership.email ?? membership.objectId}
@@ -56,25 +66,33 @@ export function MembershipRow({ membership, isLast }: MembershipRowProps) {
 
         {/* Role */}
         <td>
-          <select
-            aria-label={`Papel de ${membership.displayName}`}
-            value={membership.role}
-            disabled={isPending}
-            onChange={(e) =>
-              startTransition(async () =>
-                handleResult(
-                  await updateMembershipRole({
-                    objectId: membership.objectId,
-                    role: e.target.value,
-                  }),
-                ),
-              )
-            }
-            className="nite-form-field h-8 rounded-md border border-nite-border-subtle bg-transparent px-2 text-xs font-medium text-nite-text-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="publisher">Publisher</option>
-            <option value="admin">Admin</option>
-          </select>
+          {isCurrent ? (
+            <span className="text-xs font-medium text-nite-text-primary">
+              {membership.role === "admin"
+                ? "Acesso administrativo"
+                : "Acesso editorial"}
+            </span>
+          ) : (
+            <select
+              aria-label={`Nível de acesso de ${membership.displayName}`}
+              value={membership.role}
+              disabled={isPending}
+              onChange={(e) =>
+                startTransition(async () =>
+                  handleResult(
+                    await updateMembershipRole({
+                      objectId: membership.objectId,
+                      role: e.target.value,
+                    }),
+                  ),
+                )
+              }
+              className="nite-form-field h-8 rounded-md border border-nite-border-subtle bg-transparent px-2 text-xs font-medium text-nite-text-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="publisher">Acesso editorial</option>
+              <option value="admin">Acesso administrativo</option>
+            </select>
+          )}
         </td>
 
         {/* Status */}
@@ -84,29 +102,35 @@ export function MembershipRow({ membership, isLast }: MembershipRowProps) {
 
         {/* Actions */}
         <td className="flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant={membership.active ? "quiet" : "secondary"}
-            loading={isPending}
-            onClick={() =>
-              startTransition(async () =>
-                handleResult(
-                  await updateMembershipActive({
-                    objectId: membership.objectId,
-                    active: !membership.active,
-                  }),
-                ),
-              )
-            }
-            className={
-              membership.active
-                ? "text-nite-text-secondary hover:text-status-error hover:border-status-error/40"
-                : ""
-            }
-          >
-            {membership.active ? "Desativar" : "Ativar"}
-          </Button>
+          {isCurrent ? (
+            <span className="text-xs text-nite-text-secondary">
+              Conta atual
+            </span>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant={membership.active ? "quiet" : "secondary"}
+              loading={isPending}
+              onClick={() =>
+                startTransition(async () =>
+                  handleResult(
+                    await updateMembershipActive({
+                      objectId: membership.objectId,
+                      active: !membership.active,
+                    }),
+                  ),
+                )
+              }
+              className={
+                membership.active
+                  ? "text-nite-text-secondary hover:text-status-error hover:border-status-error/40"
+                  : ""
+              }
+            >
+              {membership.active ? "Desativar" : "Ativar"}
+            </Button>
+          )}
         </td>
       </tr>
 

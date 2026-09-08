@@ -72,7 +72,11 @@ export async function getCmsContext() {
 
   const database = getDatabase(configuration);
   const [microsoftAccount] = await database
-    .select({ accountId: account.accountId, providerId: account.providerId })
+    .select({
+      accountId: account.accountId,
+      providerId: account.providerId,
+      issuer: account.issuer,
+    })
     .from(account)
     .where(
       and(

@@ -1,12 +1,19 @@
-import type { Membership } from "./memberships.types";
+import type { Membership, MembershipInvitation } from "./memberships.types";
 import { MembershipCreateForm } from "./membership-create-form";
+import { MembershipInvitations } from "./membership-invitations";
 import { MembershipsTable } from "./memberships-table";
 
 type MembershipsPanelProps = {
   memberships: Membership[];
+  invitations: MembershipInvitation[];
+  currentMembershipId: string;
 };
 
-export function MembershipsPanel({ memberships }: MembershipsPanelProps) {
+export function MembershipsPanel({
+  memberships,
+  invitations,
+  currentMembershipId,
+}: MembershipsPanelProps) {
   const total = memberships.length;
   const admins = memberships.filter((m) => m.role === "admin").length;
   const publishers = memberships.filter((m) => m.role === "publisher").length;
@@ -19,9 +26,10 @@ export function MembershipsPanel({ memberships }: MembershipsPanelProps) {
         <dl className="flex flex-wrap gap-4">
           {[
             { label: "Membros", value: total },
-            { label: "Admins", value: admins },
-            { label: "Publishers", value: publishers },
+            { label: "Acesso administrativo", value: admins },
+            { label: "Acesso editorial", value: publishers },
             { label: "Inativos", value: inactive },
+            { label: "Convites pendentes", value: invitations.length },
           ].map(({ label, value }) => (
             <div
               key={label}
@@ -38,9 +46,13 @@ export function MembershipsPanel({ memberships }: MembershipsPanelProps) {
 
       {/* Create form */}
       <MembershipCreateForm />
+      <MembershipInvitations invitations={invitations} />
 
       {/* Members table */}
-      <MembershipsTable memberships={memberships} />
+      <MembershipsTable
+        memberships={memberships}
+        currentMembershipId={currentMembershipId}
+      />
     </div>
   );
 }

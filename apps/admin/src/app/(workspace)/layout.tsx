@@ -21,11 +21,11 @@ export default async function WorkspaceLayout({
         <section className="nite-panel grid max-w-lg gap-4 rounded-xl border border-status-error/35 p-7">
           <Chip variant="quiet">Acesso negado</Chip>
           <h1 className="font-heading text-2xl font-semibold">
-            Membership editorial necessária
+            Acesso editorial necessário
           </h1>
           <p className="leading-7 text-nite-text-secondary">
-            A identidade Microsoft está válida, mas o par de tenant e objeto não
-            está autorizado no CMS.
+            Sua identidade Microsoft está válida, mas ainda não possui acesso à
+            equipe do CMS. Solicite um convite à administração.
           </p>
           <SignOutButton />
         </section>

@@ -2,8 +2,6 @@
 
 import { StatusBadge, type StatusBadgeTone } from "@nite/cms-ui";
 
-import type { Membership } from "./memberships.types";
-
 function memberInitials(displayName: string): string {
   return displayName
     .split(" ")

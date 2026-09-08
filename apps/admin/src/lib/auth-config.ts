@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { EntraIdentity } from "@nite/editorial";
+import { CmsAuthorizationError, type EntraIdentity } from "@nite/editorial";
 
 const requiredConfiguration = {
   DATABASE_ADMIN_URL: z.url(),
@@ -8,8 +8,8 @@ const requiredConfiguration = {
   BETTER_AUTH_URL: z.url(),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
-  MICROSOFT_TENANT_ID: z.string().min(1),
-  CMS_BOOTSTRAP_ADMIN_OID: z.string().min(1),
+  MICROSOFT_TENANT_ID: z.uuid(),
+  CMS_BOOTSTRAP_ADMIN_OID: z.uuid(),
 } as const;
 
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
@@ -58,11 +58,16 @@ export function toEntraIdentity(
     AdminConfiguration,
     "tenantId" | "bootstrapAdminObjectId"
   >,
-  account: { accountId: string; providerId: string },
+  account: { accountId: string; providerId: string; issuer: string },
   user: { name: string; email: string },
 ): EntraIdentity {
-  if (account.providerId !== "microsoft" || account.accountId.length === 0) {
-    throw new Error("Conta Microsoft verificada não encontrada.");
+  const expectedIssuer = `https://login.microsoftonline.com/${configuration.tenantId}/v2.0`;
+  if (
+    account.providerId !== "microsoft" ||
+    !z.uuid().safeParse(account.accountId).success ||
+    account.issuer !== expectedIssuer
+  ) {
+    throw new CmsAuthorizationError();
   }
 
   return {

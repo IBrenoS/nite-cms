@@ -5,8 +5,16 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool, type PoolClient } from "pg";
 import { fileURLToPath } from "node:url";
 
-import { changeCmsMembershipRole } from "@nite/editorial";
-import { auditEvents, cmsMemberships } from "@nite/cms-db";
+import {
+  changeCmsMembershipRole,
+  createCmsMembershipInvitation,
+  resolveCmsMembership,
+} from "@nite/editorial";
+import {
+  auditEvents,
+  cmsMembershipInvitations,
+  cmsMemberships,
+} from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
 import { resolvePostgresTestDatabaseUrl } from "./postgres-test-database";
@@ -220,6 +228,113 @@ describe("administração de memberships com PostgreSQL", () => {
           actorMembershipId: successfulActor.id,
         },
       ]);
+    },
+    10_000,
+  );
+
+  postgresIt(
+    "permite que somente um OID consuma o mesmo convite em logins simultâneos",
+    async () => {
+      const firstDatabase = drizzle(firstPool!, { schema: cmsSchema });
+      const secondDatabase = drizzle(secondPool!, { schema: cmsSchema });
+      const tenantId = "10000000-0000-4000-8000-000000000001";
+      const adminObjectId = "20000000-0000-4000-8000-000000000001";
+      const [admin] = await firstDatabase
+        .insert(cmsMemberships)
+        .values({
+          tenantId,
+          objectId: adminObjectId,
+          displayName: "Admin NITE",
+          role: "admin",
+        })
+        .returning();
+      await firstDatabase.insert(cmsMembershipInvitations).values({
+        tenantId,
+        email: "concorrente@unijorge.com",
+        role: "publisher",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+      });
+      const bootstrap = { tenantId, adminObjectId };
+
+      const results = await Promise.allSettled([
+        resolveCmsMembership(
+          firstDatabase,
+          {
+            tenantId,
+            objectId: "20000000-0000-4000-8000-000000000002",
+            displayName: "Primeira identidade",
+            email: "concorrente@unijorge.com",
+          },
+          bootstrap,
+        ),
+        resolveCmsMembership(
+          secondDatabase,
+          {
+            tenantId,
+            objectId: "20000000-0000-4000-8000-000000000003",
+            displayName: "Segunda identidade",
+            email: "CONCORRENTE@UNIJORGE.COM",
+          },
+          bootstrap,
+        ),
+      ]);
+
+      expect(results.map(({ status }) => status).sort()).toEqual([
+        "fulfilled",
+        "rejected",
+      ]);
+      await expect(
+        firstDatabase.select().from(cmsMembershipInvitations),
+      ).resolves.toMatchObject([{ status: "accepted" }]);
+      await expect(
+        firstDatabase.select().from(cmsMemberships),
+      ).resolves.toHaveLength(2);
+      await expect(
+        firstDatabase.select().from(auditEvents),
+      ).resolves.toHaveLength(2);
+    },
+    10_000,
+  );
+
+  postgresIt(
+    "serializa criação simultânea do mesmo e-mail sem diferença de caixa",
+    async () => {
+      const firstDatabase = drizzle(firstPool!, { schema: cmsSchema });
+      const secondDatabase = drizzle(secondPool!, { schema: cmsSchema });
+      const [admin] = await firstDatabase
+        .insert(cmsMemberships)
+        .values({
+          tenantId: "10000000-0000-4000-8000-000000000001",
+          objectId: "20000000-0000-4000-8000-000000000001",
+          displayName: "Admin NITE",
+          role: "admin",
+        })
+        .returning();
+
+      const results = await Promise.allSettled([
+        createCmsMembershipInvitation(firstDatabase, {
+          actor: admin,
+          email: "Simultanea@UniJorge.com",
+          role: "publisher",
+        }),
+        createCmsMembershipInvitation(secondDatabase, {
+          actor: admin,
+          email: "simultanea@unijorge.com",
+          role: "admin",
+        }),
+      ]);
+
+      expect(results.map(({ status }) => status).sort()).toEqual([
+        "fulfilled",
+        "rejected",
+      ]);
+      await expect(
+        firstDatabase.select().from(cmsMembershipInvitations),
+      ).resolves.toHaveLength(1);
+      await expect(
+        firstDatabase.select().from(auditEvents),
+      ).resolves.toHaveLength(1);
     },
     10_000,
   );

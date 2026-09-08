@@ -254,6 +254,8 @@ describe("persistencia editorial", () => {
   it("migra os papéis legados para publisher sem ativar antigos authors", async () => {
     await client.exec(`
       DROP VIEW IF EXISTS "published_articles";
+      DROP TABLE "cms_membership_invitations";
+      DROP TYPE "cms_membership_invitation_status";
       ALTER TABLE "article_revisions"
       DROP CONSTRAINT "article_revisions_body_root_check";
       ALTER TYPE "cms_role" RENAME TO "cms_role_current";
@@ -349,6 +351,81 @@ describe("persistencia editorial", () => {
       { slug: "novo-slug-automatico", slug_manually_edited: false },
       { slug: "slug-legado-preservado", slug_manually_edited: true },
     ]);
+  });
+
+  it("cria convites institucionais restritos e sem permissao de exclusao", async () => {
+    const adminId = "10000000-0000-4000-8000-000000000091";
+    await client.query(
+      `insert into cms_memberships
+        (id, tenant_id, object_id, display_name, email, role)
+       values ($1, '10000000-0000-4000-8000-000000000001',
+        '20000000-0000-4000-8000-000000000001', 'Admin NITE',
+        'admin@unijorge.com', 'admin')`,
+      [adminId],
+    );
+
+    await client.query(
+      `insert into cms_membership_invitations
+        (tenant_id, email, role, expires_at, invited_by_membership_id)
+       values ('10000000-0000-4000-8000-000000000001',
+        'pessoa@unijorge.com', 'publisher', now() + interval '7 days', $1)`,
+      [adminId],
+    );
+
+    await expect(
+      client.query(
+        `insert into cms_membership_invitations
+          (tenant_id, email, role, expires_at, invited_by_membership_id)
+         values ('10000000-0000-4000-8000-000000000001',
+          'PESSOA@unijorge.com', 'publisher', now() + interval '7 days', $1)`,
+        [adminId],
+      ),
+    ).rejects.toThrow(/normalizado|check/i);
+    await expect(
+      client.query(
+        `insert into cms_membership_invitations
+          (tenant_id, email, role, expires_at, invited_by_membership_id)
+         values ('10000000-0000-4000-8000-000000000001',
+          'pessoa..invalida@unijorge.com', 'publisher', now() + interval '7 days', $1)`,
+        [adminId],
+      ),
+    ).rejects.toThrow(/check/i);
+    await expect(
+      client.query(
+        `insert into cms_membership_invitations
+          (tenant_id, email, role, expires_at, invited_by_membership_id)
+         values ('10000000-0000-4000-8000-000000000001',
+          'pessoa@unijorge.com', 'publisher', now() + interval '7 days', $1)`,
+        [adminId],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
+
+    await client.exec("set role nite_public");
+    await expect(
+      client.query("select id from cms_membership_invitations"),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
+      client.query(
+        `insert into cms_membership_invitations
+          (tenant_id, email, role, expires_at, invited_by_membership_id)
+         values ('10000000-0000-4000-8000-000000000001',
+          'publica@unijorge.com', 'publisher', now() + interval '7 days', $1)`,
+        [adminId],
+      ),
+    ).rejects.toThrow(/permission denied/i);
+
+    await client.exec("reset role; set role nite_admin");
+    await expect(
+      client.query("select id from cms_membership_invitations"),
+    ).resolves.toMatchObject({ rows: [{ id: expect.any(String) }] });
+    await expect(
+      client.query(
+        "update cms_membership_invitations set updated_at = now() returning id",
+      ),
+    ).resolves.toMatchObject({ rows: [{ id: expect.any(String) }] });
+    await expect(
+      client.query("delete from cms_membership_invitations"),
+    ).rejects.toThrow(/permission denied/i);
   });
 
   it("impede alteracao de uma revisao criada", async () => {

@@ -94,7 +94,9 @@ export function WorkspaceNavigation({
                 {displayName}
               </p>
               <p className="text-[11px] text-nite-text-secondary">
-                {role === "admin" ? "Administradora" : "Publicador"}
+                {role === "admin"
+                  ? "Acesso administrativo"
+                  : "Acesso editorial"}
               </p>
             </div>
           </div>
