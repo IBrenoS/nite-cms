@@ -340,6 +340,35 @@ export const articleRevisions = pgTable(
   ],
 );
 
+export const previewSnapshots = pgTable(
+  "preview_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    baseRevisionId: uuid("base_revision_id")
+      .notNull()
+      .references(() => articleRevisions.id, { onDelete: "cascade" }),
+    actorMembershipId: uuid("actor_membership_id")
+      .notNull()
+      .references(() => cmsMemberships.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").$type<unknown>().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("preview_snapshots_article_idx").on(table.articleId, table.createdAt),
+    index("preview_snapshots_expiration_idx").on(table.expiresAt),
+    check(
+      "preview_snapshots_expiration_check",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+  ],
+);
+
 export const auditEvents = pgTable(
   "audit_events",
   {
@@ -428,6 +457,7 @@ export type CmsMembershipInvitation =
 export type NewCmsMembershipInvitation =
   typeof cmsMembershipInvitations.$inferInsert;
 export type Article = typeof articles.$inferSelect;
+export type PreviewSnapshot = typeof previewSnapshots.$inferSelect;
 export type NewArticle = typeof articles.$inferInsert;
 export type ArticleRevision = typeof articleRevisions.$inferSelect;
 export type NewArticleRevision = typeof articleRevisions.$inferInsert;

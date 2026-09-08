@@ -16,6 +16,7 @@ import {
   publishArticle,
   saveArticleRevision,
   submitEditorialRevision,
+  validateEditorialInputForPublication,
 } from "@nite/editorial";
 import {
   articleRevisions,
@@ -180,6 +181,52 @@ describe("comandos editoriais", () => {
         .from(articleRevisions)
         .where(eq(articleRevisions.articleId, created.article.id)),
     ).resolves.toEqual([{ version: 1 }, { version: 2 }, { version: 3 }]);
+  });
+
+  it("valida um snapshot publicavel sem criar revisao", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-preview",
+        objectId: "publisher-preview-oid",
+        displayName: "Publisher Preview",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-preview/original",
+      publicObjectKey: "news/capa-preview/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "abababababababababababababababababababababababababababababababab",
+      status: "ready",
+    });
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: firstDraft,
+    });
+
+    const validated = await validateEditorialInputForPublication(database, {
+      actor: publisher,
+      input: {
+        ...firstDraft,
+        slug: "titulo-ainda-nao-salvo",
+        title: "Título ainda não salvo no histórico",
+      },
+    });
+
+    expect(validated.title).toBe("Título ainda não salvo no histórico");
+    await expect(
+      database
+        .select({ version: articleRevisions.version })
+        .from(articleRevisions)
+        .where(eq(articleRevisions.articleId, created.article.id)),
+    ).resolves.toEqual([{ version: 1 }]);
   });
 
   it("preserva o modo manual mesmo quando o cliente tenta voltar ao automatico", async () => {

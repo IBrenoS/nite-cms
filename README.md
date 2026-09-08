@@ -17,9 +17,11 @@ payload legado paralelo.
 
 Não existe package, workspace, import ou path compartilhado com o Portal. A comunicação é feita pela API pública versionada e pelo webhook HMAC de revalidação. O checkout opcional deste repositório como submodule no Portal é apenas uma referência Git.
 
-O preview também cruza essa fronteira por HTTPS: o Admin emite o token HMAC e
-resolve a revisão exata em `POST /api/preview/resolve`; o Portal mantém o Draft
-Mode e nunca recebe `PREVIEW_HMAC_SECRET`.
+O preview também cruza essa fronteira por HTTPS: o Admin persiste por dez
+minutos um snapshot validado das alterações atuais, emite o token HMAC v2 e o
+resolve em `POST /api/preview/resolve`; o Portal mantém o Draft Mode e nunca
+recebe `PREVIEW_HMAC_SECRET`. Tokens v1 de revisões salvas continuam aceitos
+durante a transição.
 
 ## Desenvolvimento
 

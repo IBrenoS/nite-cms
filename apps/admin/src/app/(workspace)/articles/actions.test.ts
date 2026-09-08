@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   submit: vi.fn(),
   getPreview: vi.fn(),
   validatePreview: vi.fn(),
+  createSnapshot: vi.fn(),
   requireContext: vi.fn(),
   after: vi.fn(),
 }));
@@ -18,12 +19,17 @@ vi.mock("@nite/editorial", async (importOriginal) => {
     submitEditorialRevision: mocks.submit,
     getEditorialRevisionPreview: mocks.getPreview,
     validateEditorialRevisionForPublication: mocks.validatePreview,
+    createEditorialPreviewSnapshot: mocks.createSnapshot,
   };
 });
 
 import { editorialPublishableInputSchema } from "@nite/editorial";
 
-import { createPrivatePreviewLink, submitEditorialArticle } from "./actions";
+import {
+  createLivePreviewLink,
+  createPrivatePreviewLink,
+  submitEditorialArticle,
+} from "./actions";
 
 function draftForm(intent: "save" | "publish" = "save") {
   const data = new FormData();
@@ -51,6 +57,35 @@ function draftForm(intent: "save" | "publish" = "save") {
   return data;
 }
 
+function publishablePreviewForm() {
+  const data = draftForm("publish");
+  data.set("articleId", "10000000-0000-4000-8000-000000000001");
+  data.set("expectedRevisionId", "20000000-0000-4000-8000-000000000003");
+  data.set("slug", "slug-ainda-nao-salvo");
+  data.set("title", "Título atual ainda não salvo como revisão");
+  data.set(
+    "summary",
+    "Resumo atual com conteúdo suficiente para o contrato editorial do preview privado.",
+  );
+  data.set("category", "inovacao");
+  data.set("byline", "Redação NITE");
+  data.set("coverMediaId", "30000000-0000-4000-8000-000000000001");
+  data.set("coverAlt", "Equipe revisando uma matéria no laboratório.");
+  data.set(
+    "bodyDocument",
+    JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Conteúdo atual." }],
+        },
+      ],
+    }),
+  );
+  return data;
+}
+
 describe("ações do editor", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -62,10 +97,47 @@ describe("ações do editor", () => {
     mocks.after.mockReset();
     mocks.getPreview.mockReset();
     mocks.validatePreview.mockReset();
+    mocks.createSnapshot.mockReset();
     mocks.requireContext.mockResolvedValue({
       database: {},
       membership: { id: "membership-id" },
     });
+  });
+
+  it("cria preview interno das alterações atuais sem salvar revisão", async () => {
+    mocks.createSnapshot.mockResolvedValue({
+      id: "40000000-0000-4000-8000-000000000001",
+    });
+
+    const result = await createLivePreviewLink("cms", publishablePreviewForm());
+
+    expect(result).toEqual({
+      status: "success",
+      data: {
+        url: "/preview/articles/10000000-0000-4000-8000-000000000001?snapshot=40000000-0000-4000-8000-000000000001",
+      },
+    });
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+
+  it("emite token v2 para o snapshot atual no Portal", async () => {
+    mocks.createSnapshot.mockResolvedValue({
+      id: "40000000-0000-4000-8000-000000000001",
+    });
+    vi.stubEnv("PREVIEW_HMAC_SECRET", "x".repeat(32));
+    vi.stubEnv("PORTAL_PREVIEW_URL", "https://portal.nite.test/api/preview");
+
+    const result = await createLivePreviewLink(
+      "portal",
+      publishablePreviewForm(),
+    );
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("Preview não emitido.");
+    expect(new URL(result.data.url).searchParams.get("token")).toMatch(
+      /^v2\.[^.]+\.[^.]+$/u,
+    );
+    expect(mocks.submit).not.toHaveBeenCalled();
   });
 
   it("retorna os IDs persistidos ao salvar um rascunho parcial", async () => {

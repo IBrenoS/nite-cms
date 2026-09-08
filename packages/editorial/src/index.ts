@@ -6,3 +6,4 @@ export * from "./editor-document";
 export * from "./editorial-queries";
 export * from "./outbox";
 export * from "./public-news";
+export * from "./preview-snapshot";

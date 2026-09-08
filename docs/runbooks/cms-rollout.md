@@ -66,7 +66,8 @@ separada.
 - `R2_PUBLIC_BASE_URL`: base HTTPS pública usada para resolver a mídia.
 - `PORTAL_PREVIEW_URL`: URL HTTPS exata de `GET /api/preview` no Portal.
 - `PREVIEW_HMAC_SECRET`: secret exclusivo de preview, com pelo menos 32
-  caracteres; não compartilhar com o Portal.
+  caracteres; deve ser idêntico entre emissores e verificadores do CMS Admin,
+  mas nunca é compartilhado com o Portal.
 - `WEB_REVALIDATION_URL`: URL HTTPS exata de `/api/revalidate/news` no Portal.
 - `REVALIDATION_SECRET`: pelo menos 32 caracteres, igual no Admin e Portal.
 - `CRON_SECRET`: pelo menos 32 caracteres, exclusivo do cron.
@@ -96,6 +97,8 @@ O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
 tentativa em `after()` reduz a latência; o cron é a recuperação durável. No
 plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
 indisponibilidade prolongada pode aguardar o próximo ciclo.
+Antes de processar o outbox, o mesmo cron remove `preview_snapshots` expirados;
+criação e resolução também fazem essa limpeza oportunisticamente.
 
 ### CMS API
 
@@ -209,12 +212,16 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
    immutable, estado `ready` e alt obrigatório.
 9. Crie e salve uma matéria; confirme revisão imutável e conflito por
    `expectedRevisionId` desatualizado.
-10. Abra preview de uma matéria nunca publicada. Confirme Draft Mode, faixa
-    “Prévia — ainda não publicada”, isolamento por slug/revisão,
+10. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
+    CMS e Preview no Portal e confirme os valores atuais, a versão/revisão
+    corrente inalterada e ausência de nova `article_revision`. Confirme Draft
+    Mode, faixa “Prévia — ainda não publicada”, isolamento por slug/snapshot,
     `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e
     saída por POST.
-11. Teste tokens válido, expirado, adulterado e de revisão inexistente. Somente
-    o válido pode habilitar Draft Mode.
+11. Teste tokens v1/v2 válidos, expirados, adulterados, assinados por chave
+    divergente e com revisão/snapshot inexistente. Somente os válidos podem
+    habilitar Draft Mode. Confirme resposta externa genérica e logs sem token,
+    payload editorial ou secret.
 12. Publique, despublique, republique, arquive e restaure. Confirme primeira
     `publishedAt`, slug bloqueado, auditoria, outbox, 404 quando fora do ar,
     revalidação de lista/artigo/filtros/sitemap e restauração em draft.

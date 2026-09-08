@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { articleRevisions, articles, mediaAssets } from "@nite/cms-db";
+import { getEditorialPreviewSnapshot } from "@nite/editorial";
 import { getDatabase } from "@nite/cms-db/database";
 import { readAdminConfiguration } from "@/lib/auth-config";
 import { getPublicMediaUrl } from "@/lib/media-storage";
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       }
     },
     async findRevision(claims) {
+      if (!("revisionId" in claims)) return undefined;
       const [result] = await database
         .select({
           article: {
@@ -62,6 +64,10 @@ export async function POST(request: Request) {
         .where(eq(articles.id, claims.articleId))
         .limit(1);
       return result;
+    },
+    async findSnapshot(claims) {
+      if (!("snapshotId" in claims)) return undefined;
+      return getEditorialPreviewSnapshot(database, claims);
     },
     async findMedia(ids) {
       if (ids.length === 0) return [];

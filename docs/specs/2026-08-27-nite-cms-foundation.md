@@ -102,15 +102,19 @@ backfill, cópia ou fallback para `object_key`.
 
 ## Preview privado
 
-O Admin assina por `PREVIEW_HMAC_SECRET` um token de até dez minutos contendo
-`articleId`, `revisionId`, `expiresAt` e `nonce`, e monta a entrada do Portal a
-partir de `PORTAL_PREVIEW_URL`. `POST /api/preview/resolve` verifica assinatura
-e expiração, carrega exatamente a revisão indicada, resolve mídia e responde
-sempre `private, no-store`.
+O Admin valida o formulário atual pelo contrato publicável e persiste um
+`preview_snapshot` privado por até dez minutos, sem criar revisão, auditoria ou
+alterar o estado da matéria. O token HMAC v2 contém `articleId`, `snapshotId`,
+`expiresAt` e `nonce`; o DTO v2 expõe também `baseRevisionId`. O endpoint
+`POST /api/preview/resolve` verifica assinatura e expiração, resolve o snapshot
+e suas mídias e responde sempre `private, no-store`. Tokens e DTOs v1 baseados
+em `revisionId` permanecem aceitos temporariamente para rollout e rollback.
 
 O Portal encaminha o mesmo token ao resolver do Admin por
 `CMS_PREVIEW_RESOLVE_URL`. O secret HMAC nunca é entregue ao Portal. Token
 inválido, expirado, adulterado ou sem revisão não habilita Draft Mode.
+Snapshots expirados são removidos oportunisticamente na criação e resolução;
+o cron diário do outbox garante a exclusão física em até 24 horas.
 
 ## Banco e credenciais
 

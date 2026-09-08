@@ -14,7 +14,7 @@ import { useEditor, type JSONContent } from "@tiptap/react";
 import { deriveEditorialSlug, type EditorialDraftInput } from "@nite/editorial";
 import {
   createMediaUploadAction,
-  createPrivatePreviewLink,
+  createLivePreviewLink,
   processMediaUploadAction,
   submitEditorialArticle,
   transitionEditorialArticle,
@@ -442,15 +442,16 @@ export function ArticleEditor({
     });
   }
 
-  async function openPrivatePreview() {
+  async function openLivePreview(target: "cms" | "portal") {
     if (!initial) return;
+    const form = document.getElementById("article-editor-form");
+    if (!(form instanceof HTMLFormElement)) return;
     setPreviewPending(true);
     setPreviewMessage(undefined);
     try {
-      const result = await createPrivatePreviewLink({
-        articleId: initial.articleId,
-        revisionId: currentRevisionId,
-      });
+      const data = new FormData(form);
+      data.set("intent", "publish");
+      const result = await createLivePreviewLink(target, data);
       if (result.status === "success") {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       } else {
@@ -546,14 +547,12 @@ export function ArticleEditor({
       <EditorHeader
         isExisting={isExisting}
         articleId={initial?.articleId}
-        currentRevisionId={currentRevisionId}
         status={status}
         pending={pending}
         operationPending={operationPending}
         canPublish={canPublish}
         currentStatus={currentStatus}
-        isDirty={isDirty}
-        openPrivatePreview={() => void openPrivatePreview()}
+        openLivePreview={(target) => void openLivePreview(target)}
       />
 
       <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-56px)] xl:overflow-hidden">

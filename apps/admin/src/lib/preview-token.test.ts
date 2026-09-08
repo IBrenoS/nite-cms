@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 
 import {
   PreviewTokenError,
+  issuePreviewSnapshotToken,
   issuePreviewToken,
   verifyPreviewToken,
 } from "./preview-token";
@@ -11,6 +12,10 @@ const secret = "preview-secret-for-deterministic-tests-only";
 const claims = {
   articleId: "10000000-0000-4000-8000-000000000001",
   revisionId: "20000000-0000-4000-8000-000000000001",
+};
+const snapshotClaims = {
+  articleId: claims.articleId,
+  snapshotId: "40000000-0000-4000-8000-000000000001",
 };
 
 describe("token privado de preview", () => {
@@ -21,6 +26,17 @@ describe("token privado de preview", () => {
     expect(verifyPreviewToken(token, secret, now)).toMatchObject({
       version: 1,
       ...claims,
+      expiresAt: now.getTime() + 10 * 60 * 1000,
+    });
+  });
+
+  it("emite e valida um snapshot transitório sem fingir que ele é uma revisão", () => {
+    const now = new Date("2026-08-29T12:00:00.000Z");
+    const token = issuePreviewSnapshotToken(snapshotClaims, secret, now);
+
+    expect(verifyPreviewToken(token, secret, now)).toMatchObject({
+      version: 2,
+      ...snapshotClaims,
       expiresAt: now.getTime() + 10 * 60 * 1000,
     });
   });
@@ -39,6 +55,19 @@ describe("token privado de preview", () => {
         new Date(now.getTime() + 10 * 60 * 1000),
       ),
     ).toThrow(PreviewTokenError);
+  });
+
+  it("recusa token v2 assinado por uma chave divergente", () => {
+    const now = new Date("2026-08-29T12:00:00.000Z");
+    const token = issuePreviewSnapshotToken(
+      snapshotClaims,
+      "outra-chave-de-preview-com-32-caracteres",
+      now,
+    );
+
+    expect(() => verifyPreviewToken(token, secret, now)).toThrow(
+      PreviewTokenError,
+    );
   });
 
   it("recusa token corretamente assinado com expiração acima do TTL", () => {

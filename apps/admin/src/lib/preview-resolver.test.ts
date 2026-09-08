@@ -7,9 +7,65 @@ import {
 
 const articleId = "10000000-0000-4000-8000-000000000001";
 const revisionId = "20000000-0000-4000-8000-000000000001";
+const snapshotId = "40000000-0000-4000-8000-000000000001";
 const mediaId = "30000000-0000-4000-8000-000000000001";
 
 describe("resolução do preview privado", () => {
+  it("resolve snapshot v2 com identidade própria e revisão-base", async () => {
+    const response = await resolvePreviewRequest(
+      new Request("https://cms.test/api/preview/resolve"),
+      {
+        getClaims: () => ({ articleId, snapshotId }),
+        findRevision: async () => undefined,
+        findSnapshot: async () => ({
+          article: { id: articleId, publishedAt: null },
+          snapshot: { id: snapshotId, baseRevisionId: revisionId },
+          input: {
+            slug: "slug-ainda-nao-salvo",
+            title: "Título atual ainda não salvo como revisão",
+            summary:
+              "Resumo atual com conteúdo suficiente para o contrato editorial do preview privado.",
+            category: "inovacao",
+            byline: "Redação NITE",
+            featured: false,
+            coverMediaId: mediaId,
+            coverAlt: "Equipe revisando a matéria antes da publicação.",
+            body: {
+              schemaVersion: 1,
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Conteúdo atual." }],
+                },
+              ],
+            },
+          },
+        }),
+        findMedia: async () => [
+          {
+            id: mediaId,
+            status: "ready",
+            publicObjectKey: "news/cover.webp",
+            width: 1200,
+            height: 675,
+          },
+        ],
+        getPublicMediaUrl: () => "https://media.nite.test/news/cover.webp",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      schemaVersion: 2,
+      articleId,
+      snapshotId,
+      baseRevisionId: revisionId,
+      slug: "slug-ainda-nao-salvo",
+      title: "Título atual ainda não salvo como revisão",
+    });
+  });
+
   it("deduplica a mídia usada como capa e inline e retorna DTO validado", async () => {
     let requestedMediaIds: string[] = [];
     const response = await resolvePreviewRequest(

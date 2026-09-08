@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mocks.replace, refresh: mocks.refresh }),
 }));
 vi.mock("@/app/(workspace)/articles/actions", () => ({
+  createLivePreviewLink: mocks.preview,
   createMediaUploadAction: mocks.createUpload,
   createPrivatePreviewLink: mocks.preview,
   processMediaUploadAction: mocks.processUpload,
@@ -208,7 +209,7 @@ describe("ArticleEditor", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("separa preview interno e preview do Portal em matéria persistida", () => {
+  it("oferece preview ao vivo no CMS e no Portal em matéria persistida", () => {
     render(
       <ArticleEditor
         canPublish
@@ -221,18 +222,66 @@ describe("ArticleEditor", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "Preview no CMS" }),
-    ).toHaveAttribute(
-      "href",
-      `/preview/articles/${initialArticle.articleId}?revision=${initialArticle.revisionId}`,
-    );
+      screen.getByRole("button", { name: "Preview no CMS" }),
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "Preview no Portal" }),
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Arquivar" })).toBeEnabled();
     expect(
+      screen.getAllByText("Alterações atuais · expira em 10 min."),
+    ).toHaveLength(2);
+    expect(
+      screen.getByText("O preview não salva uma nova revisão."),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: "Editar matéria" }),
     ).toBeInTheDocument();
+  });
+
+  it("abre os dois previews com os valores atuais sem salvar a revisão", async () => {
+    mocks.preview.mockImplementation(
+      async (target: "cms" | "portal", data: FormData) => ({
+        status: "success",
+        data: {
+          url: `${target === "cms" ? "/preview/local" : "https://portal.nite.test/preview"}?title=${encodeURIComponent(String(data.get("title")))}`,
+        },
+      }),
+    );
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Título atual ainda não salvo" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview no CMS" }));
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        "/preview/local?title=T%C3%ADtulo%20atual%20ainda%20n%C3%A3o%20salvo",
+        "_blank",
+        "noopener,noreferrer",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Preview no Portal" }));
+    await waitFor(() =>
+      expect(open).toHaveBeenLastCalledWith(
+        "https://portal.nite.test/preview?title=T%C3%ADtulo%20atual%20ainda%20n%C3%A3o%20salvo",
+        "_blank",
+        "noopener,noreferrer",
+      ),
+    );
+    expect(screen.getByText("Alterações não salvas")).toBeInTheDocument();
+    expect(mocks.submit).not.toHaveBeenCalled();
+    open.mockRestore();
   });
 
   it("mostra a capa atual e os rótulos editoriais do design aprovado", () => {
@@ -290,11 +339,8 @@ describe("ArticleEditor", () => {
       screen.getByText("Alterações não publicadas · v2"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Preview no CMS" }),
-    ).toHaveAttribute(
-      "href",
-      `/preview/articles/${initialArticle.articleId}?revision=${nextRevisionId}`,
-    );
+      screen.getByRole("button", { name: "Preview no CMS" }),
+    ).toBeEnabled();
   });
 
   it("mostra pendências e leva ao título antes de confirmar uma publicação inválida", async () => {

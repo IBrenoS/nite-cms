@@ -14,27 +14,23 @@ import {
 type EditorHeaderProps = {
   isExisting: boolean;
   articleId?: string;
-  currentRevisionId: string;
   status: { status: StatusBadgeStatus; label: string };
   pending: boolean;
   operationPending: boolean;
   canPublish: boolean;
   currentStatus?: "draft" | "published" | "archived";
-  isDirty: boolean;
-  openPrivatePreview: () => void;
+  openLivePreview: (target: "cms" | "portal") => void;
 };
 
 export function EditorHeader({
   isExisting,
   articleId,
-  currentRevisionId,
   status,
   pending,
   operationPending,
   canPublish,
   currentStatus,
-  isDirty,
-  openPrivatePreview,
+  openLivePreview,
 }: EditorHeaderProps) {
   return (
     <header className="sticky top-14 z-30 flex min-h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur sm:px-6 lg:top-0 lg:px-8">
@@ -88,35 +84,17 @@ export function EditorHeader({
               />
             </summary>
             <div className="absolute top-full right-0 z-50 mt-1.5 w-64 rounded-lg border border-nite-border-subtle bg-nite-surface p-1.5 shadow-lg">
-              <Link
-                href={`/preview/articles/${articleId}?revision=${currentRevisionId}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
                 aria-label="Preview no CMS"
-                className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-xs font-medium text-nite-text-primary hover:bg-nite-section"
+                disabled={operationPending}
+                onClick={() => openLivePreview("cms")}
+                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
               >
                 <span>
                   <span className="block font-semibold">Preview no CMS</span>
                   <span className="block text-[11px] text-nite-text-secondary">
-                    Snapshot da revisão salva.
-                  </span>
-                </span>
-                <ExternalLinkIcon
-                  className="size-3 text-nite-text-secondary"
-                  aria-hidden="true"
-                />
-              </Link>
-              <button
-                type="button"
-                aria-label="Preview no Portal"
-                disabled={operationPending}
-                onClick={openPrivatePreview}
-                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
-              >
-                <span>
-                  <span className="block font-semibold">Preview no Portal</span>
-                  <span className="block text-[11px] text-nite-text-secondary">
-                    Exige dados de publicação.
+                    Alterações atuais · expira em 10 min.
                   </span>
                 </span>
                 <ExternalLinkIcon
@@ -124,11 +102,27 @@ export function EditorHeader({
                   aria-hidden="true"
                 />
               </button>
-              {isDirty ? (
-                <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-1.5 text-[11px] leading-4 text-status-warning">
-                  Salve a revisão para visualizar as alterações.
-                </p>
-              ) : null}
+              <button
+                type="button"
+                aria-label="Preview no Portal"
+                disabled={operationPending}
+                onClick={() => openLivePreview("portal")}
+                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
+              >
+                <span>
+                  <span className="block font-semibold">Preview no Portal</span>
+                  <span className="block text-[11px] text-nite-text-secondary">
+                    Alterações atuais · expira em 10 min.
+                  </span>
+                </span>
+                <ExternalLinkIcon
+                  className="size-3 text-nite-text-secondary"
+                  aria-hidden="true"
+                />
+              </button>
+              <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-1.5 text-[11px] leading-4 text-nite-text-secondary">
+                O preview não salva uma nova revisão.
+              </p>
             </div>
           </details>
         ) : (

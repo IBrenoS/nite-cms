@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import {
+  calculateEditorialReadTime,
+  editorialPublishableInputSchema,
   editorialDocumentV1Schema,
   newsCategoryValues,
   resolveEditorialDocumentMedia,
@@ -16,45 +18,65 @@ const previewMediaSchema = z.object({
   height: z.number().int().positive(),
 });
 
-export const previewArticleDtoSchema = z
+const previewArticleFields = {
+  articleId: z.uuid(),
+  slug: z
+    .string()
+    .min(3)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  publishedAt: z.iso.datetime().nullable(),
+  title: z.string().min(12).max(100),
+  summary: z.string().min(48).max(220),
+  category: z.enum(newsCategoryValues),
+  eventDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  readTimeMinutes: z.number().int().min(1).max(30),
+  byline: z.string().min(3).max(80),
+  featured: z.boolean(),
+  cover: z
+    .object({
+      src: z.url(),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+      alt: z.string().min(12),
+    })
+    .optional(),
+  body: editorialDocumentV1Schema,
+  seo: z
+    .object({
+      title: z.string().min(20).max(60),
+      description: z.string().min(80).max(160),
+    })
+    .optional(),
+};
+
+const revisionPreviewArticleDtoSchema = z
   .object({
     schemaVersion: z.literal(1),
-    articleId: z.uuid(),
     revisionId: z.uuid(),
-    slug: z
-      .string()
-      .min(3)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-    publishedAt: z.iso.datetime().nullable(),
-    title: z.string().min(12).max(100),
-    summary: z.string().min(48).max(220),
-    category: z.enum(newsCategoryValues),
-    eventDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
-    readTimeMinutes: z.number().int().min(1).max(30),
-    byline: z.string().min(3).max(80),
-    featured: z.boolean(),
-    cover: z
-      .object({
-        src: z.url(),
-        width: z.number().int().positive(),
-        height: z.number().int().positive(),
-        alt: z.string().min(12),
-      })
-      .optional(),
-    body: editorialDocumentV1Schema,
-    seo: z
-      .object({
-        title: z.string().min(20).max(60),
-        description: z.string().min(80).max(160),
-      })
-      .optional(),
+    ...previewArticleFields,
   })
   .strict();
 
-type PreviewClaims = { articleId: string; revisionId: string };
+const snapshotPreviewArticleDtoSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    snapshotId: z.uuid(),
+    baseRevisionId: z.uuid(),
+    ...previewArticleFields,
+  })
+  .strict();
+
+export const previewArticleDtoSchema = z.discriminatedUnion("schemaVersion", [
+  revisionPreviewArticleDtoSchema,
+  snapshotPreviewArticleDtoSchema,
+]);
+
+type PreviewClaims =
+  | { articleId: string; revisionId: string }
+  | { articleId: string; snapshotId: string };
 type PreviewRevision = {
   article: { id: string; slug: string; publishedAt: Date | null };
   revision: {
@@ -74,10 +96,16 @@ type PreviewRevision = {
 };
 
 type PreviewMedia = z.infer<typeof previewMediaSchema>;
+type PreviewSnapshot = {
+  article: { id: string; publishedAt: Date | null };
+  snapshot: { id: string; baseRevisionId: string };
+  input: z.infer<typeof editorialPublishableInputSchema>;
+};
 
 export type PreviewResolverDependencies = {
   getClaims(request: Request): PreviewClaims | undefined;
   findRevision(claims: PreviewClaims): Promise<PreviewRevision | undefined>;
+  findSnapshot?(claims: PreviewClaims): Promise<PreviewSnapshot | undefined>;
   findMedia(ids: string[]): Promise<PreviewMedia[]>;
   getPublicMediaUrl(objectKey: string): string | undefined;
 };
@@ -105,8 +133,29 @@ export async function resolvePreviewRequest(
 ) {
   const claims = dependencies.getClaims(request);
   if (!claims) return response({ error: "unauthorized" }, 401);
-  const result = await dependencies.findRevision(claims);
-  if (!result) return response({ error: "not_found" }, 404);
+  const snapshotResult =
+    "snapshotId" in claims
+      ? await dependencies.findSnapshot?.(claims)
+      : undefined;
+  const revisionResult =
+    "revisionId" in claims
+      ? await dependencies.findRevision(claims)
+      : undefined;
+  if (!snapshotResult && !revisionResult)
+    return response({ error: "not_found" }, 404);
+  const result = revisionResult ?? {
+    article: {
+      ...snapshotResult!.article,
+      slug: snapshotResult!.input.slug,
+    },
+    revision: {
+      id: snapshotResult!.snapshot.baseRevisionId,
+      ...snapshotResult!.input,
+      eventDate: snapshotResult!.input.eventDate ?? null,
+      readTimeMinutes: calculateEditorialReadTime(snapshotResult!.input.body),
+      seo: snapshotResult!.input.seo ?? null,
+    },
+  };
 
   const mediaIds = new Set<string>();
   collectMediaIds(result.revision.body, mediaIds);
@@ -132,9 +181,14 @@ export async function resolvePreviewRequest(
     : undefined;
   try {
     const dto = previewArticleDtoSchema.parse({
-      schemaVersion: 1,
+      ...(snapshotResult
+        ? {
+            schemaVersion: 2,
+            snapshotId: snapshotResult.snapshot.id,
+            baseRevisionId: snapshotResult.snapshot.baseRevisionId,
+          }
+        : { schemaVersion: 1, revisionId: result.revision.id }),
       articleId: result.article.id,
-      revisionId: result.revision.id,
       slug: result.article.slug,
       publishedAt: result.article.publishedAt?.toISOString() ?? null,
       title: result.revision.title,

@@ -317,12 +317,26 @@ async function getPublishableRevision<TQueryResult extends PgQueryResultHKT>(
     .where(eq(articleRevisions.id, revisionId))
     .limit(1);
   if (!revision) throw new EditorialConflictError();
-  const publishable = editorialPublishableInputSchema.parse({
-    ...revision,
-    slug: article.slug,
-    eventDate: revision.eventDate ?? undefined,
-    seo: revision.seo ?? undefined,
+  return validateEditorialInputForPublication(database, {
+    input: editorialDraftInputSchema.parse({
+      ...revision,
+      slug: article.slug,
+      eventDate: revision.eventDate ?? undefined,
+      seo: revision.seo ?? undefined,
+    }),
   });
+}
+
+export async function validateEditorialInputForPublication<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: { actor?: CmsMembership; input: EditorialDraftInput },
+) {
+  if (command.actor) {
+    await requireActiveCmsMembership(database, command.actor.id);
+  }
+  const publishable = editorialPublishableInputSchema.parse(command.input);
   const [cover] = await database
     .select({ status: mediaAssets.status })
     .from(mediaAssets)

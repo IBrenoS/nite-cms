@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import {
   ArrowLeftIcon,
   EyeIcon,
@@ -9,7 +10,11 @@ import {
   StatusBadge,
 } from "@nite/cms-ui";
 
-import { getEditorialRevisionPreview } from "@nite/editorial";
+import {
+  calculateEditorialReadTime,
+  getEditorialPreviewSnapshot,
+  getEditorialRevisionPreview,
+} from "@nite/editorial";
 import { mediaAssets } from "@nite/cms-db";
 import { requireCmsPageContext } from "@/lib/auth";
 import { getPublicMediaUrl } from "@/lib/media-storage";
@@ -19,19 +24,38 @@ export default async function ArticlePreviewPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ revision?: string }>;
+  searchParams: Promise<{ revision?: string; snapshot?: string }>;
 }) {
   const [{ id }, query, context] = await Promise.all([
     params,
     searchParams,
     requireCmsPageContext(),
   ]);
-  const result = await getEditorialRevisionPreview(
-    context.database,
-    context.membership,
-    id,
-    query.revision,
-  );
+  const snapshotId = z.uuid().safeParse(query.snapshot);
+  if (query.snapshot !== undefined && !snapshotId.success) notFound();
+  const snapshot = snapshotId.success
+    ? await getEditorialPreviewSnapshot(context.database, {
+        articleId: id,
+        snapshotId: snapshotId.data,
+      })
+    : undefined;
+  if (snapshotId.success && !snapshot) notFound();
+  const result = snapshot
+    ? {
+        article: { ...snapshot.article, slug: snapshot.input.slug },
+        revision: {
+          ...snapshot.input,
+          id: snapshot.snapshot.baseRevisionId,
+          version: undefined,
+          readTimeMinutes: calculateEditorialReadTime(snapshot.input.body),
+        },
+      }
+    : await getEditorialRevisionPreview(
+        context.database,
+        context.membership,
+        id,
+        query.revision,
+      );
   if (!result) notFound();
 
   const [cover] = result.revision.coverMediaId
@@ -63,7 +87,11 @@ export default async function ArticlePreviewPage({
           />
           <StatusBadge
             status="draft"
-            label={`Preview autenticado · revisão v${result.revision.version}`}
+            label={
+              snapshot
+                ? "Preview ao vivo · expira em 10 min"
+                : `Preview autenticado · revisão v${result.revision.version}`
+            }
           />
         </div>
       </header>

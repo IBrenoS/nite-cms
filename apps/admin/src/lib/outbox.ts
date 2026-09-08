@@ -1,6 +1,9 @@
 import "server-only";
 
-import { processOutboxEvents } from "@nite/editorial";
+import {
+  deleteExpiredEditorialPreviewSnapshots,
+  processOutboxEvents,
+} from "@nite/editorial";
 import { getDatabase } from "@nite/cms-db/database";
 import {
   createWebRevalidationDispatcher,
@@ -18,6 +21,7 @@ export async function processCmsOutbox() {
   const database = getDatabase({
     databaseUrl: result.configuration.databaseUrl,
   });
+  await deleteExpiredEditorialPreviewSnapshots(database);
   const dispatcher = createWebRevalidationDispatcher({
     endpointUrl: result.configuration.revalidationUrl,
     secret: result.configuration.revalidationSecret,

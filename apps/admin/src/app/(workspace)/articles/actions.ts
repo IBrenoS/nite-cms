@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import {
   archiveArticle,
+  createEditorialPreviewSnapshot,
   createMediaUpload,
   mediaUploadFileSchema,
   processMediaAsset,
@@ -19,7 +20,10 @@ import { requireCmsContext } from "@/lib/auth";
 import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
 import { processCmsOutbox } from "@/lib/outbox";
 import { readPreviewConfiguration } from "@/lib/preview-config";
-import { issuePreviewToken } from "@/lib/preview-token";
+import {
+  issuePreviewSnapshotToken,
+  issuePreviewToken,
+} from "@/lib/preview-token";
 import {
   editorialActionFailure,
   type EditorialActionResult,
@@ -165,6 +169,60 @@ const previewLinkSchema = z.object({
   articleId: z.uuid(),
   revisionId: z.uuid(),
 });
+
+export async function createLivePreviewLink(
+  target: "cms" | "portal",
+  formData: FormData,
+) {
+  try {
+    const context = await requireCmsContext();
+    formData.set("intent", "publish");
+    const { fields, input } = parseEditorialFormData(formData);
+    if (!fields.articleId || !fields.expectedRevisionId) {
+      return {
+        status: "operation_error" as const,
+        code: "not_found" as const,
+        message: "Salve o primeiro rascunho antes de abrir o preview.",
+        retryable: false,
+      };
+    }
+    const preview = readPreviewConfiguration(process.env);
+    if (target === "portal" && !preview.configured) {
+      return {
+        status: "operation_error" as const,
+        code: "preview_unavailable" as const,
+        message: "O Preview no Portal não está configurado neste ambiente.",
+        retryable: false,
+      };
+    }
+    const snapshot = await createEditorialPreviewSnapshot(context.database, {
+      actor: context.membership,
+      articleId: fields.articleId,
+      baseRevisionId: fields.expectedRevisionId,
+      input,
+    });
+    if (target === "cms") {
+      return {
+        status: "success" as const,
+        data: {
+          url: `/preview/articles/${fields.articleId}?snapshot=${snapshot.id}`,
+        },
+      };
+    }
+    if (!preview.configured) throw new Error("Preview indisponível.");
+    const url = new URL(preview.configuration.portalPreviewUrl);
+    url.searchParams.set(
+      "token",
+      issuePreviewSnapshotToken(
+        { articleId: fields.articleId, snapshotId: snapshot.id },
+        preview.configuration.hmacSecret,
+      ),
+    );
+    return { status: "success" as const, data: { url: url.toString() } };
+  } catch (error) {
+    return editorialActionFailure(error, "preview");
+  }
+}
 
 export async function createPrivatePreviewLink(input: unknown) {
   try {

@@ -146,6 +146,62 @@ describe("persistencia editorial", () => {
     ]);
   });
 
+  it("persiste snapshots temporarios sem criar uma nova revisao editorial", async () => {
+    const membershipId = "00000000-0000-4000-8000-000000000001";
+    const articleId = "10000000-0000-4000-8000-000000000091";
+    const revisionId = "20000000-0000-4000-8000-000000000091";
+    const snapshotId = "40000000-0000-4000-8000-000000000091";
+    await client.query(
+      `insert into cms_memberships
+        (id, tenant_id, object_id, display_name, role)
+       values ($1, 'tenant-nite', 'preview-author', 'Preview Author', 'publisher')`,
+      [membershipId],
+    );
+    await client.query(
+      "insert into articles (id, slug, status) values ($1, 'preview-ao-vivo', 'draft')",
+      [articleId],
+    );
+    await client.query(
+      `insert into article_revisions
+        (id, article_id, version, title, summary, category, read_time_minutes,
+         byline, cover_alt, body, created_by_membership_id)
+       values ($1, $2, 3, 'Titulo salvo anteriormente',
+        'Resumo editorial salvo anteriormente com tamanho suficiente para o teste.',
+        'inovacao', 2, 'Redacao NITE', '',
+        '{"schemaVersion":1,"type":"doc","content":[{"type":"paragraph","content":[]}]}'::jsonb,
+        $3)`,
+      [revisionId, articleId, membershipId],
+    );
+    await client.query(
+      "update articles set current_revision_id = $2 where id = $1",
+      [articleId, revisionId],
+    );
+
+    await client.query(
+      `insert into preview_snapshots
+        (id, article_id, base_revision_id, actor_membership_id, payload, expires_at)
+       values ($1, $2, $3, $4, $5::jsonb, now() + interval '10 minutes')`,
+      [
+        snapshotId,
+        articleId,
+        revisionId,
+        membershipId,
+        JSON.stringify({ title: "Titulo ainda nao salvo" }),
+      ],
+    );
+
+    const snapshots = await client.query<{ title: string }>(
+      "select payload ->> 'title' as title from preview_snapshots where id = $1",
+      [snapshotId],
+    );
+    const revisions = await client.query<{ count: number }>(
+      "select count(*)::int as count from article_revisions where article_id = $1",
+      [articleId],
+    );
+    expect(snapshots.rows).toEqual([{ title: "Titulo ainda nao salvo" }]);
+    expect(revisions.rows).toEqual([{ count: 1 }]);
+  });
+
   it("resolve imagens aninhadas prontas e omite matéria com imagem aninhada não pronta", async () => {
     const readyArticleId = "10000000-0000-4000-8000-000000000021";
     const pendingArticleId = "10000000-0000-4000-8000-000000000022";

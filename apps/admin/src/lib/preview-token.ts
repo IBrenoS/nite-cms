@@ -5,7 +5,7 @@ import { z } from "zod";
 // Tokens devem expirar em até dez minutos a partir do relógio que os valida.
 const PREVIEW_DURATION_MILLISECONDS = 10 * 60 * 1000;
 
-const previewClaimsSchema = z
+const revisionPreviewClaimsSchema = z
   .object({
     version: z.literal(1),
     articleId: z.uuid(),
@@ -15,7 +15,23 @@ const previewClaimsSchema = z
   })
   .strict();
 
-type PreviewClaims = z.infer<typeof previewClaimsSchema>;
+const snapshotPreviewClaimsSchema = z
+  .object({
+    version: z.literal(2),
+    articleId: z.uuid(),
+    snapshotId: z.uuid(),
+    expiresAt: z.number().int().positive(),
+    nonce: z.string().regex(/^[A-Za-z0-9_-]{22}$/),
+  })
+  .strict();
+
+const previewClaimsSchema = z.discriminatedUnion("version", [
+  revisionPreviewClaimsSchema,
+  snapshotPreviewClaimsSchema,
+]);
+
+type RevisionPreviewClaims = z.infer<typeof revisionPreviewClaimsSchema>;
+type SnapshotPreviewClaims = z.infer<typeof snapshotPreviewClaimsSchema>;
 
 export class PreviewTokenError extends Error {
   constructor() {
@@ -29,7 +45,7 @@ function signature(input: string, secret: string) {
 }
 
 export function issuePreviewToken(
-  input: Pick<PreviewClaims, "articleId" | "revisionId">,
+  input: Pick<RevisionPreviewClaims, "articleId" | "revisionId">,
   secret: string,
   now = new Date(),
 ) {
@@ -44,13 +60,31 @@ export function issuePreviewToken(
   return `${inputToSign}.${signature(inputToSign, secret)}`;
 }
 
+export function issuePreviewSnapshotToken(
+  input: Pick<SnapshotPreviewClaims, "articleId" | "snapshotId">,
+  secret: string,
+  now = new Date(),
+) {
+  const claims = snapshotPreviewClaimsSchema.parse({
+    version: 2,
+    ...input,
+    expiresAt: now.getTime() + PREVIEW_DURATION_MILLISECONDS,
+    nonce: randomBytes(16).toString("base64url"),
+  });
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const inputToSign = `v2.${payload}`;
+  return `${inputToSign}.${signature(inputToSign, secret)}`;
+}
+
 export function verifyPreviewToken(
   token: string,
   secret: string,
   now = new Date(),
 ) {
   const parts = token.split(".");
-  if (parts.length !== 3 || parts[0] !== "v1") throw new PreviewTokenError();
+  if (parts.length !== 3 || !["v1", "v2"].includes(parts[0] ?? "")) {
+    throw new PreviewTokenError();
+  }
 
   const [version, payload, suppliedSignature] = parts;
   const expectedSignature = signature(`${version}.${payload}`, secret);
