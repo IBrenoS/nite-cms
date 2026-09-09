@@ -18,6 +18,8 @@ const row = {
   byline: "Redação NITE",
   coverObjectKey: "news/capa principal.webp",
   coverAlt: "Pessoas reunidas em um ambiente universitário iluminado.",
+  coverCaption: null,
+  coverCredit: null,
   body: {
     schemaVersion: 1,
     type: "doc",
@@ -98,5 +100,52 @@ describe("DTO público do CMS", () => {
         "https://media.nite.test",
       ),
     ).toThrow();
+  });
+
+  it("expõe legenda, crédito e layout de mídia dos documentos V2", () => {
+    const article = mapPublishedArticle(
+      {
+        ...row,
+        contentSchemaVersion: 2,
+        coverCaption: "Encontro da comunidade acadêmica.",
+        coverCredit: "Foto: Comunicação NITE",
+        body: {
+          schemaVersion: 2,
+          type: "doc",
+          content: [
+            {
+              type: "image",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000101",
+                alt: "Atividade universitária em laboratório.",
+                caption: "Estudantes durante a oficina.",
+                credit: "Foto: Acervo NITE",
+                layout: "full",
+              },
+            },
+          ],
+        },
+      },
+      "https://media.nite.test/public/",
+    );
+
+    expect(article.cover).toEqual({
+      src: "https://media.nite.test/public/news/capa%20principal.webp",
+      alt: "Pessoas reunidas em um ambiente universitário iluminado.",
+      caption: "Encontro da comunidade acadêmica.",
+      credit: "Foto: Comunicação NITE",
+    });
+    expect(article.body).toMatchObject({
+      schemaVersion: 2,
+      content: [
+        {
+          attrs: {
+            caption: "Estudantes durante a oficina.",
+            credit: "Foto: Acervo NITE",
+            layout: "full",
+          },
+        },
+      ],
+    });
   });
 });

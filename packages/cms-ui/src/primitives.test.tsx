@@ -119,4 +119,44 @@ describe("@nite/cms-ui", () => {
       screen.getByRole("link", { name: "Leia a referência." }),
     ).toHaveAttribute("href", "/atualizacoes");
   });
+
+  it("renderiza legenda e crédito de imagem V2 sem exibir o alt", () => {
+    render(
+      <NewsArticleBody
+        document={{
+          schemaVersion: 2,
+          type: "doc",
+          content: [
+            {
+              type: "image",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000101",
+                src: "https://media.nite.test/imagem.webp",
+                width: 1600,
+                height: 900,
+                alt: "Descrição exclusiva para leitores de tela",
+                caption: "Equipe durante a oficina.",
+                credit: "Foto: NITE",
+                layout: "wide",
+              },
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "alt",
+      "Descrição exclusiva para leitores de tela",
+    );
+    expect(screen.getByText("Equipe durante a oficina.")).toBeVisible();
+    expect(screen.getByText("Foto: NITE")).toBeVisible();
+    expect(
+      screen.queryByText("Descrição exclusiva para leitores de tela"),
+    ).toBeNull();
+    expect(screen.getByRole("figure")).toHaveAttribute(
+      "data-editorial-layout",
+      "wide",
+    );
+  });
 });

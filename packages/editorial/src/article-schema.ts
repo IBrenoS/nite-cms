@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import {
-  editorialDocumentV1Schema,
-  persistedEditorialDocumentV1Schema,
-  storableEditorialDocumentV1Schema,
+  editorialDocumentSchema,
+  persistedEditorialDocumentSchema,
+  storableEditorialDocumentSchema,
 } from "./editor-document";
 
 export const newsCategoryValues = [
@@ -52,10 +52,12 @@ export const editorialDraftInputSchema = z.object({
     .optional(),
   byline: z.string().max(80),
   featured: z.boolean(),
-  body: storableEditorialDocumentV1Schema,
+  body: storableEditorialDocumentSchema,
   seo: draftSeoSchema,
   coverMediaId: z.uuid().nullable(),
   coverAlt: z.string().trim(),
+  coverCaption: z.string().trim().max(280).optional(),
+  coverCredit: z.string().trim().max(160).optional(),
 });
 
 export const editorialPublishableInputSchema = z.object({
@@ -69,7 +71,7 @@ export const editorialPublishableInputSchema = z.object({
     .optional(),
   byline: z.string().trim().min(3).max(80),
   featured: z.boolean(),
-  body: persistedEditorialDocumentV1Schema,
+  body: persistedEditorialDocumentSchema,
   seo: z
     .object({
       title: z.string().trim().min(20).max(60),
@@ -78,6 +80,8 @@ export const editorialPublishableInputSchema = z.object({
     .optional(),
   coverMediaId: z.uuid(),
   coverAlt: z.string().trim().min(12),
+  coverCaption: z.string().trim().min(1).max(280).optional(),
+  coverCredit: z.string().trim().min(1).max(160).optional(),
 });
 
 export type EditorialDraftInput = z.infer<typeof editorialDraftInputSchema>;
@@ -100,11 +104,16 @@ export const newsArticleSchema = z.object({
     .optional(),
   readTimeMinutes: z.number().int().min(1).max(30),
   byline: z.string().min(3).max(80),
-  cover: z.object({ src: z.url(), alt: z.string().min(12) }),
+  cover: z.object({
+    src: z.url(),
+    alt: z.string().min(12),
+    caption: z.string().min(1).max(280).optional(),
+    credit: z.string().min(1).max(160).optional(),
+  }),
   featured: z.boolean(),
   contentState: z.enum(newsContentStateValues),
   public: z.literal(true),
-  body: editorialDocumentV1Schema,
+  body: editorialDocumentSchema,
   seo: z
     .object({
       title: z.string().min(20).max(60),

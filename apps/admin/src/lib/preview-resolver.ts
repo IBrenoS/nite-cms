@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   calculateEditorialReadTime,
   editorialPublishableInputSchema,
-  editorialDocumentV1Schema,
+  editorialDocumentSchema,
   newsCategoryValues,
   resolveEditorialDocumentMedia,
 } from "@nite/editorial";
@@ -41,9 +41,11 @@ const previewArticleFields = {
       width: z.number().int().positive(),
       height: z.number().int().positive(),
       alt: z.string().min(12),
+      caption: z.string().min(1).max(280).optional(),
+      credit: z.string().min(1).max(160).optional(),
     })
     .optional(),
-  body: editorialDocumentV1Schema,
+  body: editorialDocumentSchema,
   seo: z
     .object({
       title: z.string().min(20).max(60),
@@ -90,6 +92,8 @@ type PreviewRevision = {
     featured: boolean;
     coverMediaId: string | null;
     coverAlt: string;
+    coverCaption?: string | null;
+    coverCredit?: string | null;
     body: unknown;
     seo: unknown;
   };
@@ -200,7 +204,20 @@ export async function resolvePreviewRequest(
       readTimeMinutes: result.revision.readTimeMinutes,
       byline: result.revision.byline,
       featured: result.revision.featured,
-      ...(cover ? { cover: { ...cover, alt: result.revision.coverAlt } } : {}),
+      ...(cover
+        ? {
+            cover: {
+              ...cover,
+              alt: result.revision.coverAlt,
+              ...(result.revision.coverCaption
+                ? { caption: result.revision.coverCaption }
+                : {}),
+              ...(result.revision.coverCredit
+                ? { credit: result.revision.coverCredit }
+                : {}),
+            },
+          }
+        : {}),
       body: resolveEditorialDocumentMedia(result.revision.body, resolvedMedia),
       ...(result.revision.seo ? { seo: result.revision.seo } : {}),
     });

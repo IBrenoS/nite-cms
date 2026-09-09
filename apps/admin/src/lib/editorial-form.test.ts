@@ -16,6 +16,8 @@ function formData(overrides: Record<string, string> = {}) {
     byline: "",
     coverMediaId: "",
     coverAlt: "",
+    coverCaption: "",
+    coverCredit: "",
     seoTitle: "",
     seoDescription: "",
     bodyDocument: JSON.stringify({
@@ -41,6 +43,48 @@ describe("formulário editorial", () => {
       byline: "",
       coverMediaId: null,
       coverAlt: "",
+      body: { schemaVersion: 2 },
+    });
+  });
+
+  it("preserva legenda, crédito e largura de imagem ao salvar como V2", () => {
+    const parsed = parseEditorialFormData(
+      formData({
+        coverCaption: "Abertura da semana acadêmica.",
+        coverCredit: "Foto: Comunicação NITE",
+        bodyDocument: JSON.stringify({
+          type: "doc",
+          content: [
+            {
+              type: "image",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000101",
+                alt: "Pessoas reunidas no auditório",
+                caption: "Público acompanha a abertura.",
+                credit: "Foto: Acervo NITE",
+                layout: "wide",
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(parsed.input).toMatchObject({
+      coverCaption: "Abertura da semana acadêmica.",
+      coverCredit: "Foto: Comunicação NITE",
+      body: {
+        schemaVersion: 2,
+        content: [
+          {
+            attrs: {
+              caption: "Público acompanha a abertura.",
+              credit: "Foto: Acervo NITE",
+              layout: "wide",
+            },
+          },
+        ],
+      },
     });
   });
 

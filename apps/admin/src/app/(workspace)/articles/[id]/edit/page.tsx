@@ -56,6 +56,8 @@ export default async function EditArticlePage({
     byline: result.revision.byline,
     coverMediaId: result.revision.coverMediaId,
     coverAlt: result.revision.coverAlt,
+    coverCaption: result.revision.coverCaption ?? undefined,
+    coverCredit: result.revision.coverCredit ?? undefined,
     featured: result.revision.featured,
     body: result.revision.body,
     seo: result.revision.seo ?? undefined,

@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Editor } from "@tiptap/core";
 
-import { tiptapDocumentToEditorialDocumentV1 } from "@nite/editorial";
-import { createEditorialTiptapExtensions } from "./editorial-tiptap";
+import {
+  tiptapDocumentToEditorialDocumentV1,
+  tiptapDocumentToEditorialDocumentV2,
+} from "@nite/editorial";
+import {
+  createEditorialTiptapExtensions,
+  normalizeEditorialPastedHtml,
+} from "./editorial-tiptap";
 
 describe("integração Tiptap editorial", () => {
   const editors: Editor[] = [];
@@ -200,6 +206,57 @@ describe("integração Tiptap editorial", () => {
           },
         ],
       },
+    );
+  });
+
+  it("preserva os metadados editoriais de imagem no documento V2", () => {
+    const editor = new Editor({
+      extensions: createEditorialTiptapExtensions(),
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "image",
+            attrs: {
+              mediaId: "30000000-0000-4000-8000-000000000101",
+              alt: "Pessoas no laboratório",
+              caption: "Equipe reunida durante a oficina.",
+              credit: "Foto: Acervo NITE",
+              layout: "full",
+            },
+          },
+        ],
+      },
+    });
+    editors.push(editor);
+
+    expect(tiptapDocumentToEditorialDocumentV2(editor.getJSON())).toEqual({
+      schemaVersion: 2,
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: {
+            mediaId: "30000000-0000-4000-8000-000000000101",
+            alt: "Pessoas no laboratório",
+            caption: "Equipe reunida durante a oficina.",
+            credit: "Foto: Acervo NITE",
+            layout: "full",
+          },
+        },
+      ],
+    });
+  });
+
+  it("limpa estilos e elementos inseguros da colagem sem perder semântica", () => {
+    const pasted = normalizeEditorialPastedHtml(
+      '<h2 class="MsoTitle" style="margin-left: 40px">Título</h2>' +
+        '<p id="docs-internal-guid"><strong style="font-weight:700">Texto</strong> <a href="https://nite.test" onclick="alert(1)">fonte</a></p>' +
+        '<script>alert(1)</script><iframe src="https://unsafe.test"></iframe>',
+    );
+
+    expect(pasted).toBe(
+      '<h2>Título</h2><p><strong>Texto</strong> <a href="https://nite.test">fonte</a></p>',
     );
   });
 

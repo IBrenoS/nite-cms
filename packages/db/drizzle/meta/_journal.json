@@ -78,6 +78,13 @@
       "when": 1788891600000,
       "tag": "0010_preview_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788915600000,
+      "tag": "0011_editorial_media_metadata",
+      "breakpoints": true
     }
   ]
 }

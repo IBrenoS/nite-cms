@@ -114,17 +114,29 @@ export default async function ArticlePreviewPage({
         </div>
 
         {coverUrl ? (
-          <div className="relative aspect-[16/7] min-h-64 overflow-hidden rounded-xl border border-nite-border-subtle bg-nite-section">
-            <Image
-              src={coverUrl}
-              alt={result.revision.coverAlt}
-              fill
-              priority
-              unoptimized
-              sizes="(min-width: 1024px) 1024px, 100vw"
-              className="object-cover"
-            />
-          </div>
+          <figure>
+            <div className="relative aspect-[16/7] min-h-64 overflow-hidden rounded-xl border border-nite-border-subtle bg-nite-section">
+              <Image
+                src={coverUrl}
+                alt={result.revision.coverAlt}
+                fill
+                priority
+                unoptimized
+                sizes="(min-width: 1024px) 1024px, 100vw"
+                className="object-cover"
+              />
+            </div>
+            {result.revision.coverCaption || result.revision.coverCredit ? (
+              <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-sm text-nite-text-secondary">
+                {result.revision.coverCaption ? (
+                  <span>{result.revision.coverCaption}</span>
+                ) : null}
+                {result.revision.coverCredit ? (
+                  <span>{result.revision.coverCredit}</span>
+                ) : null}
+              </figcaption>
+            ) : null}
+          </figure>
         ) : (
           <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-nite-border-strong bg-nite-section p-6 text-center text-nite-text-muted">
             A capa ainda não está disponível no domínio público de mídia.

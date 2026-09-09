@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error("NEXT_NOT_FOUND");
   }),
   requireContext: vi.fn(),
+  getPublicMediaUrl: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -15,6 +16,9 @@ vi.mock("@/lib/auth", () => ({
   requireCmsPageContext: mocks.requireContext,
 }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
+vi.mock("@/lib/media-storage", () => ({
+  getPublicMediaUrl: mocks.getPublicMediaUrl,
+}));
 vi.mock("@nite/editorial", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@nite/editorial")>();
   return {
@@ -27,13 +31,27 @@ vi.mock("@nite/editorial", async (importOriginal) => {
 import ArticlePreviewPage from "./page";
 
 describe("Preview no CMS", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getPublicMediaUrl.mockReturnValue(
+      "https://media.nite.test/news/capa.webp",
+    );
+  });
 
   it("renderiza o snapshot atual em vez da revisão-base", async () => {
     mocks.requireContext.mockResolvedValue({
       database: {
         select: () => ({
-          from: () => ({ where: () => ({ limit: async () => [] }) }),
+          from: () => ({
+            where: () => ({
+              limit: async () => [
+                {
+                  status: "ready",
+                  publicObjectKey: "news/capa.webp",
+                },
+              ],
+            }),
+          }),
         }),
       },
       membership: { id: "00000000-0000-4000-8000-000000000001" },
@@ -56,6 +74,8 @@ describe("Preview no CMS", () => {
         byline: "Redação NITE",
         coverMediaId: "30000000-0000-4000-8000-000000000001",
         coverAlt: "Equipe revisando a matéria no laboratório.",
+        coverCaption: "Equipe durante a revisão editorial.",
+        coverCredit: "Foto: NITE",
         featured: false,
         body: {
           schemaVersion: 1,
@@ -90,6 +110,10 @@ describe("Preview no CMS", () => {
       screen.getByText("Preview ao vivo · expira em 10 min"),
     ).toBeInTheDocument();
     expect(mocks.getRevision).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Equipe durante a revisão editorial."),
+    ).toBeVisible();
+    expect(screen.getByText("Foto: NITE")).toBeVisible();
   });
 
   it("não recua para a revisão salva quando o snapshot é inválido", async () => {

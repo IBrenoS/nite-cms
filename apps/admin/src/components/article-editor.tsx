@@ -20,7 +20,10 @@ import {
   transitionEditorialArticle,
   type EditorialActionState,
 } from "@/app/(workspace)/articles/actions";
-import { createEditorialTiptapExtensions } from "@/lib/editorial-tiptap";
+import {
+  createEditorialTiptapExtensions,
+  normalizeEditorialPastedHtml,
+} from "@/lib/editorial-tiptap";
 import {
   parseEditorialFormData,
   type EditorialField,
@@ -69,6 +72,8 @@ const editorialFieldByInputName: Partial<Record<string, EditorialField>> = {
   byline: "byline",
   eventDate: "eventDate",
   coverAlt: "coverAlt",
+  coverCaption: "coverCaption",
+  coverCredit: "coverCredit",
   seoTitle: "seoTitle",
   seoDescription: "seoDescription",
 };
@@ -82,6 +87,8 @@ const editorialFocusOrder: EditorialField[] = [
   "eventDate",
   "coverMedia",
   "coverAlt",
+  "coverCaption",
+  "coverCredit",
   "seoTitle",
   "seoDescription",
   "slug",
@@ -138,6 +145,8 @@ export function ArticleEditor({
   const [category, setCategory] = useState(initial?.category ?? "");
   const [byline, setByline] = useState(initial?.byline ?? "Redação NITE");
   const [coverAlt, setCoverAlt] = useState(initial?.coverAlt ?? "");
+  const [coverCaption, setCoverCaption] = useState(initial?.coverCaption ?? "");
+  const [coverCredit, setCoverCredit] = useState(initial?.coverCredit ?? "");
   const [seoTitle, setSeoTitle] = useState(initial?.seo?.title ?? "");
   const [seoDescription, setSeoDescription] = useState(
     initial?.seo?.description ?? "",
@@ -162,6 +171,11 @@ export function ArticleEditor({
   const [inlinePanelOpen, setInlinePanelOpen] = useState(false);
   const [inlineMediaId, setInlineMediaId] = useState("");
   const [inlineAlt, setInlineAlt] = useState("");
+  const [inlineCaption, setInlineCaption] = useState("");
+  const [inlineCredit, setInlineCredit] = useState("");
+  const [inlineLayout, setInlineLayout] = useState<"normal" | "wide" | "full">(
+    "normal",
+  );
   const [inlineMediaState, setInlineMediaState] = useState<
     "idle" | "uploading" | "processing" | "ready" | "error"
   >("idle");
@@ -177,6 +191,7 @@ export function ArticleEditor({
   const [previewMessage, setPreviewMessage] = useState<string>();
   const [previewPending, setPreviewPending] = useState(false);
   const [isDirty, setIsDirty] = useState(!initial);
+  const [, setSelectionRevision] = useState(0);
   const [lifecyclePending, startLifecycleTransition] = useTransition();
 
   const fieldErrors: EditorialFieldErrors = { ...clientFieldErrors };
@@ -198,13 +213,27 @@ export function ArticleEditor({
       setBodyDocument(currentEditor.getJSON());
       setIsDirty(true);
     },
+    onSelectionUpdate() {
+      setSelectionRevision((revision) => revision + 1);
+    },
     editorProps: {
+      transformPastedHTML: normalizeEditorialPastedHtml,
       attributes: {
         "aria-label": "Corpo da matéria",
         class: "prose-editor",
       },
     },
   });
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const preventUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventUnload);
+    return () => window.removeEventListener("beforeunload", preventUnload);
+  }, [isDirty]);
 
   const successfulSave =
     actionState.status === "success" ? actionState.data : undefined;
@@ -398,24 +427,24 @@ export function ArticleEditor({
       .focus()
       .insertContent({
         type: "image",
-        attrs: { mediaId: inlineMediaId, alt: inlineAlt.trim() },
+        attrs: {
+          mediaId: inlineMediaId,
+          alt: inlineAlt.trim(),
+          ...(inlineCaption.trim() ? { caption: inlineCaption.trim() } : {}),
+          ...(inlineCredit.trim() ? { credit: inlineCredit.trim() } : {}),
+          layout: inlineLayout,
+        },
       })
       .run();
     setInlineMediaId("");
     setInlineAlt("");
+    setInlineCaption("");
+    setInlineCredit("");
+    setInlineLayout("normal");
     setInlineAltError(undefined);
     setInlineMediaState("idle");
     setInlinePanelOpen(false);
     setIsDirty(true);
-  }
-
-  function toggleLink() {
-    if (!editor) return;
-    const href = window.prompt(
-      "URL do link (http, https, mailto ou caminho interno)",
-    );
-    if (href?.trim())
-      editor.chain().focus().setLink({ href: href.trim() }).run();
   }
 
   function transitionLifecycle(intent: "unpublish" | "archive" | "restore") {
@@ -591,6 +620,9 @@ export function ArticleEditor({
               inlineMediaState={inlineMediaState}
               inlineMediaMessage={inlineMediaMessage}
               inlineAlt={inlineAlt}
+              inlineCaption={inlineCaption}
+              inlineCredit={inlineCredit}
+              inlineLayout={inlineLayout}
               inlineAltError={inlineAltError}
               wordCount={wordCount}
               isDirty={isDirty}
@@ -602,11 +634,13 @@ export function ArticleEditor({
               }}
               onSummaryChange={(nextSummary) => setSummary(nextSummary)}
               onToggleInlinePanel={() => setInlinePanelOpen((open) => !open)}
-              onToggleLink={toggleLink}
               onInlineAltChange={(value) => {
                 setInlineAlt(value);
                 setInlineAltError(undefined);
               }}
+              onInlineCaptionChange={setInlineCaption}
+              onInlineCreditChange={setInlineCredit}
+              onInlineLayoutChange={setInlineLayout}
               onInlineFileSelect={(file) => void uploadInlineImage(file)}
               onInsertInlineImage={insertInlineImage}
             />
@@ -616,6 +650,8 @@ export function ArticleEditor({
         {/* Right Inspector Rail: ~350px, independent scroll, border-l */}
         <div className="w-full xl:w-[350px] xl:shrink-0 xl:border-l border-nite-border-subtle bg-nite-surface xl:overflow-y-auto p-4 sm:p-5">
           <EditorInspector
+            title={title}
+            summary={summary}
             isExisting={isExisting}
             articleId={initial?.articleId}
             currentRevisionId={currentRevisionId}
@@ -635,6 +671,8 @@ export function ArticleEditor({
             slugPanelOpen={slugPanelOpen}
             coverPreviewUrl={coverPreviewUrl}
             coverAlt={coverAlt}
+            coverCaption={coverCaption}
+            coverCredit={coverCredit}
             mediaState={mediaState}
             mediaMessage={mediaMessage}
             seoTitle={seoTitle}
@@ -662,6 +700,8 @@ export function ArticleEditor({
             onSlugToggle={(open) => setSlugPanelOpen(open)}
             onCoverFileSelect={(file) => void uploadCover(file)}
             onCoverAltChange={(val) => setCoverAlt(val)}
+            onCoverCaptionChange={(val) => setCoverCaption(val)}
+            onCoverCreditChange={(val) => setCoverCredit(val)}
             onSeoTitleChange={(val) => setSeoTitle(val)}
             onSeoDescriptionChange={(val) => setSeoDescription(val)}
             onSeoToggle={(open) => setSeoPanelOpen(open)}

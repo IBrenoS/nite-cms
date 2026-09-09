@@ -3,7 +3,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 import { newsCategoryValues } from "./article-schema";
-import { editorialDocumentV1Schema } from "./editor-document";
+import { editorialDocumentSchema } from "./editor-document";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
 import {
   articleRevisions,
@@ -154,7 +154,7 @@ export async function getEditorialRevisionPreview<
         article: result.article,
         revision: {
           ...revision,
-          body: editorialDocumentV1Schema.parse(revision.body),
+          body: editorialDocumentSchema.parse(revision.body),
         },
       }
     : undefined;

@@ -30,6 +30,9 @@ const EditorialImage = Node.create({
       src: { default: null },
       width: { default: null },
       height: { default: null },
+      caption: { default: null },
+      credit: { default: null },
+      layout: { default: "normal" },
     };
   },
 
@@ -38,7 +41,8 @@ const EditorialImage = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const { mediaId, alt, src, width, height } = HTMLAttributes;
+    const { mediaId, alt, src, width, height, caption, credit, layout } =
+      HTMLAttributes;
     return [
       "img",
       {
@@ -47,10 +51,61 @@ const EditorialImage = Node.create({
         ...(typeof src === "string" ? { src } : {}),
         ...(typeof width === "number" ? { width } : {}),
         ...(typeof height === "number" ? { height } : {}),
+        ...(typeof caption === "string" ? { "data-caption": caption } : {}),
+        ...(typeof credit === "string" ? { "data-credit": credit } : {}),
+        "data-layout": layout,
       },
     ];
   },
 });
+
+const discardedPastedElements = new Set([
+  "SCRIPT",
+  "STYLE",
+  "META",
+  "LINK",
+  "IFRAME",
+  "OBJECT",
+  "EMBED",
+]);
+
+export function normalizeEditorialPastedHtml(html: string) {
+  const document = new DOMParser().parseFromString(html, "text/html");
+  document.body
+    .querySelectorAll([...discardedPastedElements].join(","))
+    .forEach((element) => element.remove());
+
+  document.body.querySelectorAll("*").forEach((element) => {
+    const preservedAttributes = new Map<string, string>();
+    if (element.tagName === "A") {
+      const href = element.getAttribute("href");
+      if (href) preservedAttributes.set("href", href);
+    }
+    if (element.tagName === "IMG" && element.hasAttribute("data-media-id")) {
+      [
+        "data-media-id",
+        "alt",
+        "src",
+        "width",
+        "height",
+        "data-caption",
+        "data-credit",
+        "data-layout",
+      ].forEach((name) => {
+        const value = element.getAttribute(name);
+        if (value !== null) preservedAttributes.set(name, value);
+      });
+    }
+    [...element.attributes].forEach((attribute) =>
+      element.removeAttribute(attribute.name),
+    );
+    preservedAttributes.forEach((value, name) =>
+      element.setAttribute(name, value),
+    );
+  });
+
+  return document.body.innerHTML;
+}
 
 export function createEditorialTiptapExtensions() {
   return [

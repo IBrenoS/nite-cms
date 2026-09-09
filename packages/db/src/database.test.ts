@@ -69,11 +69,14 @@ describe("persistencia editorial", () => {
       await client.query(
         `insert into article_revisions
           (id, article_id, version, content_schema_version, title, summary,
-           category, read_time_minutes, byline, cover_media_id, cover_alt, body)
-         values ($1, $2, 1, 1, $3,
+           category, read_time_minutes, byline, cover_media_id, cover_alt,
+           cover_caption, cover_credit, body)
+         values ($1::uuid, $2, 1, 1, $3,
           'Resumo editorial suficientemente descritivo para validar a view publica.',
           'comunidade', 4, 'Redacao NITE', $4,
           'Pessoas reunidas em um ambiente universitario iluminado.',
+          case when $1::text = '${publishedRevisionId}' then 'Encontro da comunidade acadêmica.' end,
+          case when $1::text = '${publishedRevisionId}' then 'Foto: Comunicação NITE' end,
            jsonb_build_object(
              'schemaVersion', 1,
              'type', 'doc',
@@ -120,12 +123,14 @@ describe("persistencia editorial", () => {
       public: boolean;
       content_state: string;
       cover_object_key: string;
+      cover_caption: string | null;
+      cover_credit: string | null;
       body_media: Record<
         string,
         { objectKey: string; width: number; height: number }
       >;
     }>(
-      "select slug, title, public, content_state, cover_object_key, body_media from published_articles",
+      "select slug, title, public, content_state, cover_object_key, cover_caption, cover_credit, body_media from published_articles",
     );
 
     expect(result.rows).toEqual([
@@ -135,6 +140,8 @@ describe("persistencia editorial", () => {
         public: true,
         content_state: "real",
         cover_object_key: "news/capa.webp",
+        cover_caption: "Encontro da comunidade acadêmica.",
+        cover_credit: "Foto: Comunicação NITE",
         body_media: {
           [bodyMediaId]: {
             objectKey: "news/imagem.webp",

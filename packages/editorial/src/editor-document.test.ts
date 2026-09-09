@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateEditorialReadTime,
+  editorialDocumentSchema,
   editorialDocumentV1Schema,
+  editorialDocumentV2Schema,
+  persistedEditorialDocumentSchema,
   persistedEditorialDocumentV1Schema,
   storableEditorialDocumentV1Schema,
   resolveEditorialDocumentMedia,
   tiptapDocumentToEditorialDocumentV1,
+  tiptapDocumentToEditorialDocumentV2,
 } from "@nite/editorial";
 
 const imageMediaId = "30000000-0000-4000-8000-000000000101";
@@ -345,5 +349,96 @@ describe("documento editorial v1", () => {
         ],
       }),
     ).toMatchObject({ content: [{ type: "image" }] });
+  });
+});
+
+describe("documento editorial v2", () => {
+  const documentV2 = {
+    schemaVersion: 2,
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Contexto da imagem editorial." }],
+      },
+      {
+        type: "image",
+        attrs: {
+          mediaId: imageMediaId,
+          alt: "Pessoas no laboratório",
+          caption: "Equipe durante a atividade.",
+          credit: "Foto: NITE",
+          layout: "wide",
+        },
+      },
+    ],
+  } as const;
+
+  it("mantém V1 legível e aceita metadados estruturados apenas em V2", () => {
+    expect(editorialDocumentSchema.parse(document)).toEqual(document);
+    expect(editorialDocumentV2Schema.parse(documentV2)).toEqual(documentV2);
+    expect(() => editorialDocumentV1Schema.parse(documentV2)).toThrow();
+  });
+
+  it("grava novos documentos como V2 e assume largura normal", () => {
+    expect(
+      tiptapDocumentToEditorialDocumentV2({
+        type: "doc",
+        content: [
+          {
+            type: "image",
+            attrs: {
+              mediaId: imageMediaId,
+              alt: "Pessoas no laboratório",
+              caption: "Equipe durante a atividade.",
+              credit: "Foto: NITE",
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      schemaVersion: 2,
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: {
+            mediaId: imageMediaId,
+            alt: "Pessoas no laboratório",
+            caption: "Equipe durante a atividade.",
+            credit: "Foto: NITE",
+            layout: "normal",
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserva os metadados ao resolver a mídia pública", () => {
+    const resolved = resolveEditorialDocumentMedia(documentV2, {
+      [imageMediaId]: {
+        src: "https://media.nite.test/news/laboratorio.webp",
+        width: 1600,
+        height: 900,
+      },
+    });
+
+    expect(resolved).toMatchObject({
+      schemaVersion: 2,
+      content: [
+        expect.anything(),
+        {
+          attrs: {
+            caption: "Equipe durante a atividade.",
+            credit: "Foto: NITE",
+            layout: "wide",
+            src: "https://media.nite.test/news/laboratorio.webp",
+          },
+        },
+      ],
+    });
+    expect(() => persistedEditorialDocumentSchema.parse(resolved)).toThrow(
+      /não pode ser persistida/i,
+    );
   });
 });

@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   editorialDraftInputSchema,
   editorialPublishableInputSchema,
-  tiptapDocumentToEditorialDocumentV1,
+  tiptapDocumentToEditorialDocumentV2,
 } from "@nite/editorial";
 
 export type EditorialField =
@@ -16,6 +16,8 @@ export type EditorialField =
   | "eventDate"
   | "coverMedia"
   | "coverAlt"
+  | "coverCaption"
+  | "coverCredit"
   | "seoTitle"
   | "seoDescription";
 
@@ -34,6 +36,8 @@ const formSchema = z.object({
   byline: z.string(),
   coverMediaId: z.union([z.literal(""), z.uuid()]),
   coverAlt: z.string(),
+  coverCaption: z.string(),
+  coverCredit: z.string(),
   seoTitle: z.string(),
   seoDescription: z.string(),
   bodyDocument: z.string().min(1),
@@ -65,13 +69,15 @@ export function parseEditorialFormData(formData: FormData) {
     byline: readString(formData, "byline"),
     coverMediaId: readString(formData, "coverMediaId"),
     coverAlt: readString(formData, "coverAlt"),
+    coverCaption: readString(formData, "coverCaption"),
+    coverCredit: readString(formData, "coverCredit"),
     seoTitle: readString(formData, "seoTitle"),
     seoDescription: readString(formData, "seoDescription"),
     bodyDocument: readString(formData, "bodyDocument"),
   });
-  let body: ReturnType<typeof tiptapDocumentToEditorialDocumentV1>;
+  let body: ReturnType<typeof tiptapDocumentToEditorialDocumentV2>;
   try {
-    body = tiptapDocumentToEditorialDocumentV1(
+    body = tiptapDocumentToEditorialDocumentV2(
       JSON.parse(fields.bodyDocument) as unknown,
     );
   } catch {
@@ -90,6 +96,8 @@ export function parseEditorialFormData(formData: FormData) {
     byline: fields.byline,
     coverMediaId: fields.coverMediaId || null,
     coverAlt: fields.coverAlt,
+    coverCaption: fields.coverCaption.trim() || undefined,
+    coverCredit: fields.coverCredit.trim() || undefined,
     featured: formData.get("featured") === "on",
     body,
     seo,
@@ -111,6 +119,8 @@ const fieldByPath: Record<string, EditorialField> = {
   byline: "byline",
   coverMediaId: "coverMedia",
   coverAlt: "coverAlt",
+  coverCaption: "coverCaption",
+  coverCredit: "coverCredit",
   body: "body",
   bodyDocument: "body",
   "body.content": "body",
@@ -129,6 +139,8 @@ const messageByField: Record<EditorialField, string> = {
   eventDate: "Informe uma data de evento válida.",
   coverMedia: "Selecione uma capa processada.",
   coverAlt: "O texto alternativo da capa deve ter pelo menos 12 caracteres.",
+  coverCaption: "A legenda da capa deve ter no máximo 280 caracteres.",
+  coverCredit: "O crédito da capa deve ter no máximo 160 caracteres.",
   seoTitle: "O título SEO deve ter entre 20 e 60 caracteres.",
   seoDescription: "A descrição SEO deve ter entre 80 e 160 caracteres.",
 };

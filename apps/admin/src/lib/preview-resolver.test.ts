@@ -90,6 +90,8 @@ describe("resolução do preview privado", () => {
             featured: false,
             coverMediaId: mediaId,
             coverAlt: "Equipe preparando uma apresentação editorial",
+            coverCaption: "Equipe durante os preparativos.",
+            coverCredit: "Foto: NITE",
             body: {
               schemaVersion: 1,
               type: "doc",
@@ -130,7 +132,11 @@ describe("resolução do preview privado", () => {
       articleId,
       revisionId,
       publishedAt: null,
-      cover: { src: "https://media.nite.test/news/cover.webp" },
+      cover: {
+        src: "https://media.nite.test/news/cover.webp",
+        caption: "Equipe durante os preparativos.",
+        credit: "Foto: NITE",
+      },
     });
   });
 

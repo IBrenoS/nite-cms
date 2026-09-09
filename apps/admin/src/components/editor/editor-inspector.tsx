@@ -31,6 +31,8 @@ type RevisionItem = {
 };
 
 type EditorInspectorProps = {
+  title: string;
+  summary: string;
   isExisting: boolean;
   articleId?: string;
   currentRevisionId: string;
@@ -50,6 +52,8 @@ type EditorInspectorProps = {
   slugPanelOpen: boolean;
   coverPreviewUrl?: string;
   coverAlt: string;
+  coverCaption: string;
+  coverCredit: string;
   mediaState: "idle" | "uploading" | "processing" | "ready" | "error";
   mediaMessage?: string;
   seoTitle: string;
@@ -69,6 +73,8 @@ type EditorInspectorProps = {
   onSlugToggle: (open: boolean) => void;
   onCoverFileSelect: (file: File) => void;
   onCoverAltChange: (value: string) => void;
+  onCoverCaptionChange: (value: string) => void;
+  onCoverCreditChange: (value: string) => void;
   onSeoTitleChange: (value: string) => void;
   onSeoDescriptionChange: (value: string) => void;
   onSeoToggle: (open: boolean) => void;
@@ -94,6 +100,8 @@ const editorialFieldTarget: Record<EditorialField, string> = {
   eventDate: "eventDate",
   coverMedia: "cover-media-error",
   coverAlt: "coverAlt",
+  coverCaption: "coverCaption",
+  coverCredit: "coverCredit",
   seoTitle: "seo-title-error",
   seoDescription: "seo-description-error",
 };
@@ -104,6 +112,8 @@ const revisionDateFormatter = new Intl.DateTimeFormat("pt-BR", {
 });
 
 export function EditorInspector({
+  title,
+  summary,
   isExisting,
   articleId,
   currentRevisionId,
@@ -123,6 +133,8 @@ export function EditorInspector({
   slugPanelOpen,
   coverPreviewUrl,
   coverAlt,
+  coverCaption,
+  coverCredit,
   mediaState,
   mediaMessage,
   seoTitle,
@@ -142,6 +154,8 @@ export function EditorInspector({
   onSlugToggle,
   onCoverFileSelect,
   onCoverAltChange,
+  onCoverCaptionChange,
+  onCoverCreditChange,
   onSeoTitleChange,
   onSeoDescriptionChange,
   onSeoToggle,
@@ -378,6 +392,9 @@ export function EditorInspector({
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                Organiza a matéria nas listagens e filtros do Portal.
+              </p>
               {fieldErrors.category ? (
                 <p
                   id="category-error"
@@ -407,6 +424,9 @@ export function EditorInspector({
                 className="min-h-8 rounded-md text-xs"
                 onChange={(event) => onBylineChange(event.target.value)}
               />
+              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                Nome da pessoa, equipe ou redação responsável pela matéria.
+              </p>
               {fieldErrors.byline ? (
                 <p
                   id="byline-error"
@@ -439,6 +459,9 @@ export function EditorInspector({
                 defaultValue={eventDate}
                 className="min-h-8 rounded-md text-xs"
               />
+              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                Mostrada quando a matéria se refere a um evento específico.
+              </p>
               {fieldErrors.eventDate ? (
                 <p
                   id="event-date-error"
@@ -529,12 +552,17 @@ export function EditorInspector({
           <section className="rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold text-nite-text-primary">
-                Capa
+                Capa da matéria
               </h2>
               <span className="text-[11px] font-medium text-status-error">
                 Obrigatória
               </span>
             </div>
+            <p className="text-[11px] leading-4 text-nite-text-secondary">
+              Obrigatória: aparece nos cards e como imagem principal no topo da
+              matéria. Não faz parte do corpo do texto. Prefira uma foto limpa,
+              sem interface ou texto dominante.
+            </p>
 
             <div className="relative aspect-[16/9] overflow-hidden rounded-md border border-dashed border-nite-border-strong bg-nite-section">
               {coverPreviewUrl ? (
@@ -623,12 +651,72 @@ export function EditorInspector({
                 className="min-h-14 resize-none rounded-md text-xs"
                 onChange={(event) => onCoverAltChange(event.target.value)}
               />
+              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                Descreva o que é relevante na imagem. Esse texto ajuda leitores
+                de tela e não aparece como legenda.
+              </p>
               {fieldErrors.coverAlt ? (
                 <p
                   id="cover-alt-error"
                   className="mt-1 text-[11px] text-status-error"
                 >
                   {fieldErrors.coverAlt[0]}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-semibold text-nite-text-primary"
+                htmlFor="coverCaption"
+              >
+                Legenda{" "}
+                <span className="font-normal text-nite-text-secondary">
+                  (opcional)
+                </span>
+              </label>
+              <Input
+                id="coverCaption"
+                name="coverCaption"
+                maxLength={280}
+                value={coverCaption}
+                data-editorial-field="coverCaption"
+                aria-invalid={Boolean(fieldErrors.coverCaption)}
+                onChange={(event) => onCoverCaptionChange(event.target.value)}
+                placeholder="Contexto visível abaixo da capa"
+                className="min-h-8 rounded-md text-xs"
+              />
+              {fieldErrors.coverCaption ? (
+                <p className="mt-1 text-[11px] text-status-error">
+                  {fieldErrors.coverCaption[0]}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-semibold text-nite-text-primary"
+                htmlFor="coverCredit"
+              >
+                Crédito{" "}
+                <span className="font-normal text-nite-text-secondary">
+                  (opcional)
+                </span>
+              </label>
+              <Input
+                id="coverCredit"
+                name="coverCredit"
+                maxLength={160}
+                value={coverCredit}
+                data-editorial-field="coverCredit"
+                aria-invalid={Boolean(fieldErrors.coverCredit)}
+                onChange={(event) => onCoverCreditChange(event.target.value)}
+                placeholder="Foto: nome ou instituição"
+                className="min-h-8 rounded-md text-xs"
+              />
+              {fieldErrors.coverCredit ? (
+                <p className="mt-1 text-[11px] text-status-error">
+                  {fieldErrors.coverCredit[0]}
                 </p>
               ) : null}
             </div>
@@ -658,16 +746,30 @@ export function EditorInspector({
             onToggle={(event) => onSeoToggle(event.currentTarget.open)}
           >
             <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-primary">
-              <span>SEO</span>
+              <span>Aparência na busca (opcional)</span>
               <ChevronDownIcon
                 className="size-3.5 text-nite-text-secondary transition-transform group-open:rotate-180"
                 aria-hidden="true"
               />
             </summary>
             <p className="mt-1.5 text-[11px] text-nite-text-secondary">
-              Preencha os dois campos ou mantenha ambos vazios.
+              Se os campos ficarem vazios, o título e o resumo da matéria serão
+              usados automaticamente.
             </p>
             <div className="mt-2.5 space-y-2.5">
+              <div
+                aria-label="Prévia na busca"
+                className="rounded-md border border-nite-border-subtle bg-nite-section/40 p-2.5"
+              >
+                <p className="truncate text-sm font-semibold text-nite-brand-primary">
+                  {seoTitle.trim() || title.trim() || "Título da matéria"}
+                </p>
+                <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-nite-text-secondary">
+                  {seoDescription.trim() ||
+                    summary.trim() ||
+                    "O resumo da matéria aparecerá aqui."}
+                </p>
+              </div>
               <div>
                 <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
                   Título SEO

@@ -188,54 +188,56 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
 
 ## Ordem de homologação
 
-1. Faça backup e, com autorização operacional, aplique migrations usando
+1. Publique primeiro o Portal consumidor capaz de ler documentos V1 e V2, sem
+   alterar conteúdo editorial.
+2. Faça backup e, com autorização operacional, aplique migrations usando
    somente `DATABASE_MIGRATION_URL`.
-2. Prove que a API lê a view e não lê/escreve tabelas-base; prove que o Admin
+3. Prove que a API lê a view e não lê/escreve tabelas-base; prove que o Admin
    escreve apenas pelo papel previsto.
-3. Configure buckets, CORS, domínios e variáveis, sem reutilizar secrets entre
+4. Configure buckets, CORS, domínios e variáveis, sem reutilizar secrets entre
    preview, revalidação, cron e autenticação.
-4. Publique CMS Admin e CMS API v2; valide `/health`, `/v2/news` e um 404 de
+5. Publique CMS Admin e CMS API v2; valide `/health`, `/v2/news` e um 404 de
    slug inexistente antes de conectar conteúdo real.
-5. Publique o Portal já configurado para v2. Não publique a primeira matéria
-   enquanto API e Portal não estiverem no mesmo contrato.
-6. Entre como identidade não autorizada, `publisher` e `admin`. Confirme acesso
+6. Não habilite o Admin a produzir V2 antes de Portal, migration e API estarem
+   no mesmo contrato. Não publique uma matéria durante a janela intermediária.
+7. Entre como identidade não autorizada, `publisher` e `admin`. Confirme acesso
    negado, permissões editoriais e exclusividade da gestão de equipe.
-7. Como admin, crie um convite para um e-mail `@unijorge.com`, comunique a
+8. Como admin, crie um convite para um e-mail `@unijorge.com`, comunique a
    pessoa por um canal externo e confirme o aceite em até 7 dias. Verifique que
    o convite ficou `accepted`, que a membership recebeu o `oid` real e que o
    login seguinte continua válido mesmo após uma mudança de e-mail de perfil.
    Para corrigir e-mail ou nível de acesso antes do aceite, use **Corrigir**:
    o convite anterior deve ficar `revoked` e o substituto deve ganhar novo
    prazo. Use **Revogar** para cancelar sem apagar o histórico.
-8. Faça upload JPEG/PNG/WebP autorizado. Confirme original no staging,
+9. Faça upload JPEG/PNG/WebP autorizado. Confirme original no staging,
    processamento sem EXIF, dimensão máxima de 2400 px, WebP público, cache
    immutable, estado `ready` e alt obrigatório.
-9. Crie e salve uma matéria; confirme revisão imutável e conflito por
-   `expectedRevisionId` desatualizado.
-10. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
+10. Crie e salve uma matéria; confirme revisão imutável e conflito por
+    `expectedRevisionId` desatualizado.
+11. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
     CMS e Preview no Portal e confirme os valores atuais, a versão/revisão
     corrente inalterada e ausência de nova `article_revision`. Confirme Draft
     Mode, faixa “Prévia — ainda não publicada”, isolamento por slug/snapshot,
     `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e
     saída por POST.
-11. Teste tokens v1/v2 válidos, expirados, adulterados, assinados por chave
+12. Teste tokens v1/v2 válidos, expirados, adulterados, assinados por chave
     divergente e com revisão/snapshot inexistente. Somente os válidos podem
     habilitar Draft Mode. Confirme resposta externa genérica e logs sem token,
     payload editorial ou secret.
-12. Publique, despublique, republique, arquive e restaure. Confirme primeira
+13. Publique, despublique, republique, arquive e restaure. Confirme primeira
     `publishedAt`, slug bloqueado, auditoria, outbox, 404 quando fora do ar,
     revalidação de lista/artigo/filtros/sitemap e restauração em draft.
-13. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
+14. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
     em logs. Prove recuperação de uma falha transitória da outbox.
-14. Execute Playwright desktop/mobile do Admin com storage states dedicados e
+15. Execute Playwright desktop/mobile do Admin com storage states dedicados e
     faça smoke visual do corpo rico e preview no Portal.
 
 ## Corte de produção
 
 O corte só está liberado após todos os passos de homologação e aprovação do
-conteúdo oficial. Aplicar CMS/migrations e Portal é uma operação coordenada:
-CMS Admin/API v2 primeiro, Portal v2 imediatamente depois, sem publicar a
-primeira matéria durante a janela intermediária. Faça smoke de
+conteúdo oficial. Aplicar Portal, migration e CMS é uma operação coordenada:
+Portal consumidor V1/V2 primeiro, migration depois e CMS Admin/API produtores
+por último, sem publicar matéria durante a janela intermediária. Faça smoke de
 `/atualizacoes`, slug, sitemap, preview e revalidação; monitore API, outbox e
 processamento de mídia.
 

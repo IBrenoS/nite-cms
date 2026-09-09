@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   processUpload: vi.fn(),
   preview: vi.fn(),
   transition: vi.fn(),
+  imageActive: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,15 +31,27 @@ vi.mock("@/app/(workspace)/articles/actions", () => ({
 }));
 vi.mock("@/lib/editorial-tiptap", () => ({
   createEditorialTiptapExtensions: () => [],
+  normalizeEditorialPastedHtml: (html: string) => html,
 }));
 vi.mock("@tiptap/react", () => ({
   EditorContent: () => <div aria-label="Corpo da matéria" />,
   useEditor: () => ({
-    isActive: () => false,
+    isActive: (name: string) => name === "image" && mocks.imageActive,
+    getAttributes: (name: string) =>
+      name === "image"
+        ? {
+            alt: "Pessoas no laboratório",
+            caption: "Legenda atual",
+            credit: "Foto: NITE",
+            layout: "wide",
+          }
+        : {},
     chain() {
       const chain = {
         focus: () => chain,
         insertContent: () => chain,
+        deleteSelection: () => chain,
+        redo: () => chain,
         run: () => true,
         setLink: () => chain,
         setParagraph: () => chain,
@@ -48,6 +61,8 @@ vi.mock("@tiptap/react", () => ({
         toggleHeading: () => chain,
         toggleItalic: () => chain,
         toggleOrderedList: () => chain,
+        undo: () => chain,
+        updateAttributes: () => chain,
         unsetLink: () => chain,
       };
       return chain;
@@ -100,6 +115,7 @@ describe("ArticleEditor", () => {
     mocks.processUpload.mockReset();
     mocks.preview.mockReset();
     mocks.transition.mockReset();
+    mocks.imageActive = false;
     mocks.submit.mockResolvedValue({ status: "idle" });
   });
 
@@ -180,6 +196,15 @@ describe("ArticleEditor", () => {
     expect(
       screen.getByLabelText("Texto alternativo da imagem inline"),
     ).not.toBeRequired();
+    expect(
+      screen.getByLabelText("Legenda da imagem inline"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Crédito da imagem inline"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Largura da imagem inline")).toHaveValue(
+      "normal",
+    );
     expect(container.querySelector("form")).toHaveAttribute("novalidate");
     expect(
       screen.getByRole("button", { name: "Publicar revisão" }),
@@ -304,6 +329,74 @@ describe("ArticleEditor", () => {
       "inovacao",
     );
     expect(screen.getByText("Preparação")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Capa da matéria" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Aparência na busca (opcional)"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Intertítulo (H2)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Subseção (H3)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Desfazer (Ctrl+Z)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Refazer (Ctrl+Shift+Z)")).toBeInTheDocument();
+  });
+
+  it("substitui o prompt por edição acessível de link", () => {
+    const prompt = vi.spyOn(window, "prompt");
+    render(<ArticleEditor canPublish />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Link" }));
+    const input = screen.getByLabelText("URL do link");
+    fireEvent.change(input, { target: { value: "javascript:alert(1)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar link" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Use http, https, mailto ou um caminho interno.",
+    );
+    expect(prompt).not.toHaveBeenCalled();
+    prompt.mockRestore();
+  });
+
+  it("oferece metadados, largura e remoção para a imagem selecionada", () => {
+    mocks.imageActive = true;
+    render(<ArticleEditor canPublish />);
+
+    expect(
+      screen.getByRole("heading", { name: "Editar imagem interna" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Alt da imagem selecionada")).toHaveValue(
+      "Pessoas no laboratório",
+    );
+    expect(screen.getByLabelText("Legenda da imagem selecionada")).toHaveValue(
+      "Legenda atual",
+    );
+    expect(screen.getByLabelText("Largura da imagem selecionada")).toHaveValue(
+      "wide",
+    );
+    expect(
+      screen.getByRole("button", { name: "Remover imagem do conteúdo" }),
+    ).toBeEnabled();
+  });
+
+  it("avisa o navegador ao sair com alterações não salvas", () => {
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Título alterado ainda não salvo" },
+    });
+    const event = new Event("beforeunload", { cancelable: true });
+
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("atualiza revisão e sinaliza alterações ainda não publicadas após salvar", async () => {

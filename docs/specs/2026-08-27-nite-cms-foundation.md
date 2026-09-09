@@ -75,15 +75,20 @@ não consulta Microsoft Graph nem requer `User.Read.All`.
 A API expõe `GET /v2/news` e `GET /v2/news/{slug}` com envelope
 `version: 2`. Não existe rota ou payload legado `/v1`.
 
-`NewsArticle.body` é exclusivamente `EditorialDocumentV1`, com raiz
-`{ schemaVersion: 1, type: "doc", content: [...] }`. O documento aceita
+`NewsArticle.body` aceita `EditorialDocumentV1` e `EditorialDocumentV2`, com
+raiz versionada `{ schemaVersion, type: "doc", content: [...] }`. Novas
+revisões são gravadas em V2; V1 permanece legível e é convertido apenas no
+próximo salvamento. O documento aceita
 parágrafos, H2/H3, listas ordenadas e não ordenadas, citações e imagens; texto
 pode ter bold, italic e link. Links são limitados a HTTP(S), `mailto:` e
 caminhos internos seguros. HTML livre, vídeo, embeds, nós e marks desconhecidos
 são rejeitados no servidor.
 
 Imagens do AST referenciam assets `ready`; na fronteira pública, a referência é
-resolvida para URL, dimensões e alt. Capa e imagens inline exigem alt. O tempo
+resolvida para URL, dimensões e alt. Em V2, imagens internas também aceitam
+legenda, crédito e layout `normal | wide | full`. A capa é mídia destacada
+obrigatória e separada do corpo; capa e imagens inline exigem alt, enquanto
+legenda e crédito são opcionais. O tempo
 de leitura não é entrada editorial: o servidor conta o texto visível a 200
 palavras por minuto, arredonda para cima e limita a 1–30 minutos.
 

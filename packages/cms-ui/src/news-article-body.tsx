@@ -1,12 +1,12 @@
-import type { EditorialDocumentV1 } from "@nite/editorial";
+import type { EditorialDocument } from "@nite/editorial";
 import type { ReactNode } from "react";
 
 type NewsArticleBodyProps = {
-  document: EditorialDocumentV1;
+  document: EditorialDocument;
   className?: string;
 };
 
-type EditorialContentNode = EditorialDocumentV1["content"][number];
+type EditorialContentNode = EditorialDocument["content"][number];
 type InlineContentNode = Extract<
   EditorialContentNode,
   { type: "paragraph" }
@@ -19,6 +19,9 @@ type ResolvedEditorialImageNode = EditorialImageNode & {
     src: string;
     width: number;
     height: number;
+    caption?: string;
+    credit?: string;
+    layout?: "normal" | "wide" | "full";
   };
 };
 
@@ -85,14 +88,32 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
   }
   if (node.type === "image") {
     if (isPublicImage(node)) {
+      const layout = node.attrs.layout ?? "normal";
+      const layoutClass = {
+        normal: "w-full",
+        wide: "relative left-1/2 w-[min(64rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(64rem,calc(100vw-4rem))]",
+        full: "relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(80rem,calc(100vw-4rem))]",
+      }[layout];
       return (
-        <img
+        <figure
           key={key}
-          src={node.attrs.src}
-          alt={node.attrs.alt}
-          width={node.attrs.width}
-          height={node.attrs.height}
-        />
+          data-editorial-layout={layout}
+          className={layoutClass}
+        >
+          <img
+            src={node.attrs.src}
+            alt={node.attrs.alt}
+            width={node.attrs.width}
+            height={node.attrs.height}
+            className="h-auto w-full"
+          />
+          {node.attrs.caption || node.attrs.credit ? (
+            <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-sm leading-5 text-nite-text-secondary">
+              {node.attrs.caption ? <span>{node.attrs.caption}</span> : null}
+              {node.attrs.credit ? <span>{node.attrs.credit}</span> : null}
+            </figcaption>
+          ) : null}
+        </figure>
       );
     }
     return <figure key={key} aria-label={node.attrs.alt} />;

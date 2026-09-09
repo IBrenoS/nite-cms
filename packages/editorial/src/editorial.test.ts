@@ -42,6 +42,8 @@ const firstDraft = {
   coverMediaId: "30000000-0000-4000-8000-000000000100",
   coverAlt:
     "  Estudantes reunidos em um laboratório de inovação universitário.  ",
+  coverCaption: "  Oficina no laboratório de inovação.  ",
+  coverCredit: "  Foto: Comunicação NITE  ",
   featured: false,
   body: {
     schemaVersion: 1 as const,
@@ -121,6 +123,10 @@ describe("comandos editoriais", () => {
     expect(created.revision.coverAlt).toBe(
       "Estudantes reunidos em um laboratório de inovação universitário.",
     );
+    expect(created.revision.coverCaption).toBe(
+      "Oficina no laboratório de inovação.",
+    );
+    expect(created.revision.coverCredit).toBe("Foto: Comunicação NITE");
     expect(saved.revision).toMatchObject({
       version: 2,
       title: "Laboratório de inovação confirma nova agenda",

@@ -13,7 +13,7 @@ import {
 import {
   calculateEditorialReadTime,
   getEditorialImageMediaIds,
-  persistedEditorialDocumentV1Schema,
+  persistedEditorialDocumentSchema,
 } from "./editor-document";
 import {
   articleRevisions,
@@ -40,7 +40,7 @@ export const editorialArticleInputSchema = z
       .optional(),
     byline: z.string().min(3).max(80),
     featured: z.boolean(),
-    body: persistedEditorialDocumentV1Schema,
+    body: persistedEditorialDocumentSchema,
     seo: z
       .object({
         title: z.string().min(20).max(60),
@@ -51,6 +51,8 @@ export const editorialArticleInputSchema = z
   .extend({
     coverMediaId: z.uuid().nullable(),
     coverAlt: coverAltSchema,
+    coverCaption: z.string().trim().min(1).max(280).optional(),
+    coverCredit: z.string().trim().min(1).max(160).optional(),
   });
 
 export type EditorialArticleInput = z.infer<typeof editorialArticleInputSchema>;
@@ -114,6 +116,8 @@ function revisionValues(
     featured: input.featured,
     coverMediaId: input.coverMediaId,
     coverAlt: input.coverAlt,
+    coverCaption: input.coverCaption,
+    coverCredit: input.coverCredit,
     body: input.body,
     seo: input.seo,
     createdByMembershipId: actorId,
@@ -309,6 +313,8 @@ async function getPublishableRevision<TQueryResult extends PgQueryResultHKT>(
       byline: articleRevisions.byline,
       coverMediaId: articleRevisions.coverMediaId,
       coverAlt: articleRevisions.coverAlt,
+      coverCaption: articleRevisions.coverCaption,
+      coverCredit: articleRevisions.coverCredit,
       body: articleRevisions.body,
       featured: articleRevisions.featured,
       seo: articleRevisions.seo,
@@ -322,6 +328,8 @@ async function getPublishableRevision<TQueryResult extends PgQueryResultHKT>(
       ...revision,
       slug: article.slug,
       eventDate: revision.eventDate ?? undefined,
+      coverCaption: revision.coverCaption ?? undefined,
+      coverCredit: revision.coverCredit ?? undefined,
       seo: revision.seo ?? undefined,
     }),
   });

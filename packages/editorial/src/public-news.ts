@@ -57,6 +57,8 @@ export function mapPublishedArticle(
     cover: {
       src: buildPublicMediaUrl(mediaBaseUrl, row.coverObjectKey),
       alt: row.coverAlt,
+      ...(row.coverCaption ? { caption: row.coverCaption } : {}),
+      ...(row.coverCredit ? { credit: row.coverCredit } : {}),
     },
     featured: row.featured,
     contentState: row.contentState,

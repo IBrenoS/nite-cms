@@ -5,6 +5,7 @@ import { EditorContent } from "@tiptap/react";
 import { Textarea } from "@nite/cms-ui";
 import { EditorToolbar } from "./editor-toolbar";
 import { EditorInlineImagePanel } from "./editor-inline-image-panel";
+import { EditorSelectedImagePanel } from "./editor-selected-image-panel";
 import type { EditorialFieldErrors } from "@/lib/editorial-form";
 
 type EditorCanvasProps = {
@@ -16,14 +17,19 @@ type EditorCanvasProps = {
   inlineMediaState: "idle" | "uploading" | "processing" | "ready" | "error";
   inlineMediaMessage?: string;
   inlineAlt: string;
+  inlineCaption: string;
+  inlineCredit: string;
+  inlineLayout: "normal" | "wide" | "full";
   inlineAltError?: string;
   wordCount: number;
   isDirty: boolean;
   onTitleChange: (value: string) => void;
   onSummaryChange: (value: string) => void;
   onToggleInlinePanel: () => void;
-  onToggleLink: () => void;
   onInlineAltChange: (value: string) => void;
+  onInlineCaptionChange: (value: string) => void;
+  onInlineCreditChange: (value: string) => void;
+  onInlineLayoutChange: (value: "normal" | "wide" | "full") => void;
   onInlineFileSelect: (file: File) => void;
   onInsertInlineImage: () => void;
 };
@@ -37,14 +43,19 @@ export function EditorCanvas({
   inlineMediaState,
   inlineMediaMessage,
   inlineAlt,
+  inlineCaption,
+  inlineCredit,
+  inlineLayout,
   inlineAltError,
   wordCount,
   isDirty,
   onTitleChange,
   onSummaryChange,
   onToggleInlinePanel,
-  onToggleLink,
   onInlineAltChange,
+  onInlineCaptionChange,
+  onInlineCreditChange,
+  onInlineLayoutChange,
   onInlineFileSelect,
   onInsertInlineImage,
 }: EditorCanvasProps) {
@@ -143,7 +154,6 @@ export function EditorCanvas({
           editor={editor}
           inlinePanelOpen={inlinePanelOpen}
           onToggleInlinePanel={onToggleInlinePanel}
-          onToggleLink={onToggleLink}
         />
 
         {inlinePanelOpen ? (
@@ -151,10 +161,41 @@ export function EditorCanvas({
             inlineMediaState={inlineMediaState}
             inlineMediaMessage={inlineMediaMessage}
             inlineAlt={inlineAlt}
+            inlineCaption={inlineCaption}
+            inlineCredit={inlineCredit}
+            inlineLayout={inlineLayout}
             inlineAltError={inlineAltError}
             onAltChange={onInlineAltChange}
+            onCaptionChange={onInlineCaptionChange}
+            onCreditChange={onInlineCreditChange}
+            onLayoutChange={onInlineLayoutChange}
             onFileSelect={onInlineFileSelect}
             onInsert={onInsertInlineImage}
+          />
+        ) : null}
+
+        {editor?.isActive("image") ? (
+          <EditorSelectedImagePanel
+            editor={editor}
+            image={{
+              alt:
+                typeof editor.getAttributes("image").alt === "string"
+                  ? editor.getAttributes("image").alt
+                  : "",
+              caption:
+                typeof editor.getAttributes("image").caption === "string"
+                  ? editor.getAttributes("image").caption
+                  : "",
+              credit:
+                typeof editor.getAttributes("image").credit === "string"
+                  ? editor.getAttributes("image").credit
+                  : "",
+              layout: ["normal", "wide", "full"].includes(
+                editor.getAttributes("image").layout,
+              )
+                ? editor.getAttributes("image").layout
+                : "normal",
+            }}
           />
         ) : null}
 

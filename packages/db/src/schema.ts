@@ -312,6 +312,8 @@ export const articleRevisions = pgTable(
       onDelete: "restrict",
     }),
     coverAlt: text("cover_alt").notNull(),
+    coverCaption: text("cover_caption"),
+    coverCredit: text("cover_credit"),
     body: jsonb("body").$type<unknown>().notNull(),
     seo: jsonb("seo").$type<unknown>(),
     createdByMembershipId: uuid("created_by_membership_id").references(
@@ -439,6 +441,8 @@ export const publishedArticles = pgView("published_articles", {
   byline: varchar("byline", { length: 80 }).notNull(),
   coverObjectKey: text("cover_object_key").notNull(),
   coverAlt: text("cover_alt").notNull(),
+  coverCaption: text("cover_caption"),
+  coverCredit: text("cover_credit"),
   body: jsonb("body").$type<unknown>().notNull(),
   bodyMedia: jsonb("body_media")
     .$type<

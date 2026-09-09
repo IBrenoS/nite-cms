@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const allowedLinkProtocols = new Set(["http:", "https:", "mailto:"]);
 
-function isAllowedEditorialLink(href: string) {
+export function isAllowedEditorialLink(href: string) {
   if (href.startsWith("/")) {
     return !href.startsWith("//") && !href.includes("\\");
   }
@@ -45,15 +45,27 @@ type EditorialHeadingNode = {
   attrs: { level: 2 | 3 };
   content: EditorialTextNode[];
 };
+export const editorialImageLayoutValues = ["normal", "wide", "full"] as const;
+export type EditorialImageLayout = (typeof editorialImageLayoutValues)[number];
 type StoredImageAttrs = { mediaId: string; alt: string };
+type StoredImageV2Attrs = StoredImageAttrs & {
+  caption?: string;
+  credit?: string;
+  layout: EditorialImageLayout;
+};
 type ResolvedImageAttrs = StoredImageAttrs & {
   src: string;
   width: number;
   height: number;
 };
+type ResolvedImageV2Attrs = StoredImageV2Attrs & ResolvedImageAttrs;
 type EditorialImageNode = {
   type: "image";
-  attrs: StoredImageAttrs | ResolvedImageAttrs;
+  attrs:
+    | StoredImageAttrs
+    | ResolvedImageAttrs
+    | StoredImageV2Attrs
+    | ResolvedImageV2Attrs;
 };
 type EditorialListItemNode = {
   type: "listItem";
@@ -84,6 +96,14 @@ export type EditorialDocumentV1 = {
   type: "doc";
   content: EditorialContentNode[];
 };
+
+export type EditorialDocumentV2 = {
+  schemaVersion: 2;
+  type: "doc";
+  content: EditorialContentNode[];
+};
+
+export type EditorialDocument = EditorialDocumentV1 | EditorialDocumentV2;
 
 const textNodeSchema: z.ZodType<EditorialTextNode> = z
   .object({
@@ -116,40 +136,63 @@ const resolvedImageAttrsSchema = storedImageAttrsSchema
     height: z.number().int().positive(),
   })
   .strict();
-const imageNodeSchema: z.ZodType<EditorialImageNode> = z
+const optionalCaptionSchema = z.string().trim().min(1).max(280).optional();
+const optionalCreditSchema = z.string().trim().min(1).max(160).optional();
+const storedImageV2AttrsSchema = storedImageAttrsSchema
+  .extend({
+    caption: optionalCaptionSchema,
+    credit: optionalCreditSchema,
+    layout: z.enum(editorialImageLayoutValues),
+  })
+  .strict();
+const resolvedImageV2AttrsSchema = storedImageV2AttrsSchema
+  .extend({
+    src: z.url(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  })
+  .strict();
+const imageNodeV1Schema: z.ZodType<EditorialImageNode> = z
   .object({
     type: z.literal("image"),
     attrs: z.union([storedImageAttrsSchema, resolvedImageAttrsSchema]),
   })
   .strict();
-
-const listItemNodeSchema: z.ZodType<EditorialListItemNode> = z
+const imageNodeV2Schema: z.ZodType<EditorialImageNode> = z
   .object({
-    type: z.literal("listItem"),
-    content: z.array(z.lazy(() => editorialContentNodeSchema)).min(1),
-  })
-  .strict();
-const bulletListNodeSchema: z.ZodType<EditorialBulletListNode> = z
-  .object({
-    type: z.literal("bulletList"),
-    content: z.array(listItemNodeSchema).min(1),
-  })
-  .strict();
-const orderedListNodeSchema: z.ZodType<EditorialOrderedListNode> = z
-  .object({
-    type: z.literal("orderedList"),
-    content: z.array(listItemNodeSchema).min(1),
-  })
-  .strict();
-const blockquoteNodeSchema: z.ZodType<EditorialBlockquoteNode> = z
-  .object({
-    type: z.literal("blockquote"),
-    content: z.array(z.lazy(() => editorialContentNodeSchema)).min(1),
+    type: z.literal("image"),
+    attrs: z.union([storedImageV2AttrsSchema, resolvedImageV2AttrsSchema]),
   })
   .strict();
 
-const editorialContentNodeSchema: z.ZodType<EditorialContentNode> = z.lazy(
-  (): z.ZodType<EditorialContentNode> =>
+function createEditorialContentNodeSchema(
+  imageNodeSchema: z.ZodType<EditorialImageNode>,
+): z.ZodType<EditorialContentNode> {
+  const listItemNodeSchema: z.ZodType<EditorialListItemNode> = z
+    .object({
+      type: z.literal("listItem"),
+      content: z.array(z.lazy(() => contentNodeSchema)).min(1),
+    })
+    .strict();
+  const bulletListNodeSchema: z.ZodType<EditorialBulletListNode> = z
+    .object({
+      type: z.literal("bulletList"),
+      content: z.array(listItemNodeSchema).min(1),
+    })
+    .strict();
+  const orderedListNodeSchema: z.ZodType<EditorialOrderedListNode> = z
+    .object({
+      type: z.literal("orderedList"),
+      content: z.array(listItemNodeSchema).min(1),
+    })
+    .strict();
+  const blockquoteNodeSchema: z.ZodType<EditorialBlockquoteNode> = z
+    .object({
+      type: z.literal("blockquote"),
+      content: z.array(z.lazy(() => contentNodeSchema)).min(1),
+    })
+    .strict();
+  const contentNodeSchema: z.ZodType<EditorialContentNode> = z.lazy(() =>
     z.union([
       paragraphNodeSchema,
       headingNodeSchema,
@@ -158,15 +201,35 @@ const editorialContentNodeSchema: z.ZodType<EditorialContentNode> = z.lazy(
       blockquoteNodeSchema,
       imageNodeSchema,
     ]),
-);
+  );
+  return contentNodeSchema;
+}
+
+const editorialContentNodeV1Schema =
+  createEditorialContentNodeSchema(imageNodeV1Schema);
+const editorialContentNodeV2Schema =
+  createEditorialContentNodeSchema(imageNodeV2Schema);
 
 export const editorialDocumentV1Schema: z.ZodType<EditorialDocumentV1> = z
   .object({
     schemaVersion: z.literal(1),
     type: z.literal("doc"),
-    content: z.array(editorialContentNodeSchema).min(1),
+    content: z.array(editorialContentNodeV1Schema).min(1),
   })
   .strict();
+
+export const editorialDocumentV2Schema: z.ZodType<EditorialDocumentV2> = z
+  .object({
+    schemaVersion: z.literal(2),
+    type: z.literal("doc"),
+    content: z.array(editorialContentNodeV2Schema).min(1),
+  })
+  .strict();
+
+export const editorialDocumentSchema: z.ZodType<EditorialDocument> = z.union([
+  editorialDocumentV1Schema,
+  editorialDocumentV2Schema,
+]);
 
 function resolvedImagePaths(
   nodes: EditorialContentNode[],
@@ -217,8 +280,31 @@ export const persistedEditorialDocumentV1Schema =
     }
   });
 
+export const storableEditorialDocumentSchema =
+  editorialDocumentSchema.superRefine((document, context) => {
+    resolvedImagePaths(document.content).forEach((path) => {
+      context.addIssue({
+        code: "custom",
+        path: [...path, "attrs"],
+        message: "A resolução pública de imagem não pode ser persistida.",
+      });
+    });
+  });
+
+export const persistedEditorialDocumentSchema =
+  storableEditorialDocumentSchema.superRefine((document, context) => {
+    if (!hasMeaningfulContent(document.content)) {
+      context.addIssue({
+        code: "custom",
+        path: ["content"],
+        message:
+          "O documento editorial exige conteúdo significativo ou uma imagem.",
+      });
+    }
+  });
+
 export function getEditorialImageMediaIds(input: unknown): string[] {
-  const document = persistedEditorialDocumentV1Schema.parse(input);
+  const document = persistedEditorialDocumentSchema.parse(input);
   const mediaIds: string[] = [];
   function collect(nodes: EditorialContentNode[]) {
     nodes.forEach((node) => {
@@ -318,7 +404,7 @@ function normalizeInlineNode(input: unknown): unknown {
   };
 }
 
-function normalizeTiptapNode(input: unknown): unknown {
+function normalizeTiptapNode(input: unknown, schemaVersion: 1 | 2): unknown {
   const node = tiptapNodeSchema.parse(input);
   if (node.type === "paragraph") {
     return {
@@ -339,19 +425,25 @@ function normalizeTiptapNode(input: unknown): unknown {
   if (node.type === "blockquote") {
     return {
       type: "blockquote",
-      content: requiredContent(node).map(normalizeTiptapNode),
+      content: requiredContent(node).map((child) =>
+        normalizeTiptapNode(child, schemaVersion),
+      ),
     };
   }
   if (node.type === "bulletList" || node.type === "orderedList") {
     return {
       type: node.type,
-      content: requiredContent(node).map(normalizeTiptapNode),
+      content: requiredContent(node).map((child) =>
+        normalizeTiptapNode(child, schemaVersion),
+      ),
     };
   }
   if (node.type === "listItem") {
     return {
       type: "listItem",
-      content: requiredContent(node).map(normalizeTiptapNode),
+      content: requiredContent(node).map((child) =>
+        normalizeTiptapNode(child, schemaVersion),
+      ),
     };
   }
   if (node.type === "image") {
@@ -363,11 +455,30 @@ function normalizeTiptapNode(input: unknown): unknown {
       width: attrs.width ?? undefined,
       height: attrs.height ?? undefined,
     };
+    const caption = optionalCaptionSchema.parse(
+      typeof attrs.caption === "string" && attrs.caption.trim()
+        ? attrs.caption
+        : undefined,
+    );
+    const credit = optionalCreditSchema.parse(
+      typeof attrs.credit === "string" && attrs.credit.trim()
+        ? attrs.credit
+        : undefined,
+    );
     return {
       type: "image",
       attrs: {
         mediaId,
         alt,
+        ...(schemaVersion === 2
+          ? {
+              ...(caption ? { caption } : {}),
+              ...(credit ? { credit } : {}),
+              layout: z
+                .enum(editorialImageLayoutValues)
+                .parse(attrs.layout ?? "normal"),
+            }
+          : {}),
         ...(resolved.src !== undefined ||
         resolved.width !== undefined ||
         resolved.height !== undefined
@@ -400,12 +511,28 @@ export function tiptapDocumentToEditorialDocumentV1(
   return editorialDocumentV1Schema.parse({
     schemaVersion: 1,
     type: "doc",
-    content: content.map(normalizeTiptapNode),
+    content: content.map((node) => normalizeTiptapNode(node, 1)),
+  });
+}
+
+export function tiptapDocumentToEditorialDocumentV2(
+  input: unknown,
+): EditorialDocumentV2 {
+  const document = tiptapDocumentSchema.parse(input);
+  const content = [...document.content];
+  while (isTrailingEmptyParagraph(content.at(-1))) content.pop();
+  if (content.length === 0) {
+    content.push({ type: "paragraph", content: [] });
+  }
+  return editorialDocumentV2Schema.parse({
+    schemaVersion: 2,
+    type: "doc",
+    content: content.map((node) => normalizeTiptapNode(node, 2)),
   });
 }
 
 export function calculateEditorialReadTime(input: unknown) {
-  const document = editorialDocumentV1Schema.parse(input);
+  const document = editorialDocumentSchema.parse(input);
   const words = document.content
     .flatMap(visibleText)
     .flatMap((text) => text.trim().split(/\s+/u))
@@ -458,9 +585,9 @@ function resolveNodeMedia(
 export function resolveEditorialDocumentMedia(
   input: unknown,
   media: PublicMedia,
-): EditorialDocumentV1 {
-  const document = persistedEditorialDocumentV1Schema.parse(input);
-  return editorialDocumentV1Schema.parse({
+): EditorialDocument {
+  const document = persistedEditorialDocumentSchema.parse(input);
+  return editorialDocumentSchema.parse({
     ...document,
     content: document.content.map((node) => resolveNodeMedia(node, media)),
   });
