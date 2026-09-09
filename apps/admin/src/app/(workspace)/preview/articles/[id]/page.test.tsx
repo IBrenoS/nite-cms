@@ -114,6 +114,9 @@ describe("Preview no CMS", () => {
       screen.getByText("Equipe durante a revisão editorial."),
     ).toBeVisible();
     expect(screen.getByText("Foto: NITE")).toBeVisible();
+    expect(screen.getByText("Conteúdo atual.").closest("div")).toHaveClass(
+      "max-w-[45rem]",
+    );
   });
 
   it("não recua para a revisão salva quando o snapshot é inválido", async () => {

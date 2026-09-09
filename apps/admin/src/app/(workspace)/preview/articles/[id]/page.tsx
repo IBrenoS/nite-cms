@@ -145,7 +145,7 @@ export default async function ArticlePreviewPage({
 
         <NewsArticleBody
           document={result.revision.body}
-          className="mx-auto grid w-full max-w-3xl gap-7 text-lg leading-9 text-nite-text-secondary"
+          className="mx-auto grid w-full max-w-[45rem] gap-7 text-lg leading-9 text-nite-text-secondary"
         />
       </article>
     </main>
