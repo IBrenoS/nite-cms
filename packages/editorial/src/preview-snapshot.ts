@@ -16,7 +16,7 @@ import {
   EditorialConflictError,
   validateEditorialInputForPublication,
 } from "./editorial";
-import { getEditorialImageMediaIds } from "./editor-document";
+import { getEditorialMediaIds } from "./editor-document";
 import type { CmsDatabase } from "./identity";
 
 export const PREVIEW_SNAPSHOT_DURATION_MILLISECONDS = 10 * 60 * 1000;
@@ -68,10 +68,7 @@ export async function createEditorialPreviewSnapshot<
       })
       .returning();
     if (!snapshot) throw new EditorialConflictError();
-    const mediaIds = [
-      input.coverMediaId,
-      ...getEditorialImageMediaIds(input.body),
-    ];
+    const mediaIds = [input.coverMediaId, ...getEditorialMediaIds(input.body)];
     await transaction
       .insert(previewMediaReferences)
       .values(

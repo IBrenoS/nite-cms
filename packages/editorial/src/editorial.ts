@@ -12,8 +12,9 @@ import {
 } from "./article-schema";
 import {
   calculateEditorialReadTime,
+  getEditorialMediaIds,
   getEditorialImageMediaIds,
-  getStorableEditorialImageMediaIds,
+  getStorableEditorialMediaIds,
   persistedEditorialDocumentSchema,
 } from "./editor-document";
 import {
@@ -135,7 +136,7 @@ async function registerArticleMediaReferences<
 ) {
   const mediaIds = [
     ...(input.coverMediaId ? [input.coverMediaId] : []),
-    ...getStorableEditorialImageMediaIds(input.body),
+    ...getStorableEditorialMediaIds(input.body),
   ];
   const uniqueMediaIds = [...new Set(mediaIds)];
   if (uniqueMediaIds.length === 0) return;
@@ -382,30 +383,95 @@ export async function validateEditorialInputForPublication<
   }
   const publishable = editorialPublishableInputSchema.parse(command.input);
   const [cover] = await database
-    .select({ status: mediaAssets.status })
+    .select({ status: mediaAssets.status, mediaKind: mediaAssets.mediaKind })
     .from(mediaAssets)
     .where(eq(mediaAssets.id, publishable.coverMediaId))
     .limit(1)
     .for("update");
-  if (cover?.status !== "ready") {
+  if (cover?.status !== "ready" || cover.mediaKind !== "image") {
     throw new EditorialPublicationError(
       "A capa ainda não terminou de ser processada.",
     );
   }
-  const inlineMediaIds = getEditorialImageMediaIds(publishable.body);
-  if (inlineMediaIds.length > 0) {
-    const inlineAssets = await database
-      .select({ id: mediaAssets.id, status: mediaAssets.status })
+  const referencedMediaIds = getEditorialMediaIds(publishable.body);
+  if (referencedMediaIds.length > 0) {
+    const referencedAssets = await database
+      .select({
+        id: mediaAssets.id,
+        status: mediaAssets.status,
+        mediaKind: mediaAssets.mediaKind,
+        durationMs: mediaAssets.durationMs,
+        hasAudio: mediaAssets.hasAudio,
+      })
       .from(mediaAssets)
-      .where(inArray(mediaAssets.id, inlineMediaIds))
+      .where(inArray(mediaAssets.id, referencedMediaIds))
       .for("update");
     if (
-      inlineAssets.length !== inlineMediaIds.length ||
-      inlineAssets.some((asset) => asset.status !== "ready")
+      referencedAssets.length !== referencedMediaIds.length ||
+      referencedAssets.some((asset) => asset.status !== "ready")
     ) {
+      const onlyImages =
+        getEditorialImageMediaIds(publishable.body).length ===
+        referencedMediaIds.length;
       throw new EditorialPublicationError(
-        "Todas as imagens inline devem estar processadas antes de publicar.",
+        onlyImages
+          ? "Todas as imagens inline devem estar processadas antes de publicar."
+          : "Todas as mídias editoriais devem estar processadas antes de publicar.",
       );
+    }
+    const assetById = new Map(
+      referencedAssets.map((asset) => [asset.id, asset] as const),
+    );
+    for (const imageMediaId of getEditorialImageMediaIds(publishable.body)) {
+      if (assetById.get(imageMediaId)?.mediaKind !== "image") {
+        throw new EditorialPublicationError(
+          "Uma imagem inline possui tipo de mídia incompatível.",
+        );
+      }
+    }
+    const videos =
+      publishable.body.schemaVersion === 3
+        ? publishable.body.content.filter((node) => node.type === "video")
+        : [];
+    const autoplayVideos = videos.filter(
+      (node) => node.attrs.playbackMode === "autoplay",
+    );
+    if (autoplayVideos.length > 3) {
+      throw new EditorialPublicationError(
+        "A matéria pode ter no máximo 3 vídeos em autoplay.",
+      );
+    }
+    for (const video of videos) {
+      const videoAsset = assetById.get(video.attrs.mediaId);
+      if (videoAsset?.mediaKind !== "video") {
+        throw new EditorialPublicationError(
+          "Um vídeo possui tipo de mídia incompatível.",
+        );
+      }
+      if (
+        video.attrs.playbackMode === "autoplay" &&
+        (videoAsset.durationMs ?? 0) > 60_000
+      ) {
+        throw new EditorialPublicationError(
+          "Vídeos em autoplay devem ter no máximo 60 segundos.",
+        );
+      }
+      if (video.attrs.captionsMediaId) {
+        if (
+          assetById.get(video.attrs.captionsMediaId)?.mediaKind !== "captions"
+        ) {
+          throw new EditorialPublicationError(
+            "A legenda possui tipo de mídia incompatível.",
+          );
+        }
+      } else if (
+        video.attrs.playbackMode === "manual" &&
+        videoAsset.hasAudio === true
+      ) {
+        throw new EditorialPublicationError(
+          "Uma legenda é obrigatória para vídeo manual com áudio.",
+        );
+      }
     }
   }
   return publishable;

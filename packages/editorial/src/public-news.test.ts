@@ -44,7 +44,9 @@ const row = {
   },
   bodyMedia: {
     "30000000-0000-4000-8000-000000000101": {
+      mediaKind: "image",
       objectKey: "news/imagem editorial.webp",
+      mimeType: "image/webp",
       width: 1200,
       height: 675,
     },
@@ -143,6 +145,77 @@ describe("DTO público do CMS", () => {
             caption: "Estudantes durante a oficina.",
             credit: "Foto: Acervo NITE",
             layout: "full",
+          },
+        },
+      ],
+    });
+  });
+
+  it("resolve vídeo e WebVTT do body_media para o contrato público V3", () => {
+    const videoMediaId = "30000000-0000-4000-8000-000000000301";
+    const captionsMediaId = "30000000-0000-4000-8000-000000000302";
+    const article = mapPublishedArticle(
+      {
+        ...row,
+        contentSchemaVersion: 3,
+        body: {
+          schemaVersion: 3,
+          type: "doc",
+          content: [
+            {
+              type: "video",
+              attrs: {
+                mediaId: videoMediaId,
+                captionsMediaId,
+                playbackMode: "manual",
+                layout: "wide",
+              },
+            },
+          ],
+        },
+        bodyMedia: {
+          [videoMediaId]: {
+            mediaKind: "video",
+            objectKey: "news/video editorial.mp4",
+            mimeType: "video/mp4",
+            width: 1920,
+            height: 1080,
+            durationMs: 42_500,
+            videoCodec: "avc1.640028",
+            hasAudio: true,
+          },
+          [captionsMediaId]: {
+            mediaKind: "captions",
+            objectKey: "news/video editorial.pt-BR.vtt",
+            mimeType: "text/vtt",
+          },
+        },
+      },
+      "https://media.nite.test/public/",
+    );
+
+    expect(article.body).toEqual({
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        {
+          type: "video",
+          attrs: {
+            mediaId: videoMediaId,
+            captionsMediaId,
+            playbackMode: "manual",
+            layout: "wide",
+            src: "https://media.nite.test/public/news/video%20editorial.mp4",
+            width: 1920,
+            height: 1080,
+            durationSeconds: 42.5,
+            mimeType: "video/mp4",
+            captions: {
+              src: "https://media.nite.test/public/news/video%20editorial.pt-BR.vtt",
+              mimeType: "text/vtt",
+              srclang: "pt-BR",
+              label: "Português",
+            },
           },
         },
       ],

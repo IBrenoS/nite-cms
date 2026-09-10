@@ -43,11 +43,11 @@ describe("formulário editorial", () => {
       byline: "",
       coverMediaId: null,
       coverAlt: "",
-      body: { schemaVersion: 2 },
+      body: { schemaVersion: 3 },
     });
   });
 
-  it("preserva legenda, crédito e largura de imagem ao salvar como V2", () => {
+  it("preserva legenda, crédito e largura de imagem ao salvar como V3", () => {
     const parsed = parseEditorialFormData(
       formData({
         coverCaption: "Abertura da semana acadêmica.",
@@ -74,7 +74,7 @@ describe("formulário editorial", () => {
       coverCaption: "Abertura da semana acadêmica.",
       coverCredit: "Foto: Comunicação NITE",
       body: {
-        schemaVersion: 2,
+        schemaVersion: 3,
         content: [
           {
             attrs: {

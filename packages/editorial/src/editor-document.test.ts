@@ -5,12 +5,16 @@ import {
   editorialDocumentSchema,
   editorialDocumentV1Schema,
   editorialDocumentV2Schema,
+  editorialDocumentV3Schema,
+  getEditorialMediaIds,
+  getStorableEditorialMediaIds,
   persistedEditorialDocumentSchema,
   persistedEditorialDocumentV1Schema,
   storableEditorialDocumentV1Schema,
   resolveEditorialDocumentMedia,
   tiptapDocumentToEditorialDocumentV1,
   tiptapDocumentToEditorialDocumentV2,
+  tiptapDocumentToEditorialDocumentV3,
 } from "@nite/editorial";
 
 const imageMediaId = "30000000-0000-4000-8000-000000000101";
@@ -439,6 +443,175 @@ describe("documento editorial v2", () => {
     });
     expect(() => persistedEditorialDocumentSchema.parse(resolved)).toThrow(
       /não pode ser persistida/i,
+    );
+  });
+});
+
+describe("documento editorial v3", () => {
+  const videoMediaId = "30000000-0000-4000-8000-000000000301";
+  const captionsMediaId = "30000000-0000-4000-8000-000000000302";
+  const storedVideo = {
+    type: "video",
+    attrs: {
+      mediaId: videoMediaId,
+      captionsMediaId,
+      playbackMode: "manual",
+      layout: "wide",
+      description: "Demonstração do laboratório de inovação.",
+      caption: "Apresentação do projeto.",
+      credit: "Vídeo: NITE",
+    },
+  } as const;
+  const storedDocument = {
+    schemaVersion: 3,
+    type: "doc",
+    content: [storedVideo],
+  } as const;
+
+  it("preserva V1/V2 e aceita vídeo armazenado somente no topo de V3", () => {
+    expect(editorialDocumentSchema.parse(document)).toEqual(document);
+    expect(
+      editorialDocumentSchema.parse({
+        schemaVersion: 2,
+        type: "doc",
+        content: [
+          {
+            type: "image",
+            attrs: {
+              mediaId: imageMediaId,
+              alt: "Pessoas no laboratório",
+              layout: "normal",
+            },
+          },
+        ],
+      }),
+    ).toBeDefined();
+    expect(editorialDocumentV3Schema.parse(storedDocument)).toEqual(
+      storedDocument,
+    );
+    expect(() =>
+      editorialDocumentV3Schema.parse({
+        schemaVersion: 3,
+        type: "doc",
+        content: [
+          {
+            type: "blockquote",
+            content: [storedVideo],
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("separa atributos armazenados da resolução pública do vídeo", () => {
+    const resolved = resolveEditorialDocumentMedia(storedDocument, {
+      [videoMediaId]: {
+        mediaKind: "video",
+        src: "https://media.nite.test/news/video.mp4",
+        mimeType: "video/mp4",
+        width: 1920,
+        height: 1080,
+        durationSeconds: 42.5,
+      },
+      [captionsMediaId]: {
+        mediaKind: "captions",
+        src: "https://media.nite.test/news/video.pt-BR.vtt",
+        mimeType: "text/vtt",
+      },
+    });
+
+    expect(resolved).toEqual({
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        {
+          ...storedVideo,
+          attrs: {
+            ...storedVideo.attrs,
+            src: "https://media.nite.test/news/video.mp4",
+            width: 1920,
+            height: 1080,
+            durationSeconds: 42.5,
+            mimeType: "video/mp4",
+            captions: {
+              src: "https://media.nite.test/news/video.pt-BR.vtt",
+              mimeType: "text/vtt",
+              srclang: "pt-BR",
+              label: "Português",
+            },
+          },
+        },
+      ],
+    });
+    expect(() => persistedEditorialDocumentSchema.parse(resolved)).toThrow(
+      /não pode ser persistida/i,
+    );
+  });
+
+  it("coleta imagens, vídeos e legendas sem duplicar referências", () => {
+    const input = {
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        storedVideo,
+        storedVideo,
+        {
+          type: "image",
+          attrs: {
+            mediaId: imageMediaId,
+            alt: "Pessoas no laboratório",
+            layout: "normal",
+          },
+        },
+      ],
+    };
+
+    expect(getEditorialMediaIds(input)).toEqual([
+      videoMediaId,
+      captionsMediaId,
+      imageMediaId,
+    ]);
+    expect(getStorableEditorialMediaIds(input)).toEqual([
+      videoMediaId,
+      captionsMediaId,
+      imageMediaId,
+    ]);
+  });
+
+  it("normaliza novos documentos Tiptap como V3 e considera vídeo significativo", () => {
+    expect(
+      tiptapDocumentToEditorialDocumentV3({
+        type: "doc",
+        content: [
+          {
+            type: "video",
+            attrs: {
+              mediaId: videoMediaId,
+              playbackMode: "autoplay",
+              layout: "full",
+              description: "  Visão geral do projeto.  ",
+              caption: " ",
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        {
+          type: "video",
+          attrs: {
+            mediaId: videoMediaId,
+            playbackMode: "autoplay",
+            layout: "full",
+            description: "Visão geral do projeto.",
+          },
+        },
+      ],
+    });
+    expect(persistedEditorialDocumentSchema.parse(storedDocument)).toEqual(
+      storedDocument,
     );
   });
 });

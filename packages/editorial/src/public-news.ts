@@ -4,7 +4,10 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
 import { publishedArticles, type PublishedArticleRow } from "@nite/cms-db";
 import { newsArticleSchema, type NewsArticle } from "./article-schema";
-import { resolveEditorialDocumentMedia } from "./editor-document";
+import {
+  resolveEditorialDocumentMedia,
+  type EditorialPublicMedia,
+} from "./editor-document";
 
 type PublicNewsDatabase<TQueryResult extends PgQueryResultHKT> = Pick<
   PgDatabase<TQueryResult, typeof import("@nite/cms-db/schema")>,
@@ -34,15 +37,47 @@ export function mapPublishedArticle(
   row: PublishedArticleRow,
   mediaBaseUrl: string,
 ): NewsArticle {
-  const bodyMedia = Object.fromEntries(
-    Object.entries(row.bodyMedia).map(([mediaId, media]) => [
-      mediaId,
-      {
-        src: buildPublicMediaUrl(mediaBaseUrl, media.objectKey),
-        width: media.width,
-        height: media.height,
-      },
-    ]),
+  const bodyMedia: EditorialPublicMedia = Object.fromEntries(
+    Object.entries(row.bodyMedia).map(([mediaId, media]) => {
+      const src = buildPublicMediaUrl(mediaBaseUrl, media.objectKey);
+      if (media.mediaKind === "captions") {
+        if (media.mimeType !== "text/vtt") {
+          throw new Error("A legenda pública possui MIME incompatível.");
+        }
+        return [
+          mediaId,
+          { mediaKind: "captions", src, mimeType: media.mimeType },
+        ];
+      }
+      if (media.width === undefined || media.height === undefined) {
+        throw new Error("A mídia pública não possui dimensões válidas.");
+      }
+      if (media.mediaKind === "video") {
+        if (media.mimeType !== "video/mp4" || media.durationMs === undefined) {
+          throw new Error("O vídeo público possui metadados incompatíveis.");
+        }
+        return [
+          mediaId,
+          {
+            mediaKind: "video",
+            src,
+            mimeType: media.mimeType,
+            width: media.width,
+            height: media.height,
+            durationSeconds: media.durationMs / 1000,
+          },
+        ];
+      }
+      return [
+        mediaId,
+        {
+          mediaKind: "image",
+          src,
+          width: media.width,
+          height: media.height,
+        },
+      ];
+    }),
   );
 
   return newsArticleSchema.parse({

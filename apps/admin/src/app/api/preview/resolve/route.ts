@@ -6,7 +6,10 @@ import { getDatabase } from "@nite/cms-db/database";
 import { readAdminConfiguration } from "@/lib/auth-config";
 import { getPublicMediaUrl } from "@/lib/media-storage";
 import { readPreviewConfiguration } from "@/lib/preview-config";
-import { resolvePreviewRequest } from "@/lib/preview-resolver";
+import {
+  resolvePreviewRequest,
+  type PreviewMedia,
+} from "@/lib/preview-resolver";
 import { PreviewTokenError, verifyPreviewToken } from "@/lib/preview-token";
 
 const privateHeaders = { "Cache-Control": "private, no-store" };
@@ -75,22 +78,49 @@ export async function POST(request: Request) {
         .select()
         .from(mediaAssets)
         .where(inArray(mediaAssets.id, ids));
-      return assets.flatMap((asset) =>
-        asset.status === "ready" &&
-        asset.publicObjectKey &&
-        asset.width &&
-        asset.height
-          ? [
-              {
-                id: asset.id,
-                status: "ready" as const,
-                publicObjectKey: asset.publicObjectKey,
-                width: asset.width,
-                height: asset.height,
-              },
-            ]
-          : [],
-      );
+      const readyAssets: PreviewMedia[] = [];
+      for (const asset of assets) {
+        if (asset.status !== "ready" || !asset.publicObjectKey) continue;
+        if (asset.mediaKind === "captions" && asset.mimeType === "text/vtt") {
+          readyAssets.push({
+            id: asset.id,
+            mediaKind: asset.mediaKind,
+            status: "ready",
+            publicObjectKey: asset.publicObjectKey,
+            mimeType: asset.mimeType,
+          });
+          continue;
+        }
+        if (!asset.width || !asset.height) continue;
+        if (
+          asset.mediaKind === "video" &&
+          asset.mimeType === "video/mp4" &&
+          asset.durationMs
+        ) {
+          readyAssets.push({
+            id: asset.id,
+            mediaKind: asset.mediaKind,
+            status: "ready",
+            publicObjectKey: asset.publicObjectKey,
+            mimeType: asset.mimeType,
+            width: asset.width,
+            height: asset.height,
+            durationMs: asset.durationMs,
+          });
+          continue;
+        }
+        if (asset.mediaKind !== "image") continue;
+        readyAssets.push({
+          id: asset.id,
+          mediaKind: asset.mediaKind,
+          status: "ready",
+          publicObjectKey: asset.publicObjectKey,
+          mimeType: asset.mimeType,
+          width: asset.width,
+          height: asset.height,
+        });
+      }
+      return readyAssets;
     },
     getPublicMediaUrl,
   });

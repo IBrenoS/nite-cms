@@ -25,13 +25,13 @@ describe("persistencia editorial", () => {
     await client.close();
   });
 
-  it("aceita documentos editoriais V1 e V2 no constraint raiz", async () => {
+  it("aceita documentos editoriais V1, V2 e V3 no constraint raiz", async () => {
     const articleId = "10000000-0000-4000-8000-000000000099";
     await client.query(
       `insert into articles (id, slug) values ($1, 'documentos-v1-v2')`,
       [articleId],
     );
-    for (const schemaVersion of [1, 2]) {
+    for (const schemaVersion of [1, 2, 3]) {
       await expect(
         client.query(
           `insert into article_revisions
@@ -151,7 +151,13 @@ describe("persistencia editorial", () => {
       cover_credit: string | null;
       body_media: Record<
         string,
-        { objectKey: string; width: number; height: number }
+        {
+          mediaKind: string;
+          objectKey: string;
+          mimeType: string;
+          width: number;
+          height: number;
+        }
       >;
     }>(
       "select slug, title, public, content_state, cover_object_key, cover_caption, cover_credit, body_media from published_articles",
@@ -168,7 +174,9 @@ describe("persistencia editorial", () => {
         cover_credit: "Foto: Comunicação NITE",
         body_media: {
           [bodyMediaId]: {
+            mediaKind: "image",
             objectKey: "news/imagem.webp",
+            mimeType: "image/webp",
             width: 800,
             height: 600,
           },
@@ -320,7 +328,13 @@ describe("persistencia editorial", () => {
       slug: string;
       body_media: Record<
         string,
-        { objectKey: string; width: number; height: number }
+        {
+          mediaKind: string;
+          objectKey: string;
+          mimeType: string;
+          width: number;
+          height: number;
+        }
       >;
     }>("select slug, body_media from published_articles order by slug");
 
@@ -329,7 +343,9 @@ describe("persistencia editorial", () => {
         slug: "imagem-aninhada-pronta",
         body_media: {
           [readyBodyMediaId]: {
+            mediaKind: "image",
             objectKey: "news/imagem-aninhada.webp",
+            mimeType: "image/webp",
             width: 800,
             height: 600,
           },
@@ -625,6 +641,169 @@ describe("persistencia editorial", () => {
     await expect(
       client.query("select status from media_assets where id = $1", [mediaId]),
     ).resolves.toMatchObject({ rows: [{ status: "ready" }] });
+  });
+
+  it("aplica metadados obrigatórios e proibidos conforme o tipo de mídia", async () => {
+    await expect(
+      client.query(`
+        insert into media_assets
+          (staging_object_key, public_object_key, media_kind, mime_type,
+           byte_size, width, height, duration_ms, video_codec, has_audio,
+           object_etag, status)
+        values
+          ('incoming/video-valido/original', 'news/video-valido.mp4', 'video',
+           'video/mp4', 1024, 1920, 1080, 60000, 'avc1.640028', true,
+           'etag-video-valido', 'ready')
+      `),
+    ).resolves.toBeDefined();
+    await expect(
+      client.query(`
+        insert into media_assets
+          (staging_object_key, public_object_key, media_kind, mime_type,
+           byte_size, checksum_sha256, status)
+        values
+          ('incoming/legenda-valida/original', 'news/legenda-valida.vtt',
+           'captions', 'text/vtt', 128,
+           'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+           'ready')
+      `),
+    ).resolves.toBeDefined();
+    await expect(
+      client.query(`
+        insert into media_assets
+          (staging_object_key, public_object_key, media_kind, mime_type,
+           byte_size, width, height, duration_ms, video_codec, has_audio,
+           status)
+        values
+          ('incoming/video-sem-etag/original', 'news/video-sem-etag.mp4',
+           'video', 'video/mp4', 1024, 1920, 1080, 1000, 'avc1', false,
+           'ready')
+      `),
+    ).rejects.toThrow(/media_assets_ready_metadata_check/);
+    await expect(
+      client.query(`
+        insert into media_assets
+          (staging_object_key, media_kind, mime_type, byte_size, width, height,
+           status)
+        values
+          ('incoming/legenda-com-dimensoes/original', 'captions', 'text/vtt',
+           128, 640, 480, 'pending')
+      `),
+    ).rejects.toThrow(/media_assets_kind_metadata_check/);
+  });
+
+  it("resolve imagem, vídeo e legenda compatíveis na view publicada V3", async () => {
+    const articleId = "10000000-0000-4000-8000-000000000081";
+    const revisionId = "20000000-0000-4000-8000-000000000081";
+    const coverId = "30000000-0000-4000-8000-000000000081";
+    const imageId = "30000000-0000-4000-8000-000000000082";
+    const videoId = "30000000-0000-4000-8000-000000000083";
+    const captionsId = "30000000-0000-4000-8000-000000000084";
+    await client.query(
+      `insert into media_assets
+        (id, staging_object_key, public_object_key, media_kind, mime_type,
+         byte_size, width, height, checksum_sha256, status)
+       values
+        ($1, 'incoming/view-cover/original', 'news/view-cover.webp', 'image',
+         'image/webp', 2048, 1200, 675,
+         '1111111111111111111111111111111111111111111111111111111111111111',
+         'ready'),
+        ($2, 'incoming/view-image/original', 'news/view-image.webp', 'image',
+         'image/webp', 1024, 800, 600,
+         '2222222222222222222222222222222222222222222222222222222222222222',
+         'ready')`,
+      [coverId, imageId],
+    );
+    await client.query(
+      `insert into media_assets
+        (id, staging_object_key, public_object_key, media_kind, mime_type,
+         byte_size, width, height, duration_ms, video_codec, has_audio,
+         object_etag, status)
+       values
+        ($1, 'incoming/view-video/original', 'news/view-video.mp4', 'video',
+         'video/mp4', 8192, 1920, 1080, 42500, 'avc1.640028', true,
+         'etag-view-video', 'ready')`,
+      [videoId],
+    );
+    await client.query(
+      `insert into media_assets
+        (id, staging_object_key, public_object_key, media_kind, mime_type,
+         byte_size, checksum_sha256, status)
+       values
+        ($1, 'incoming/view-captions/original', 'news/view-captions.vtt',
+         'captions', 'text/vtt', 256,
+         '3333333333333333333333333333333333333333333333333333333333333333',
+         'ready')`,
+      [captionsId],
+    );
+    await client.query(
+      "insert into articles (id, slug, status) values ($1, 'video-publicado-v3', 'draft')",
+      [articleId],
+    );
+    await client.query(
+      `insert into article_revisions
+        (id, article_id, version, content_schema_version, title, summary,
+         category, read_time_minutes, byline, cover_media_id, cover_alt, body)
+       values ($1, $2, 1, 3, 'Vídeo editorial publicado no portal',
+        'Resumo editorial suficientemente descritivo para a view pública V3.',
+        'inovacao', 1, 'Redação NITE', $3,
+        'Equipe reunida durante a apresentação do novo projeto.',
+        jsonb_build_object(
+          'schemaVersion', 3,
+          'type', 'doc',
+          'content', jsonb_build_array(
+            jsonb_build_object('type', 'image', 'attrs', jsonb_build_object(
+              'mediaId', $4::text, 'alt', 'Atividade no laboratório.',
+              'layout', 'normal')),
+            jsonb_build_object('type', 'video', 'attrs', jsonb_build_object(
+              'mediaId', $5::text, 'captionsMediaId', $6::text,
+              'playbackMode', 'manual', 'layout', 'wide'))
+          )
+        ))`,
+      [revisionId, articleId, coverId, imageId, videoId, captionsId],
+    );
+    await client.query(
+      `update articles
+       set current_revision_id = $2, published_revision_id = $2,
+           published_at = now() - interval '1 minute', status = 'published'
+       where id = $1`,
+      [articleId, revisionId],
+    );
+
+    const result = await client.query<{
+      body_media: Record<string, Record<string, unknown>>;
+    }>("select body_media from published_articles where article_id = $1", [
+      articleId,
+    ]);
+
+    expect(result.rows).toEqual([
+      {
+        body_media: {
+          [imageId]: {
+            mediaKind: "image",
+            objectKey: "news/view-image.webp",
+            mimeType: "image/webp",
+            width: 800,
+            height: 600,
+          },
+          [videoId]: {
+            mediaKind: "video",
+            objectKey: "news/view-video.mp4",
+            mimeType: "video/mp4",
+            width: 1920,
+            height: 1080,
+            durationMs: 42_500,
+            videoCodec: "avc1.640028",
+            hasAudio: true,
+          },
+          [captionsId]: {
+            mediaKind: "captions",
+            objectKey: "news/view-captions.vtt",
+            mimeType: "text/vtt",
+          },
+        },
+      },
+    ]);
   });
 
   it("restringe a role publica a view e concede escrita editorial ao admin", async () => {

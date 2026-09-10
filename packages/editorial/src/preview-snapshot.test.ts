@@ -200,4 +200,102 @@ describe("snapshot editorial temporário", () => {
     ).rejects.toBeInstanceOf(EditorialConflictError);
     await expect(database.select().from(previewSnapshots)).resolves.toEqual([]);
   });
+
+  it("retém vídeo e legenda referenciados pelo snapshot V3", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const videoMediaId = "30000000-0000-4000-8000-000000000211";
+    const captionsMediaId = "30000000-0000-4000-8000-000000000212";
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-preview-video",
+        objectId: "publisher-preview-video",
+        displayName: "Publisher Preview Vídeo",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values([
+      {
+        id: coverMediaId,
+        mediaKind: "image",
+        stagingObjectKey: "incoming/preview-video-cover/original",
+        publicObjectKey: "news/preview-video-cover.webp",
+        mimeType: "image/webp",
+        byteSize: 4096,
+        width: 1200,
+        height: 675,
+        checksumSha256:
+          "abababababababababababababababababababababababababababababababab",
+        status: "ready",
+      },
+      {
+        id: videoMediaId,
+        mediaKind: "video",
+        stagingObjectKey: "incoming/preview-video/original",
+        publicObjectKey: "news/preview-video.mp4",
+        mimeType: "video/mp4",
+        byteSize: 8192,
+        width: 1920,
+        height: 1080,
+        durationMs: 45_000,
+        videoCodec: "avc1.640028",
+        hasAudio: true,
+        objectEtag: "preview-video-etag",
+        status: "ready",
+      },
+      {
+        id: captionsMediaId,
+        mediaKind: "captions",
+        stagingObjectKey: "incoming/preview-video/captions.vtt",
+        publicObjectKey: "news/preview-video.pt-BR.vtt",
+        mimeType: "text/vtt",
+        byteSize: 512,
+        checksumSha256:
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        status: "ready",
+      },
+    ]);
+    const videoInput = {
+      ...input,
+      body: {
+        schemaVersion: 3 as const,
+        type: "doc" as const,
+        content: [
+          {
+            type: "video" as const,
+            attrs: {
+              mediaId: videoMediaId,
+              captionsMediaId,
+              playbackMode: "manual" as const,
+              layout: "wide" as const,
+            },
+          },
+        ],
+      },
+    };
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: videoInput,
+    });
+
+    const snapshot = await createEditorialPreviewSnapshot(database, {
+      actor: publisher,
+      articleId: created.article.id,
+      baseRevisionId: created.revision.id,
+      input: videoInput,
+    });
+
+    await expect(
+      database
+        .select({ mediaId: previewMediaReferences.mediaId })
+        .from(previewMediaReferences)
+        .where(eq(previewMediaReferences.snapshotId, snapshot.id)),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        { mediaId: coverMediaId },
+        { mediaId: videoMediaId },
+        { mediaId: captionsMediaId },
+      ]),
+    );
+  });
 });

@@ -4,19 +4,41 @@ import {
   calculateEditorialReadTime,
   editorialPublishableInputSchema,
   editorialDocumentSchema,
+  type EditorialPublicMedia,
   newsCategoryValues,
   resolveEditorialDocumentMedia,
 } from "@nite/editorial";
 
 const privateHeaders = { "Cache-Control": "private, no-store" };
 
-const previewMediaSchema = z.object({
-  id: z.uuid(),
-  status: z.literal("ready"),
-  publicObjectKey: z.string().min(1),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-});
+const previewMediaSchema = z.discriminatedUnion("mediaKind", [
+  z.object({
+    id: z.uuid(),
+    mediaKind: z.literal("image"),
+    status: z.literal("ready"),
+    publicObjectKey: z.string().min(1),
+    mimeType: z.string().startsWith("image/"),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  z.object({
+    id: z.uuid(),
+    mediaKind: z.literal("video"),
+    status: z.literal("ready"),
+    publicObjectKey: z.string().min(1),
+    mimeType: z.literal("video/mp4"),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    durationMs: z.number().int().positive(),
+  }),
+  z.object({
+    id: z.uuid(),
+    mediaKind: z.literal("captions"),
+    status: z.literal("ready"),
+    publicObjectKey: z.string().min(1),
+    mimeType: z.literal("text/vtt"),
+  }),
+]);
 
 const previewArticleFields = {
   articleId: z.uuid(),
@@ -99,7 +121,7 @@ type PreviewRevision = {
   };
 };
 
-type PreviewMedia = z.infer<typeof previewMediaSchema>;
+export type PreviewMedia = z.infer<typeof previewMediaSchema>;
 type PreviewSnapshot = {
   article: { id: string; publishedAt: Date | null };
   snapshot: { id: string; baseRevisionId: string };
@@ -122,11 +144,17 @@ function collectMediaIds(input: unknown, ids: Set<string>): void {
   if (!input || typeof input !== "object") return;
   const node = input as {
     type?: unknown;
-    attrs?: { mediaId?: unknown };
+    attrs?: { mediaId?: unknown; captionsMediaId?: unknown };
     content?: unknown[];
   };
   if (node.type === "image" && typeof node.attrs?.mediaId === "string") {
     ids.add(node.attrs.mediaId);
+  }
+  if (node.type === "video" && typeof node.attrs?.mediaId === "string") {
+    ids.add(node.attrs.mediaId);
+    if (typeof node.attrs.captionsMediaId === "string") {
+      ids.add(node.attrs.captionsMediaId);
+    }
   }
   node.content?.forEach((child) => collectMediaIds(child, ids));
 }
@@ -170,19 +198,47 @@ export async function resolvePreviewRequest(
   if (assets.length !== mediaIds.size)
     return response({ error: "media_not_ready" }, 409);
 
-  const resolvedMedia: Record<
-    string,
-    { src: string; width: number; height: number }
-  > = {};
+  const resolvedMedia: Record<string, EditorialPublicMedia[string]> = {};
   for (const asset of assets) {
     const src = dependencies.getPublicMediaUrl(asset.publicObjectKey);
     if (!src) return response({ error: "media_unavailable" }, 503);
-    resolvedMedia[asset.id] = { src, width: asset.width, height: asset.height };
+    if (asset.mediaKind === "image") {
+      resolvedMedia[asset.id] = {
+        mediaKind: "image",
+        src,
+        width: asset.width,
+        height: asset.height,
+      };
+    } else if (asset.mediaKind === "video") {
+      resolvedMedia[asset.id] = {
+        mediaKind: "video",
+        src,
+        mimeType: asset.mimeType,
+        width: asset.width,
+        height: asset.height,
+        durationSeconds: asset.durationMs / 1000,
+      };
+    } else {
+      resolvedMedia[asset.id] = {
+        mediaKind: "captions",
+        src,
+        mimeType: asset.mimeType,
+      };
+    }
   }
 
-  const cover = result.revision.coverMediaId
+  const coverCandidate = result.revision.coverMediaId
     ? resolvedMedia[result.revision.coverMediaId]
     : undefined;
+  const cover =
+    coverCandidate &&
+    coverCandidate.mediaKind !== "video" &&
+    coverCandidate.mediaKind !== "captions"
+      ? coverCandidate
+      : undefined;
+  if (result.revision.coverMediaId && !cover) {
+    return response({ error: "media_not_ready" }, 409);
+  }
   try {
     const dto = previewArticleDtoSchema.parse({
       ...(snapshotResult

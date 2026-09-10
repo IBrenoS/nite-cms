@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   editorialDraftInputSchema,
   editorialPublishableInputSchema,
-  tiptapDocumentToEditorialDocumentV2,
+  tiptapDocumentToEditorialDocumentV3,
 } from "@nite/editorial";
 
 export type EditorialField =
@@ -75,9 +75,9 @@ export function parseEditorialFormData(formData: FormData) {
     seoDescription: readString(formData, "seoDescription"),
     bodyDocument: readString(formData, "bodyDocument"),
   });
-  let body: ReturnType<typeof tiptapDocumentToEditorialDocumentV2>;
+  let body: ReturnType<typeof tiptapDocumentToEditorialDocumentV3>;
   try {
-    body = tiptapDocumentToEditorialDocumentV2(
+    body = tiptapDocumentToEditorialDocumentV3(
       JSON.parse(fields.bodyDocument) as unknown,
     );
   } catch {

@@ -67,9 +67,38 @@ type EditorialImageNode = {
     | StoredImageV2Attrs
     | ResolvedImageV2Attrs;
 };
+export const editorialVideoPlaybackModeValues = ["autoplay", "manual"] as const;
+export type EditorialVideoPlaybackMode =
+  (typeof editorialVideoPlaybackModeValues)[number];
+type StoredVideoAttrs = {
+  mediaId: string;
+  captionsMediaId?: string;
+  playbackMode: EditorialVideoPlaybackMode;
+  layout: EditorialImageLayout;
+  description?: string;
+  caption?: string;
+  credit?: string;
+};
+type ResolvedVideoAttrs = StoredVideoAttrs & {
+  src: string;
+  width: number;
+  height: number;
+  durationSeconds: number;
+  mimeType: "video/mp4";
+  captions?: {
+    src: string;
+    mimeType: "text/vtt";
+    srclang: "pt-BR";
+    label: "Português";
+  };
+};
+type EditorialVideoNode = {
+  type: "video";
+  attrs: StoredVideoAttrs | ResolvedVideoAttrs;
+};
 type EditorialListItemNode = {
   type: "listItem";
-  content: EditorialContentNode[];
+  content: EditorialNestedContentNode[];
 };
 type EditorialBulletListNode = {
   type: "bulletList";
@@ -81,29 +110,37 @@ type EditorialOrderedListNode = {
 };
 type EditorialBlockquoteNode = {
   type: "blockquote";
-  content: EditorialContentNode[];
+  content: EditorialNestedContentNode[];
 };
-type EditorialContentNode =
+type EditorialNestedContentNode =
   | EditorialParagraphNode
   | EditorialHeadingNode
   | EditorialBulletListNode
   | EditorialOrderedListNode
   | EditorialBlockquoteNode
   | EditorialImageNode;
+type EditorialContentNode = EditorialNestedContentNode | EditorialVideoNode;
 
 export type EditorialDocumentV1 = {
   schemaVersion: 1;
   type: "doc";
-  content: EditorialContentNode[];
+  content: EditorialNestedContentNode[];
 };
 
 export type EditorialDocumentV2 = {
   schemaVersion: 2;
   type: "doc";
+  content: EditorialNestedContentNode[];
+};
+
+export type EditorialDocumentV3 = {
+  schemaVersion: 3;
+  type: "doc";
   content: EditorialContentNode[];
 };
 
-export type EditorialDocument = EditorialDocumentV1 | EditorialDocumentV2;
+export type EditorialDocument =
+  EditorialDocumentV1 | EditorialDocumentV2 | EditorialDocumentV3;
 
 const textNodeSchema: z.ZodType<EditorialTextNode> = z
   .object({
@@ -165,9 +202,45 @@ const imageNodeV2Schema: z.ZodType<EditorialImageNode> = z
   })
   .strict();
 
+const storedVideoAttrsSchema = z
+  .object({
+    mediaId: z.uuid(),
+    captionsMediaId: z.uuid().optional(),
+    playbackMode: z.enum(editorialVideoPlaybackModeValues),
+    layout: z.enum(editorialImageLayoutValues),
+    description: z.string().trim().min(1).max(500).optional(),
+    caption: optionalCaptionSchema,
+    credit: optionalCreditSchema,
+  })
+  .strict();
+const resolvedVideoAttrsSchema = storedVideoAttrsSchema
+  .extend({
+    src: z.url(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    durationSeconds: z.number().positive(),
+    mimeType: z.literal("video/mp4"),
+    captions: z
+      .object({
+        src: z.url(),
+        mimeType: z.literal("text/vtt"),
+        srclang: z.literal("pt-BR"),
+        label: z.literal("Português"),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+const videoNodeSchema: z.ZodType<EditorialVideoNode> = z
+  .object({
+    type: z.literal("video"),
+    attrs: z.union([storedVideoAttrsSchema, resolvedVideoAttrsSchema]),
+  })
+  .strict();
+
 function createEditorialContentNodeSchema(
   imageNodeSchema: z.ZodType<EditorialImageNode>,
-): z.ZodType<EditorialContentNode> {
+): z.ZodType<EditorialNestedContentNode> {
   const listItemNodeSchema: z.ZodType<EditorialListItemNode> = z
     .object({
       type: z.literal("listItem"),
@@ -192,7 +265,7 @@ function createEditorialContentNodeSchema(
       content: z.array(z.lazy(() => contentNodeSchema)).min(1),
     })
     .strict();
-  const contentNodeSchema: z.ZodType<EditorialContentNode> = z.lazy(() =>
+  const contentNodeSchema: z.ZodType<EditorialNestedContentNode> = z.lazy(() =>
     z.union([
       paragraphNodeSchema,
       headingNodeSchema,
@@ -209,6 +282,12 @@ const editorialContentNodeV1Schema =
   createEditorialContentNodeSchema(imageNodeV1Schema);
 const editorialContentNodeV2Schema =
   createEditorialContentNodeSchema(imageNodeV2Schema);
+const editorialNestedContentNodeV3Schema =
+  createEditorialContentNodeSchema(imageNodeV2Schema);
+const editorialContentNodeV3Schema: z.ZodType<EditorialContentNode> = z.union([
+  editorialNestedContentNodeV3Schema,
+  videoNodeSchema,
+]);
 
 export const editorialDocumentV1Schema: z.ZodType<EditorialDocumentV1> = z
   .object({
@@ -226,12 +305,21 @@ export const editorialDocumentV2Schema: z.ZodType<EditorialDocumentV2> = z
   })
   .strict();
 
+export const editorialDocumentV3Schema: z.ZodType<EditorialDocumentV3> = z
+  .object({
+    schemaVersion: z.literal(3),
+    type: z.literal("doc"),
+    content: z.array(editorialContentNodeV3Schema).min(1),
+  })
+  .strict();
+
 export const editorialDocumentSchema: z.ZodType<EditorialDocument> = z.union([
   editorialDocumentV1Schema,
   editorialDocumentV2Schema,
+  editorialDocumentV3Schema,
 ]);
 
-function resolvedImagePaths(
+function resolvedMediaPaths(
   nodes: EditorialContentNode[],
   path: (string | number)[] = ["content"],
 ): (string | number)[][] {
@@ -240,12 +328,15 @@ function resolvedImagePaths(
     if (node.type === "image") {
       return "src" in node.attrs ? [nodePath] : [];
     }
+    if (node.type === "video") {
+      return "src" in node.attrs ? [nodePath] : [];
+    }
     if (node.type === "blockquote") {
-      return resolvedImagePaths(node.content, [...nodePath, "content"]);
+      return resolvedMediaPaths(node.content, [...nodePath, "content"]);
     }
     if (node.type === "bulletList" || node.type === "orderedList") {
       return node.content.flatMap((item, itemIndex) =>
-        resolvedImagePaths(item.content, [
+        resolvedMediaPaths(item.content, [
           ...nodePath,
           "content",
           itemIndex,
@@ -259,7 +350,7 @@ function resolvedImagePaths(
 
 export const storableEditorialDocumentV1Schema =
   editorialDocumentV1Schema.superRefine((document, context) => {
-    resolvedImagePaths(document.content).forEach((path) => {
+    resolvedMediaPaths(document.content).forEach((path) => {
       context.addIssue({
         code: "custom",
         path: [...path, "attrs"],
@@ -282,7 +373,7 @@ export const persistedEditorialDocumentV1Schema =
 
 export const storableEditorialDocumentSchema =
   editorialDocumentSchema.superRefine((document, context) => {
-    resolvedImagePaths(document.content).forEach((path) => {
+    resolvedMediaPaths(document.content).forEach((path) => {
       context.addIssue({
         code: "custom",
         path: [...path, "attrs"],
@@ -303,12 +394,19 @@ export const persistedEditorialDocumentSchema =
     }
   });
 
-function collectEditorialImageMediaIds(document: EditorialDocument): string[] {
+function collectEditorialMediaIds(document: EditorialDocument): string[] {
   const mediaIds: string[] = [];
   function collect(nodes: EditorialContentNode[]) {
     nodes.forEach((node) => {
       if (node.type === "image") {
         mediaIds.push(node.attrs.mediaId);
+        return;
+      }
+      if (node.type === "video") {
+        mediaIds.push(node.attrs.mediaId);
+        if (node.attrs.captionsMediaId) {
+          mediaIds.push(node.attrs.captionsMediaId);
+        }
         return;
       }
       if (node.type === "blockquote") {
@@ -330,15 +428,40 @@ export function getEditorialImageMediaIds(input: unknown): string[] {
   );
 }
 
+function collectEditorialImageMediaIds(document: EditorialDocument): string[] {
+  const mediaIds: string[] = [];
+  function collectImages(nodes: EditorialContentNode[]) {
+    nodes.forEach((node) => {
+      if (node.type === "image") mediaIds.push(node.attrs.mediaId);
+      else if (node.type === "blockquote") collectImages(node.content);
+      else if (node.type === "bulletList" || node.type === "orderedList") {
+        node.content.forEach((item) => collectImages(item.content));
+      }
+    });
+  }
+  collectImages(document.content);
+  return [...new Set(mediaIds)];
+}
+
 export function getStorableEditorialImageMediaIds(input: unknown): string[] {
   return collectEditorialImageMediaIds(
     storableEditorialDocumentSchema.parse(input),
   );
 }
 
+export function getEditorialMediaIds(input: unknown): string[] {
+  return collectEditorialMediaIds(
+    persistedEditorialDocumentSchema.parse(input),
+  );
+}
+
+export function getStorableEditorialMediaIds(input: unknown): string[] {
+  return collectEditorialMediaIds(storableEditorialDocumentSchema.parse(input));
+}
+
 function hasMeaningfulContent(nodes: EditorialContentNode[]): boolean {
   return nodes.some((node) => {
-    if (node.type === "image") return true;
+    if (node.type === "image" || node.type === "video") return true;
     if (node.type === "paragraph" || node.type === "heading") {
       return node.content.some((textNode) => /\S/u.test(textNode.text));
     }
@@ -415,7 +538,21 @@ function normalizeInlineNode(input: unknown): unknown {
   };
 }
 
-function normalizeTiptapNode(input: unknown, schemaVersion: 1 | 2): unknown {
+function normalizeOptionalText(input: unknown, maximum: number) {
+  return z
+    .string()
+    .trim()
+    .min(1)
+    .max(maximum)
+    .optional()
+    .parse(typeof input === "string" && input.trim() ? input : undefined);
+}
+
+function normalizeTiptapNode(
+  input: unknown,
+  schemaVersion: 1 | 2 | 3,
+  allowVideo = false,
+): unknown {
   const node = tiptapNodeSchema.parse(input);
   if (node.type === "paragraph") {
     return {
@@ -481,7 +618,7 @@ function normalizeTiptapNode(input: unknown, schemaVersion: 1 | 2): unknown {
       attrs: {
         mediaId,
         alt,
-        ...(schemaVersion === 2
+        ...(schemaVersion !== 1
           ? {
               ...(caption ? { caption } : {}),
               ...(credit ? { credit } : {}),
@@ -495,6 +632,29 @@ function normalizeTiptapNode(input: unknown, schemaVersion: 1 | 2): unknown {
         resolved.height !== undefined
           ? resolved
           : {}),
+      },
+    };
+  }
+  if (node.type === "video" && schemaVersion === 3 && allowVideo) {
+    const attrs = nodeAttrs(node.attrs);
+    const captionsMediaId = z.uuid().optional().parse(attrs.captionsMediaId);
+    const description = normalizeOptionalText(attrs.description, 500);
+    const caption = normalizeOptionalText(attrs.caption, 280);
+    const credit = normalizeOptionalText(attrs.credit, 160);
+    return {
+      type: "video",
+      attrs: {
+        mediaId: z.uuid().parse(attrs.mediaId),
+        ...(captionsMediaId ? { captionsMediaId } : {}),
+        playbackMode: z
+          .enum(editorialVideoPlaybackModeValues)
+          .parse(attrs.playbackMode),
+        layout: z
+          .enum(editorialImageLayoutValues)
+          .parse(attrs.layout ?? "normal"),
+        ...(description ? { description } : {}),
+        ...(caption ? { caption } : {}),
+        ...(credit ? { credit } : {}),
       },
     };
   }
@@ -542,6 +702,22 @@ export function tiptapDocumentToEditorialDocumentV2(
   });
 }
 
+export function tiptapDocumentToEditorialDocumentV3(
+  input: unknown,
+): EditorialDocumentV3 {
+  const document = tiptapDocumentSchema.parse(input);
+  const content = [...document.content];
+  while (isTrailingEmptyParagraph(content.at(-1))) content.pop();
+  if (content.length === 0) {
+    content.push({ type: "paragraph", content: [] });
+  }
+  return editorialDocumentV3Schema.parse({
+    schemaVersion: 3,
+    type: "doc",
+    content: content.map((node) => normalizeTiptapNode(node, 3, true)),
+  });
+}
+
 export function calculateEditorialReadTime(input: unknown) {
   const document = editorialDocumentSchema.parse(input);
   const words = document.content
@@ -552,13 +728,34 @@ export function calculateEditorialReadTime(input: unknown) {
   return Math.min(30, Math.max(1, Math.ceil(words / 200)));
 }
 
-type PublicMedia = Readonly<
-  Record<string, { src: string; width: number; height: number }>
+export type EditorialPublicMedia = Readonly<
+  Record<
+    string,
+    | {
+        mediaKind?: "image";
+        src: string;
+        width: number;
+        height: number;
+      }
+    | {
+        mediaKind: "video";
+        src: string;
+        mimeType: "video/mp4";
+        width: number;
+        height: number;
+        durationSeconds: number;
+      }
+    | {
+        mediaKind: "captions";
+        src: string;
+        mimeType: "text/vtt";
+      }
+  >
 >;
 
 function resolveListItemMedia(
   item: EditorialListItemNode,
-  media: PublicMedia,
+  media: EditorialPublicMedia,
 ): unknown {
   return {
     ...item,
@@ -568,14 +765,56 @@ function resolveListItemMedia(
 
 function resolveNodeMedia(
   node: EditorialContentNode,
-  media: PublicMedia,
+  media: EditorialPublicMedia,
 ): unknown {
   if (node.type === "image") {
     const resolved = media[node.attrs.mediaId];
-    if (!resolved) throw new Error("A imagem editorial não está disponível.");
+    if (
+      !resolved ||
+      resolved.mediaKind === "video" ||
+      resolved.mediaKind === "captions"
+    ) {
+      throw new Error("A imagem editorial não está disponível.");
+    }
     return {
       ...node,
-      attrs: { ...node.attrs, ...resolved },
+      attrs: {
+        ...node.attrs,
+        src: resolved.src,
+        width: resolved.width,
+        height: resolved.height,
+      },
+    };
+  }
+  if (node.type === "video") {
+    const resolved = media[node.attrs.mediaId];
+    if (!resolved || resolved.mediaKind !== "video") {
+      throw new Error("O vídeo editorial não está disponível.");
+    }
+    let resolvedCaptions: ResolvedVideoAttrs["captions"];
+    if (node.attrs.captionsMediaId) {
+      const captions = media[node.attrs.captionsMediaId];
+      if (!captions || captions.mediaKind !== "captions") {
+        throw new Error("A legenda editorial não está disponível.");
+      }
+      resolvedCaptions = {
+        src: captions.src,
+        mimeType: captions.mimeType,
+        srclang: "pt-BR",
+        label: "Português",
+      };
+    }
+    return {
+      ...node,
+      attrs: {
+        ...node.attrs,
+        src: resolved.src,
+        width: resolved.width,
+        height: resolved.height,
+        durationSeconds: resolved.durationSeconds,
+        mimeType: resolved.mimeType,
+        ...(resolvedCaptions ? { captions: resolvedCaptions } : {}),
+      },
     };
   }
   if (node.type === "blockquote") {
@@ -595,7 +834,7 @@ function resolveNodeMedia(
 
 export function resolveEditorialDocumentMedia(
   input: unknown,
-  media: PublicMedia,
+  media: EditorialPublicMedia,
 ): EditorialDocument {
   const document = persistedEditorialDocumentSchema.parse(input);
   return editorialDocumentSchema.parse({

@@ -70,4 +70,36 @@ describe("respostas HTTP públicas de News", () => {
     expect(missing.status).toBe(404);
     await expect(missing.json()).resolves.toEqual({ error: "not_found" });
   });
+
+  it("mantém o envelope v2 ao transportar body editorial V3 com vídeo", async () => {
+    const videoArticle = {
+      ...article,
+      body: {
+        schemaVersion: 3,
+        type: "doc",
+        content: [
+          {
+            type: "video",
+            attrs: {
+              mediaId: "30000000-0000-4000-8000-000000000301",
+              playbackMode: "autoplay",
+              layout: "wide",
+              src: "https://media.nite.test/news/video.mp4",
+              width: 1920,
+              height: 1080,
+              durationSeconds: 42.5,
+              mimeType: "video/mp4",
+            },
+          },
+        ],
+      },
+    } satisfies NewsArticle;
+
+    const response = createArticleResponse(videoArticle);
+
+    await expect(response.json()).resolves.toMatchObject({
+      version: 2,
+      article: { body: { schemaVersion: 3 } },
+    });
+  });
 });

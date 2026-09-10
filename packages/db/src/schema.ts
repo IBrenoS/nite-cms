@@ -36,6 +36,11 @@ export const mediaStatusEnum = pgEnum("media_status", [
   "failed",
   "deleting",
 ]);
+export const mediaKindEnum = pgEnum("media_kind", [
+  "image",
+  "video",
+  "captions",
+]);
 export const outboxStatusEnum = pgEnum("outbox_status", [
   "pending",
   "processing",
@@ -218,6 +223,7 @@ export const mediaAssets = pgTable(
   "media_assets",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    mediaKind: mediaKindEnum("media_kind").default("image").notNull(),
     stagingObjectKey: text("staging_object_key").notNull().unique(),
     publicObjectKey: text("public_object_key").unique(),
     mimeType: varchar("mime_type", { length: 127 }).notNull(),
@@ -225,6 +231,10 @@ export const mediaAssets = pgTable(
     width: integer("width"),
     height: integer("height"),
     checksumSha256: varchar("checksum_sha256", { length: 64 }),
+    durationMs: integer("duration_ms"),
+    videoCodec: varchar("video_codec", { length: 32 }),
+    hasAudio: boolean("has_audio"),
+    objectEtag: varchar("object_etag", { length: 255 }),
     status: mediaStatusEnum("status").default("pending").notNull(),
     createdByMembershipId: uuid("created_by_membership_id").references(
       () => cmsMemberships.id,
@@ -239,8 +249,22 @@ export const mediaAssets = pgTable(
       sql`(${table.width} is null or ${table.width} > 0) and (${table.height} is null or ${table.height} > 0)`,
     ),
     check(
+      "media_assets_duration_check",
+      sql`${table.durationMs} is null or ${table.durationMs} > 0`,
+    ),
+    check(
+      "media_assets_kind_metadata_check",
+      sql`(${table.mediaKind} = 'image' and ${table.durationMs} is null and ${table.videoCodec} is null and ${table.hasAudio} is null and ${table.objectEtag} is null)
+        or (${table.mediaKind} = 'video' and ${table.checksumSha256} is null)
+        or (${table.mediaKind} = 'captions' and ${table.width} is null and ${table.height} is null and ${table.durationMs} is null and ${table.videoCodec} is null and ${table.hasAudio} is null and ${table.objectEtag} is null)`,
+    ),
+    check(
       "media_assets_ready_metadata_check",
-      sql`${table.status} <> 'ready' or (${table.publicObjectKey} is not null and ${table.checksumSha256} is not null and ${table.width} is not null and ${table.height} is not null)`,
+      sql`${table.status} <> 'ready' or (
+        (${table.mediaKind} = 'image' and ${table.publicObjectKey} is not null and ${table.checksumSha256} is not null and ${table.width} is not null and ${table.height} is not null)
+        or (${table.mediaKind} = 'video' and ${table.mimeType} = 'video/mp4' and ${table.publicObjectKey} is not null and ${table.objectEtag} is not null and ${table.width} is not null and ${table.height} is not null and ${table.durationMs} is not null and ${table.videoCodec} is not null and ${table.hasAudio} is not null)
+        or (${table.mediaKind} = 'captions' and ${table.mimeType} = 'text/vtt' and ${table.publicObjectKey} is not null and ${table.checksumSha256} is not null)
+      )`,
     ),
     check(
       "media_assets_non_ready_public_key_check",
@@ -480,7 +504,19 @@ export const publishedArticles = pgView("published_articles", {
   body: jsonb("body").$type<unknown>().notNull(),
   bodyMedia: jsonb("body_media")
     .$type<
-      Record<string, { objectKey: string; width: number; height: number }>
+      Record<
+        string,
+        {
+          mediaKind: "image" | "video" | "captions";
+          objectKey: string;
+          mimeType: string;
+          width?: number;
+          height?: number;
+          durationMs?: number;
+          videoCodec?: string;
+          hasAudio?: boolean;
+        }
+      >
     >()
     .notNull(),
   seo: jsonb("seo").$type<unknown>(),
