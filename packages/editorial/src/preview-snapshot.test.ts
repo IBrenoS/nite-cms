@@ -16,6 +16,7 @@ import {
   articleRevisions,
   cmsMemberships,
   mediaAssets,
+  previewMediaReferences,
   previewSnapshots,
 } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
@@ -96,6 +97,12 @@ describe("snapshot editorial temporário", () => {
     expect(snapshot.expiresAt).toEqual(
       new Date(now.getTime() + 10 * 60 * 1000),
     );
+    await expect(
+      database
+        .select({ mediaId: previewMediaReferences.mediaId })
+        .from(previewMediaReferences)
+        .where(eq(previewMediaReferences.snapshotId, snapshot.id)),
+    ).resolves.toEqual([{ mediaId: coverMediaId }]);
     expect(
       await getEditorialPreviewSnapshot(
         database,

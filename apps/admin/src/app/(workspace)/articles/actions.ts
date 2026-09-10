@@ -7,6 +7,8 @@ import {
   archiveArticle,
   createEditorialPreviewSnapshot,
   createMediaUpload,
+  deleteEditorialArticle,
+  getEditorialArticleDeletionImpact,
   mediaUploadFileSchema,
   processMediaAsset,
   restoreArticle,
@@ -162,6 +164,47 @@ export async function transitionEditorialArticle(input: unknown) {
     return { status: "success" as const, data: {} };
   } catch (error) {
     return editorialActionFailure(error, "lifecycle");
+  }
+}
+
+const deletionSchema = z.object({
+  articleId: z.uuid(),
+  expectedRevisionId: z.uuid(),
+});
+
+export async function getEditorialArticleDeletionImpactAction(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const command = deletionSchema.parse(input);
+    const impact = await getEditorialArticleDeletionImpact(context.database, {
+      actor: context.membership,
+      ...command,
+    });
+    return { status: "success" as const, data: impact };
+  } catch (error) {
+    return editorialActionFailure(error, "delete");
+  }
+}
+
+export async function deleteEditorialArticleAction(input: unknown) {
+  try {
+    const context = await requireCmsContext();
+    const command = deletionSchema.parse(input);
+    const result = await deleteEditorialArticle(context.database, {
+      actor: context.membership,
+      ...command,
+    });
+    revalidatePath("/");
+    after(async () => {
+      await processCmsOutbox().catch(() => undefined);
+    });
+    return {
+      status: "success" as const,
+      message: `Matéria excluída. Limpeza de ${result.scheduledMediaCount} mídias agendada.`,
+      data: result,
+    };
+  } catch (error) {
+    return editorialActionFailure(error, "delete");
   }
 }
 

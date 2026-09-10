@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   type S3Client,
@@ -13,7 +14,7 @@ afterEach(() => {
 });
 
 describe("storage de mídia R2", () => {
-  it("envia e lê somente no staging, mas publica somente no bucket público sem deleção", async () => {
+  it("envia, lê e exclui objetos nos buckets corretos", async () => {
     const sentCommands: unknown[] = [];
     const presignedCommands: PutObjectCommand[] = [];
     const client = {
@@ -58,12 +59,14 @@ describe("storage de mídia R2", () => {
       body: new Uint8Array([4, 5, 6]),
       contentType: "image/webp",
     });
+    await store.deleteStagingObject("incoming/asset");
+    await store.deletePublicObject("news/asset/processed.webp");
 
     expect(presignedCommands[0]?.input).toMatchObject({
       Bucket: "nite-staging",
       Key: "incoming/asset",
     });
-    expect(sentCommands).toHaveLength(2);
+    expect(sentCommands).toHaveLength(4);
     expect((sentCommands[0] as GetObjectCommand).input).toMatchObject({
       Bucket: "nite-staging",
       Key: "incoming/asset",
@@ -73,7 +76,14 @@ describe("storage de mídia R2", () => {
       Key: "news/asset/processed.webp",
       CacheControl: "public, max-age=31536000, immutable",
     });
-    expect("deleteObject" in store).toBe(false);
+    expect((sentCommands[2] as DeleteObjectCommand).input).toMatchObject({
+      Bucket: "nite-staging",
+      Key: "incoming/asset",
+    });
+    expect((sentCommands[3] as DeleteObjectCommand).input).toMatchObject({
+      Bucket: "nite-public",
+      Key: "news/asset/processed.webp",
+    });
   });
 
   it("resolve a chave pública sobre a mesma URL-base normalizada", () => {

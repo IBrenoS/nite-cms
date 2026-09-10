@@ -25,6 +25,30 @@ describe("persistencia editorial", () => {
     await client.close();
   });
 
+  it("aceita documentos editoriais V1 e V2 no constraint raiz", async () => {
+    const articleId = "10000000-0000-4000-8000-000000000099";
+    await client.query(
+      `insert into articles (id, slug) values ($1, 'documentos-v1-v2')`,
+      [articleId],
+    );
+    for (const schemaVersion of [1, 2]) {
+      await expect(
+        client.query(
+          `insert into article_revisions
+            (article_id, version, content_schema_version, title, summary,
+             category, read_time_minutes, byline, cover_alt, body)
+           values ($1, $2, $2, 'Titulo editorial', 'Resumo editorial',
+             'inovacao', 1, 'Redacao NITE', '', $3::jsonb)`,
+          [
+            articleId,
+            schemaVersion,
+            JSON.stringify({ schemaVersion, type: "doc", content: [] }),
+          ],
+        ),
+      ).resolves.toBeDefined();
+    }
+  });
+
   it("publica somente a revisao fixada de artigos elegiveis", async () => {
     const publishedArticleId = "10000000-0000-4000-8000-000000000001";
     const draftArticleId = "10000000-0000-4000-8000-000000000002";
@@ -517,6 +541,90 @@ describe("persistencia editorial", () => {
         [revisionId],
       ),
     ).rejects.toThrow(/imutaveis/i);
+  });
+
+  it("mantem revisoes imutaveis e permite apenas o cascade autorizado da materia", async () => {
+    const articleId = "10000000-0000-4000-8000-000000000011";
+    const revisionId = "20000000-0000-4000-8000-000000000011";
+    const mediaId = "30000000-0000-4000-8000-000000000011";
+
+    await client.query(
+      `insert into media_assets
+        (id, staging_object_key, public_object_key, mime_type, byte_size,
+         width, height, checksum_sha256, status)
+       values ($1, 'incoming/exclusao/original', 'news/exclusao.webp',
+        'image/webp', 2048, 1200, 675,
+        'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        'ready')`,
+      [mediaId],
+    );
+    await client.query(
+      "insert into articles (id, slug, status) values ($1, 'exclusao-segura', 'draft')",
+      [articleId],
+    );
+    await client.query(
+      `insert into article_revisions
+        (id, article_id, version, content_schema_version, title, summary,
+         category, read_time_minutes, byline, cover_media_id, cover_alt, body)
+       values ($1, $2, 1, 1, 'Materia para exclusao segura',
+        'Resumo editorial suficientemente descritivo para validar a exclusao segura.',
+        'projetos', 3, 'Redacao NITE', $3,
+        'Ilustracao editorial de uma atividade universitaria.',
+        '{"schemaVersion":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Texto editorial para validar o cascade autorizado."}]}]}'::jsonb)`,
+      [revisionId, articleId, mediaId],
+    );
+    await client.query(
+      "update articles set current_revision_id = $2 where id = $1",
+      [articleId, revisionId],
+    );
+    await client.query(
+      `insert into article_media_references (article_id, media_id)
+       values ($1, $2)`,
+      [articleId, mediaId],
+    );
+
+    await expect(
+      client.query("delete from article_revisions where id = $1", [revisionId]),
+    ).rejects.toThrow(/imutaveis/i);
+
+    await client.query("begin");
+    await client.query(
+      "select set_config('nite.cms_delete_article_id', $1, true)",
+      [articleId],
+    );
+    await expect(
+      client.query("delete from article_revisions where id = $1", [revisionId]),
+    ).rejects.toThrow(/imutaveis/i);
+    await client.query("rollback");
+
+    await client.transaction(async (transaction) => {
+      await transaction.query(
+        "update articles set current_revision_id = null where id = $1",
+        [articleId],
+      );
+      await transaction.query(
+        "select set_config('nite.cms_delete_article_id', $1, true)",
+        [articleId],
+      );
+      await transaction.query("delete from articles where id = $1", [
+        articleId,
+      ]);
+    });
+
+    await expect(
+      client.query("select id from article_revisions where id = $1", [
+        revisionId,
+      ]),
+    ).resolves.toMatchObject({ rows: [] });
+    await expect(
+      client.query(
+        "select article_id from article_media_references where article_id = $1",
+        [articleId],
+      ),
+    ).resolves.toMatchObject({ rows: [] });
+    await expect(
+      client.query("select status from media_assets where id = $1", [mediaId]),
+    ).resolves.toMatchObject({ rows: [{ status: "ready" }] });
   });
 
   it("restringe a role publica a view e concede escrita editorial ao admin", async () => {

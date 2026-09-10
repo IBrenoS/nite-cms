@@ -17,6 +17,7 @@ type DashboardSearchParams = {
   q?: string | string[];
   status?: string | string[];
   category?: string | string[];
+  deletedMedia?: string | string[];
 };
 
 function firstQueryValue(value: string | string[] | undefined) {
@@ -94,6 +95,7 @@ export default async function DashboardPage({
   const rawCategory = firstQueryValue(rawSearchParams.category);
   const category = newsCategoryValues.find((value) => value === rawCategory);
   const filters: EditorialDashboardFilters = { search, status, category };
+  const deletedMedia = firstQueryValue(rawSearchParams.deletedMedia);
   const { counts, records } = await getEditorialArticlesDashboard(
     context.database,
     context.membership,
@@ -103,6 +105,14 @@ export default async function DashboardPage({
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 space-y-4">
+      {deletedMedia && /^\d+$/u.test(deletedMedia) ? (
+        <p
+          role="status"
+          className="rounded-md border border-status-done/30 bg-status-done/5 p-3 text-sm text-status-done"
+        >
+          Matéria excluída. Limpeza de {deletedMedia} mídias agendada.
+        </p>
+      ) : null}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-nite-border-subtle pb-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-nite-text-primary">

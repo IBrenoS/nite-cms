@@ -38,6 +38,8 @@ export interface MediaObjectStore {
     body: Uint8Array;
     contentType: "image/webp";
   }): Promise<void>;
+  deleteStagingObject(stagingObjectKey: string): Promise<void>;
+  deletePublicObject(publicObjectKey: string): Promise<void>;
 }
 
 export interface ImageProcessor {

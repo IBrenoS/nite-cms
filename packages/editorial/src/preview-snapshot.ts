@@ -4,6 +4,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   articles,
   cmsMemberships,
+  previewMediaReferences,
   previewSnapshots,
   type CmsMembership,
 } from "@nite/cms-db";
@@ -15,6 +16,7 @@ import {
   EditorialConflictError,
   validateEditorialInputForPublication,
 } from "./editorial";
+import { getEditorialImageMediaIds } from "./editor-document";
 import type { CmsDatabase } from "./identity";
 
 export const PREVIEW_SNAPSHOT_DURATION_MILLISECONDS = 10 * 60 * 1000;
@@ -66,6 +68,19 @@ export async function createEditorialPreviewSnapshot<
       })
       .returning();
     if (!snapshot) throw new EditorialConflictError();
+    const mediaIds = [
+      input.coverMediaId,
+      ...getEditorialImageMediaIds(input.body),
+    ];
+    await transaction
+      .insert(previewMediaReferences)
+      .values(
+        [...new Set(mediaIds)].map((mediaId) => ({
+          snapshotId: snapshot.id,
+          mediaId,
+        })),
+      )
+      .onConflictDoNothing();
     return snapshot;
   });
 }

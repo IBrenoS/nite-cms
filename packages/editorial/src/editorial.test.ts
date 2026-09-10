@@ -19,6 +19,7 @@ import {
   validateEditorialInputForPublication,
 } from "@nite/editorial";
 import {
+  articleMediaReferences,
   articleRevisions,
   articles,
   auditEvents,
@@ -72,6 +73,78 @@ describe("comandos editoriais", () => {
 
   afterEach(async () => {
     await client.close();
+  });
+
+  it("registra uma referencia permanente para cada midia usada pela materia", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "publisher-referencias-oid",
+        displayName: "Publisher Referencias",
+        role: "publisher",
+      })
+      .returning();
+    const inlineMediaId = "30000000-0000-4000-8000-000000000101";
+    await database.insert(mediaAssets).values([
+      {
+        id: firstDraft.coverMediaId,
+        stagingObjectKey: "incoming/capa-referencias/original",
+        publicObjectKey: "news/capa-referencias/processed.webp",
+        mimeType: "image/webp",
+        byteSize: 4096,
+        width: 1200,
+        height: 675,
+        checksumSha256:
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "ready",
+      },
+      {
+        id: inlineMediaId,
+        stagingObjectKey: "incoming/inline-referencias/original",
+        publicObjectKey: "news/inline-referencias/processed.webp",
+        mimeType: "image/webp",
+        byteSize: 2048,
+        width: 800,
+        height: 600,
+        checksumSha256:
+          "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        status: "ready",
+      },
+    ]);
+
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: {
+        ...firstDraft,
+        body: {
+          schemaVersion: 1,
+          type: "doc",
+          content: [
+            {
+              type: "image",
+              attrs: {
+                mediaId: inlineMediaId,
+                alt: "Atividade editorial no laboratório.",
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    await expect(
+      database
+        .select({ mediaId: articleMediaReferences.mediaId })
+        .from(articleMediaReferences)
+        .where(eq(articleMediaReferences.articleId, created.article.id)),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        { mediaId: firstDraft.coverMediaId },
+        { mediaId: inlineMediaId },
+      ]),
+    );
   });
 
   it("cria revisoes imutaveis e rejeita salvamento concorrente obsoleto", async () => {

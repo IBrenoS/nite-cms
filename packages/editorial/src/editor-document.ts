@@ -303,8 +303,7 @@ export const persistedEditorialDocumentSchema =
     }
   });
 
-export function getEditorialImageMediaIds(input: unknown): string[] {
-  const document = persistedEditorialDocumentSchema.parse(input);
+function collectEditorialImageMediaIds(document: EditorialDocument): string[] {
   const mediaIds: string[] = [];
   function collect(nodes: EditorialContentNode[]) {
     nodes.forEach((node) => {
@@ -323,6 +322,18 @@ export function getEditorialImageMediaIds(input: unknown): string[] {
   }
   collect(document.content);
   return [...new Set(mediaIds)];
+}
+
+export function getEditorialImageMediaIds(input: unknown): string[] {
+  return collectEditorialImageMediaIds(
+    persistedEditorialDocumentSchema.parse(input),
+  );
+}
+
+export function getStorableEditorialImageMediaIds(input: unknown): string[] {
+  return collectEditorialImageMediaIds(
+    storableEditorialDocumentSchema.parse(input),
+  );
 }
 
 function hasMeaningfulContent(nodes: EditorialContentNode[]): boolean {

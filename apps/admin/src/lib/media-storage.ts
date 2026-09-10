@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -66,6 +67,22 @@ export function createMediaObjectStore(input: {
           Body: output.body,
           ContentType: output.contentType,
           CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+    },
+    async deleteStagingObject(stagingObjectKey) {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: configuration.R2_STAGING_BUCKET,
+          Key: stagingObjectKey,
+        }),
+      );
+    },
+    async deletePublicObject(publicObjectKey) {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: configuration.R2_PUBLIC_BUCKET,
+          Key: publicObjectKey,
         }),
       );
     },

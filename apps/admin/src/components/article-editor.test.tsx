@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   processUpload: vi.fn(),
   preview: vi.fn(),
   transition: vi.fn(),
+  deletionImpact: vi.fn(),
+  deleteArticle: vi.fn(),
   imageActive: false,
 }));
 
@@ -25,6 +27,8 @@ vi.mock("@/app/(workspace)/articles/actions", () => ({
   createLivePreviewLink: mocks.preview,
   createMediaUploadAction: mocks.createUpload,
   createPrivatePreviewLink: mocks.preview,
+  getEditorialArticleDeletionImpactAction: mocks.deletionImpact,
+  deleteEditorialArticleAction: mocks.deleteArticle,
   processMediaUploadAction: mocks.processUpload,
   submitEditorialArticle: mocks.submit,
   transitionEditorialArticle: mocks.transition,
@@ -115,8 +119,71 @@ describe("ArticleEditor", () => {
     mocks.processUpload.mockReset();
     mocks.preview.mockReset();
     mocks.transition.mockReset();
+    mocks.deletionImpact.mockReset();
+    mocks.deleteArticle.mockReset();
     mocks.imageActive = false;
     mocks.submit.mockResolvedValue({ status: "idle" });
+  });
+
+  it("mostra exclusão apenas para administradora e exige EXCLUIR", async () => {
+    mocks.deletionImpact.mockResolvedValue({
+      status: "success",
+      data: {
+        title: initialArticle.title,
+        slug: initialArticle.slug,
+        status: "draft",
+        revisionCount: 5,
+        snapshotCount: 2,
+        mediaCount: 3,
+        exclusiveMediaCount: 2,
+        sharedMediaCount: 1,
+      },
+    });
+    mocks.deleteArticle.mockResolvedValue({
+      status: "success",
+      data: { scheduledMediaCount: 2 },
+      message: "Matéria excluída. Limpeza de 2 mídias agendada.",
+    });
+    const { rerender } = render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Excluir matéria" }),
+    ).toBeNull();
+
+    rerender(
+      <ArticleEditor
+        canPublish
+        canDelete
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Excluir matéria" }));
+    expect(await screen.findByText(/5 versões e 2 previews/u)).toBeTruthy();
+    expect(screen.getByText(/2 mídias exclusivas/u)).toBeTruthy();
+    const confirm = screen.getByRole("button", {
+      name: "Excluir definitivamente",
+    });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Digite EXCLUIR para confirmar"), {
+      target: { value: "EXCLUIR" },
+    });
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+    await waitFor(() => {
+      expect(mocks.replace).toHaveBeenCalledWith("/?deletedMedia=2");
+    });
   });
 
   it("acompanha o titulo ate a primeira edicao manual do slug", () => {

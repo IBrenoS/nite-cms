@@ -67,6 +67,7 @@ export default async function EditArticlePage({
     <main>
       <ArticleEditor
         canPublish
+        canDelete={context.membership.role === "admin"}
         revisions={revisions}
         initial={{
           ...input,

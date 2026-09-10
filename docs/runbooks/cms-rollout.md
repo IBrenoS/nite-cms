@@ -72,10 +72,11 @@ separada.
 - `REVALIDATION_SECRET`: pelo menos 32 caracteres, igual no Admin e Portal.
 - `CRON_SECRET`: pelo menos 32 caracteres, exclusivo do cron.
 
-O usuário/role R2 do Admin precisa apenas das operações usadas para upload no
-staging, leitura do staging e escrita no bucket público. `DeleteObject` não é
-necessário. Configure CORS do staging somente para origem, métodos e headers do
-Admin.
+O usuário/role R2 do Admin precisa das operações usadas para upload no staging,
+leitura do staging, escrita no bucket público e `DeleteObject` em ambos os
+buckets. Restrinja a permissão aos buckets `R2_STAGING_BUCKET` e
+`R2_PUBLIC_BUCKET`. Configure CORS do staging somente para origem, métodos e
+headers do Admin.
 
 Em desenvolvimento local, `PORTAL_PREVIEW_URL` vazio é um estado válido e
 significa que o Preview no Portal ainda não foi integrado. O Admin permanece
@@ -97,8 +98,9 @@ O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
 tentativa em `after()` reduz a latência; o cron é a recuperação durável. No
 plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
 indisponibilidade prolongada pode aguardar o próximo ciclo.
-Antes de processar o outbox, o mesmo cron remove `preview_snapshots` expirados;
-criação e resolução também fazem essa limpeza oportunisticamente.
+Antes de processar o outbox, o mesmo cron remove `preview_snapshots` expirados
+e agenda o purge de mídias sem referências criadas há mais de 48 horas; criação
+e resolução também fazem a limpeza oportunística dos snapshots.
 
 ### CMS API
 

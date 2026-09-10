@@ -22,6 +22,7 @@ import type {
   EditorialField,
   EditorialFieldErrors,
 } from "@/lib/editorial-form";
+import { ArticleDeletionDialog } from "../article-deletion-dialog";
 
 type RevisionItem = {
   id: string;
@@ -60,6 +61,8 @@ type EditorInspectorProps = {
   seoDescription: string;
   seoPanelOpen: boolean;
   operationPending: boolean;
+  canDelete: boolean;
+  isDirty: boolean;
   lifecyclePending: boolean;
   lifecycleMessage?: string;
   lifecycleError: boolean;
@@ -79,6 +82,8 @@ type EditorInspectorProps = {
   onSeoDescriptionChange: (value: string) => void;
   onSeoToggle: (open: boolean) => void;
   onTransitionLifecycle: (intent: "unpublish" | "archive" | "restore") => void;
+  onDeletionPendingChange: (pending: boolean) => void;
+  onDeleted: (scheduledMediaCount: number) => void;
 };
 
 const categoryLabels = {
@@ -141,6 +146,8 @@ export function EditorInspector({
   seoDescription,
   seoPanelOpen,
   operationPending,
+  canDelete,
+  isDirty,
   lifecyclePending,
   lifecycleMessage,
   lifecycleError,
@@ -160,6 +167,8 @@ export function EditorInspector({
   onSeoDescriptionChange,
   onSeoToggle,
   onTransitionLifecycle,
+  onDeletionPendingChange,
+  onDeleted,
 }: EditorInspectorProps) {
   const [activeTab, setActiveTab] = useState<"publishing" | "revisions">(
     "publishing",
@@ -886,6 +895,16 @@ export function EditorInspector({
                     <span>Restaurar</span>
                   </Button>
                 )}
+                {canDelete && articleId ? (
+                  <ArticleDeletionDialog
+                    articleId={articleId}
+                    expectedRevisionId={currentRevisionId}
+                    isDirty={isDirty}
+                    disabled={operationPending}
+                    onPendingChange={onDeletionPendingChange}
+                    onDeleted={onDeleted}
+                  />
+                ) : null}
               </div>
             </section>
           ) : null}

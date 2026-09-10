@@ -101,9 +101,13 @@ a 2400 px, converte para WebP e grava uma chave content-addressed imutável em
 `R2_PUBLIC_BUCKET`. `R2_PUBLIC_BASE_URL` serve os objetos prontos com cache
 immutable.
 
-O original é retido no staging e o MVP não requer `DeleteObject`. A migration
-dos dois buckets pressupõe ausência de objetos reais legados; não existe
-backfill, cópia ou fallback para `object_key`.
+O original é retido no staging enquanto a mídia estiver referenciada. A
+exclusão definitiva de uma matéria remove revisões e snapshots, preserva
+auditoria/outbox e agenda `media.asset.purge` somente para assets sem qualquer
+referência permanente ou temporária. O worker exclui staging e public antes de
+remover `media_assets`; retries são idempotentes. Uploads órfãos há mais de 48
+horas entram no mesmo fluxo pelo cron diário. Não há purge explícito do cache
+CDN nesta etapa.
 
 ## Preview privado
 

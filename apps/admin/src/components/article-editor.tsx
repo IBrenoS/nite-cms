@@ -55,6 +55,7 @@ type ArticleEditorProps = {
     coverUrl?: string;
   };
   canPublish: boolean;
+  canDelete?: boolean;
   revisions?: RevisionItem[];
 };
 
@@ -126,6 +127,7 @@ function statusPresentation(
 export function ArticleEditor({
   initial,
   canPublish,
+  canDelete = false,
   revisions = [],
 }: ArticleEditorProps) {
   const router = useRouter();
@@ -190,6 +192,7 @@ export function ArticleEditor({
   const [lifecycleError, setLifecycleError] = useState(false);
   const [previewMessage, setPreviewMessage] = useState<string>();
   const [previewPending, setPreviewPending] = useState(false);
+  const [deletionPending, setDeletionPending] = useState(false);
   const [isDirty, setIsDirty] = useState(!initial);
   const [, setSelectionRevision] = useState(0);
   const [lifecyclePending, startLifecycleTransition] = useTransition();
@@ -506,6 +509,7 @@ export function ArticleEditor({
     pending ||
     lifecyclePending ||
     previewPending ||
+    deletionPending ||
     mediaState === "uploading" ||
     mediaState === "processing" ||
     inlineMediaState === "uploading" ||
@@ -679,6 +683,8 @@ export function ArticleEditor({
             seoDescription={seoDescription}
             seoPanelOpen={seoPanelOpen}
             operationPending={operationPending}
+            canDelete={canDelete}
+            isDirty={isDirty}
             lifecyclePending={lifecyclePending}
             lifecycleMessage={lifecycleMessage}
             lifecycleError={lifecycleError}
@@ -706,6 +712,11 @@ export function ArticleEditor({
             onSeoDescriptionChange={(val) => setSeoDescription(val)}
             onSeoToggle={(open) => setSeoPanelOpen(open)}
             onTransitionLifecycle={transitionLifecycle}
+            onDeletionPendingChange={setDeletionPending}
+            onDeleted={(scheduledMediaCount) => {
+              setIsDirty(false);
+              router.replace(`/?deletedMedia=${scheduledMediaCount}`);
+            }}
           />
         </div>
       </div>

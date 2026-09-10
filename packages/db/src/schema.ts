@@ -10,6 +10,7 @@ import {
   pgEnum,
   pgTable,
   pgView,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -33,6 +34,7 @@ export const mediaStatusEnum = pgEnum("media_status", [
   "ready",
   "quarantined",
   "failed",
+  "deleting",
 ]);
 export const outboxStatusEnum = pgEnum("outbox_status", [
   "pending",
@@ -242,7 +244,7 @@ export const mediaAssets = pgTable(
     ),
     check(
       "media_assets_non_ready_public_key_check",
-      sql`${table.status} = 'ready' or ${table.publicObjectKey} is null`,
+      sql`${table.status} in ('ready', 'deleting') or ${table.publicObjectKey} is null`,
     ),
     index("media_assets_status_idx").on(table.status),
   ],
@@ -371,6 +373,38 @@ export const previewSnapshots = pgTable(
   ],
 );
 
+export const articleMediaReferences = pgTable(
+  "article_media_references",
+  {
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.articleId, table.mediaId] }),
+    index("article_media_references_media_idx").on(table.mediaId),
+  ],
+);
+
+export const previewMediaReferences = pgTable(
+  "preview_media_references",
+  {
+    snapshotId: uuid("snapshot_id")
+      .notNull()
+      .references(() => previewSnapshots.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "restrict" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.snapshotId, table.mediaId] }),
+    index("preview_media_references_media_idx").on(table.mediaId),
+  ],
+);
+
 export const auditEvents = pgTable(
   "audit_events",
   {
@@ -462,6 +496,8 @@ export type NewCmsMembershipInvitation =
   typeof cmsMembershipInvitations.$inferInsert;
 export type Article = typeof articles.$inferSelect;
 export type PreviewSnapshot = typeof previewSnapshots.$inferSelect;
+export type ArticleMediaReference = typeof articleMediaReferences.$inferSelect;
+export type PreviewMediaReference = typeof previewMediaReferences.$inferSelect;
 export type NewArticle = typeof articles.$inferInsert;
 export type ArticleRevision = typeof articleRevisions.$inferSelect;
 export type NewArticleRevision = typeof articleRevisions.$inferInsert;

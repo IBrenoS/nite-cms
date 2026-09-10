@@ -13,9 +13,11 @@ import {
 import {
   calculateEditorialReadTime,
   getEditorialImageMediaIds,
+  getStorableEditorialImageMediaIds,
   persistedEditorialDocumentSchema,
 } from "./editor-document";
 import {
+  articleMediaReferences,
   articleRevisions,
   articles,
   auditEvents,
@@ -124,6 +126,38 @@ function revisionValues(
   };
 }
 
+async function registerArticleMediaReferences<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  articleId: string,
+  input: EditorialDraftInput,
+) {
+  const mediaIds = [
+    ...(input.coverMediaId ? [input.coverMediaId] : []),
+    ...getStorableEditorialImageMediaIds(input.body),
+  ];
+  const uniqueMediaIds = [...new Set(mediaIds)];
+  if (uniqueMediaIds.length === 0) return;
+  const availableMedia = await database
+    .select({ id: mediaAssets.id, status: mediaAssets.status })
+    .from(mediaAssets)
+    .where(inArray(mediaAssets.id, uniqueMediaIds))
+    .for("update");
+  if (
+    availableMedia.length !== uniqueMediaIds.length ||
+    availableMedia.some(({ status }) => status === "deleting")
+  ) {
+    throw new EditorialPublicationError(
+      "Uma das mídias selecionadas não está mais disponível.",
+    );
+  }
+  await database
+    .insert(articleMediaReferences)
+    .values(uniqueMediaIds.map((mediaId) => ({ articleId, mediaId })))
+    .onConflictDoNothing();
+}
+
 function resolveDraftSlug(
   input: EditorialDraftInput,
   slugManuallyEdited: boolean,
@@ -167,6 +201,7 @@ export async function createArticleDraft<TQueryResult extends PgQueryResultHKT>(
         .insert(articleRevisions)
         .values(revisionValues(input, article.id, 1, actor.id))
         .returning();
+      await registerArticleMediaReferences(transaction, article.id, input);
       const [updatedArticle] = await transaction
         .update(articles)
         .set({ currentRevisionId: revision.id, updatedAt: new Date() })
@@ -263,6 +298,7 @@ export async function saveArticleRevision<
           ),
         )
         .returning();
+      await registerArticleMediaReferences(transaction, article.id, input);
       const [updatedArticle] = await transaction
         .update(articles)
         .set({
@@ -349,7 +385,8 @@ export async function validateEditorialInputForPublication<
     .select({ status: mediaAssets.status })
     .from(mediaAssets)
     .where(eq(mediaAssets.id, publishable.coverMediaId))
-    .limit(1);
+    .limit(1)
+    .for("update");
   if (cover?.status !== "ready") {
     throw new EditorialPublicationError(
       "A capa ainda não terminou de ser processada.",
@@ -360,7 +397,8 @@ export async function validateEditorialInputForPublication<
     const inlineAssets = await database
       .select({ id: mediaAssets.id, status: mediaAssets.status })
       .from(mediaAssets)
-      .where(inArray(mediaAssets.id, inlineMediaIds));
+      .where(inArray(mediaAssets.id, inlineMediaIds))
+      .for("update");
     if (
       inlineAssets.length !== inlineMediaIds.length ||
       inlineAssets.some((asset) => asset.status !== "ready")

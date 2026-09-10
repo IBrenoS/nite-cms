@@ -5,12 +5,16 @@ const mocks = vi.hoisted(() => ({
   getPreview: vi.fn(),
   validatePreview: vi.fn(),
   createSnapshot: vi.fn(),
+  deleteArticle: vi.fn(),
+  deletionImpact: vi.fn(),
   requireContext: vi.fn(),
   after: vi.fn(),
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: mocks.after }));
+vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth", () => ({ requireCmsContext: mocks.requireContext }));
 vi.mock("@nite/editorial", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@nite/editorial")>();
@@ -20,6 +24,8 @@ vi.mock("@nite/editorial", async (importOriginal) => {
     getEditorialRevisionPreview: mocks.getPreview,
     validateEditorialRevisionForPublication: mocks.validatePreview,
     createEditorialPreviewSnapshot: mocks.createSnapshot,
+    deleteEditorialArticle: mocks.deleteArticle,
+    getEditorialArticleDeletionImpact: mocks.deletionImpact,
   };
 });
 
@@ -28,6 +34,8 @@ import { editorialPublishableInputSchema } from "@nite/editorial";
 import {
   createLivePreviewLink,
   createPrivatePreviewLink,
+  deleteEditorialArticleAction,
+  getEditorialArticleDeletionImpactAction,
   submitEditorialArticle,
 } from "./actions";
 
@@ -98,10 +106,58 @@ describe("ações do editor", () => {
     mocks.getPreview.mockReset();
     mocks.validatePreview.mockReset();
     mocks.createSnapshot.mockReset();
+    mocks.deleteArticle.mockReset();
+    mocks.deletionImpact.mockReset();
+    mocks.revalidatePath.mockReset();
     mocks.requireContext.mockResolvedValue({
       database: {},
       membership: { id: "membership-id" },
     });
+  });
+
+  it("consulta o impacto e exclui usando a revisão esperada", async () => {
+    const context = {
+      database: { database: true },
+      membership: { id: "30000000-0000-4000-8000-000000000001" },
+    };
+    mocks.requireContext.mockResolvedValue(context);
+    mocks.deletionImpact.mockResolvedValue({
+      title: "Matéria descartável",
+      slug: "materia-descartavel",
+      status: "draft",
+      revisionCount: 5,
+      snapshotCount: 2,
+      mediaCount: 3,
+      exclusiveMediaCount: 2,
+      sharedMediaCount: 1,
+    });
+    mocks.deleteArticle.mockResolvedValue({
+      articleId: "10000000-0000-4000-8000-000000000001",
+      deletedRevisionCount: 5,
+      deletedSnapshotCount: 2,
+      scheduledMediaCount: 2,
+    });
+    const command = {
+      articleId: "10000000-0000-4000-8000-000000000001",
+      expectedRevisionId: "20000000-0000-4000-8000-000000000001",
+    };
+
+    await expect(
+      getEditorialArticleDeletionImpactAction(command),
+    ).resolves.toMatchObject({ status: "success", data: { revisionCount: 5 } });
+    await expect(deleteEditorialArticleAction(command)).resolves.toMatchObject({
+      status: "success",
+      message: "Matéria excluída. Limpeza de 2 mídias agendada.",
+    });
+    expect(mocks.deletionImpact).toHaveBeenCalledWith(context.database, {
+      actor: context.membership,
+      ...command,
+    });
+    expect(mocks.deleteArticle).toHaveBeenCalledWith(context.database, {
+      actor: context.membership,
+      ...command,
+    });
+    expect(mocks.after).toHaveBeenCalledOnce();
   });
 
   it("cria preview interno das alterações atuais sem salvar revisão", async () => {

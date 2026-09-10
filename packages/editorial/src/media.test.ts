@@ -50,6 +50,14 @@ class MemoryObjectStore implements MediaObjectStore {
     this.publicWrites.push(input.publicObjectKey);
     this.objects.set(input.publicObjectKey, input.body);
   }
+
+  async deleteStagingObject(stagingObjectKey: string) {
+    this.objects.delete(stagingObjectKey);
+  }
+
+  async deletePublicObject(publicObjectKey: string) {
+    this.objects.delete(publicObjectKey);
+  }
 }
 
 const imageProcessor: ImageProcessor = {

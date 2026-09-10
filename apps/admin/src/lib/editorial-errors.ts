@@ -16,7 +16,7 @@ import {
 } from "./editorial-form";
 
 export type EditorialOperation =
-  "save" | "publish" | "lifecycle" | "media" | "preview";
+  "save" | "publish" | "lifecycle" | "media" | "preview" | "delete";
 
 type EditorialOperationErrorCode =
   | "publication_prerequisite"
