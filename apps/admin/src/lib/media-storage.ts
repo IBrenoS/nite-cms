@@ -1,8 +1,10 @@
 import "server-only";
 
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -58,6 +60,47 @@ export function createMediaObjectStore(input: {
       );
       if (!response.Body) throw new Error("Objeto sem conteúdo.");
       return response.Body.transformToByteArray();
+    },
+    async headStagingObject(stagingObjectKey) {
+      const response = await client.send(
+        new HeadObjectCommand({
+          Bucket: configuration.R2_STAGING_BUCKET,
+          Key: stagingObjectKey,
+        }),
+      );
+      return {
+        byteSize: response.ContentLength,
+        contentType: response.ContentType,
+        etag: response.ETag,
+      };
+    },
+    async getStagingObjectRange(stagingObjectKey, start, end) {
+      const response = await client.send(
+        new GetObjectCommand({
+          Bucket: configuration.R2_STAGING_BUCKET,
+          Key: stagingObjectKey,
+          Range: `bytes=${start}-${end}`,
+        }),
+      );
+      if (!response.Body) throw new Error("Objeto sem conteúdo.");
+      return response.Body.transformToByteArray();
+    },
+    async copyStagingObjectToPublic(output) {
+      const encodedSourceKey = output.stagingObjectKey
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: configuration.R2_PUBLIC_BUCKET,
+          Key: output.publicObjectKey,
+          CopySource: `${configuration.R2_STAGING_BUCKET}/${encodedSourceKey}`,
+          CopySourceIfMatch: output.sourceEtag,
+          ContentType: output.contentType,
+          CacheControl: output.cacheControl,
+          MetadataDirective: "REPLACE",
+        }),
+      );
     },
     async putPublicObject(output) {
       await client.send(

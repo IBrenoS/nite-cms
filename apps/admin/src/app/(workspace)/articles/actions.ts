@@ -20,6 +20,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { requireCmsContext } from "@/lib/auth";
 import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
+import { mp4BoxVideoInspector } from "@/lib/mp4box-video-inspector";
 import { processCmsOutbox } from "@/lib/outbox";
 import { readPreviewConfiguration } from "@/lib/preview-config";
 import {
@@ -92,6 +93,7 @@ export async function submitEditorialArticle(
 }
 
 export async function createMediaUploadAction(input: {
+  mediaKind?: "image" | "video" | "captions";
   mimeType: string;
   byteSize: number;
 }) {
@@ -111,7 +113,8 @@ export async function createMediaUploadAction(input: {
       return {
         status: "operation_error" as const,
         code: "media_file" as const,
-        message: "Use JPEG, PNG ou WebP de até 10 MB.",
+        message:
+          "Use JPEG, PNG ou WebP de até 10 MiB, MP4 de até 100 MiB ou WebVTT de até 1 MiB.",
         retryable: true,
       };
     }
@@ -127,10 +130,24 @@ export async function processMediaUploadAction(mediaId: string) {
       getMediaObjectStore(),
       sharpImageProcessor,
       { mediaId },
+      mp4BoxVideoInspector,
     );
     return {
       status: "success" as const,
-      data: { id: media.id, mediaStatus: media.status },
+      data: {
+        id: media.id,
+        mediaKind: media.mediaKind,
+        mediaStatus: media.status,
+        mimeType: media.mimeType,
+        publicObjectKey: media.publicObjectKey,
+        width: media.width,
+        height: media.height,
+        durationMs: media.durationMs,
+        videoCodec: media.videoCodec,
+        hasAudio: media.hasAudio,
+        checksumSha256: media.checksumSha256,
+        objectEtag: media.objectEtag,
+      },
     };
   } catch (error) {
     return editorialActionFailure(error, "media");

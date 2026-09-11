@@ -15,12 +15,27 @@ import {
 } from "./outbox-protocol";
 import { getMediaObjectStore } from "./media-storage";
 
+const stagingPurgePayloadSchema = z.object({
+  mediaId: z.uuid(),
+  stagingObjectKey: z.string().min(1),
+});
+
 export function createCmsOutboxDispatcher(input: {
   database: ReturnType<typeof getDatabase>;
   webDispatcher: OutboxDispatcher;
 }): OutboxDispatcher {
   return {
     async dispatch(message) {
+      if (message.topic === "media.staging.purge") {
+        const payload = stagingPurgePayloadSchema.parse(message.payload);
+        if (payload.mediaId !== message.aggregateId) {
+          throw new Error("Evento de limpeza de staging inconsistente.");
+        }
+        await getMediaObjectStore().deleteStagingObject(
+          payload.stagingObjectKey,
+        );
+        return;
+      }
       if (message.topic === "media.asset.purge") {
         await purgeDeletingMediaAsset(input.database, getMediaObjectStore(), {
           mediaId: z.uuid().parse(message.aggregateId),

@@ -1,6 +1,8 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
@@ -14,6 +16,78 @@ afterEach(() => {
 });
 
 describe("storage de mídia R2", () => {
+  it("inspeciona metadata, lê range inclusivo e copia vídeo com ETag", async () => {
+    const sentCommands: unknown[] = [];
+    const client = {
+      async send(command: unknown) {
+        sentCommands.push(command);
+        if (command instanceof HeadObjectCommand) {
+          return {
+            ContentLength: 24,
+            ContentType: "video/mp4",
+            ETag: '"etag-123"',
+          };
+        }
+        if (command instanceof GetObjectCommand) {
+          return {
+            Body: {
+              transformToByteArray: async () => new Uint8Array([1, 2, 3]),
+            },
+          };
+        }
+        return {};
+      },
+    } as unknown as S3Client;
+    const store = createMediaObjectStore({
+      configuration: {
+        R2_ACCOUNT_ID: "account",
+        R2_ACCESS_KEY_ID: "key",
+        R2_SECRET_ACCESS_KEY: "secret",
+        R2_STAGING_BUCKET: "nite-staging",
+        R2_PUBLIC_BUCKET: "nite-public",
+      },
+      client,
+      signUploadUrl: async () => "https://upload.nite.test/signed",
+    });
+
+    await expect(
+      store.headStagingObject("incoming/video/original"),
+    ).resolves.toEqual({
+      byteSize: 24,
+      contentType: "video/mp4",
+      etag: '"etag-123"',
+    });
+    await expect(
+      store.getStagingObjectRange("incoming/video/original", 0, 15),
+    ).resolves.toEqual(new Uint8Array([1, 2, 3]));
+    await store.copyStagingObjectToPublic({
+      stagingObjectKey: "incoming/video/original",
+      publicObjectKey: "news/video/etag-123.mp4",
+      sourceEtag: '"etag-123"',
+      contentType: "video/mp4",
+      cacheControl: "public, max-age=31536000, immutable",
+    });
+
+    expect((sentCommands[0] as HeadObjectCommand).input).toEqual({
+      Bucket: "nite-staging",
+      Key: "incoming/video/original",
+    });
+    expect((sentCommands[1] as GetObjectCommand).input).toEqual({
+      Bucket: "nite-staging",
+      Key: "incoming/video/original",
+      Range: "bytes=0-15",
+    });
+    expect((sentCommands[2] as CopyObjectCommand).input).toEqual({
+      Bucket: "nite-public",
+      Key: "news/video/etag-123.mp4",
+      CopySource: "nite-staging/incoming/video/original",
+      CopySourceIfMatch: '"etag-123"',
+      ContentType: "video/mp4",
+      CacheControl: "public, max-age=31536000, immutable",
+      MetadataDirective: "REPLACE",
+    });
+  });
+
   it("envia, lê e exclui objetos nos buckets corretos", async () => {
     const sentCommands: unknown[] = [];
     const presignedCommands: PutObjectCommand[] = [];
@@ -65,6 +139,8 @@ describe("storage de mídia R2", () => {
     expect(presignedCommands[0]?.input).toMatchObject({
       Bucket: "nite-staging",
       Key: "incoming/asset",
+      ContentType: "image/png",
+      ContentLength: 3,
     });
     expect(sentCommands).toHaveLength(4);
     expect((sentCommands[0] as GetObjectCommand).input).toMatchObject({

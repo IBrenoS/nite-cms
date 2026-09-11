@@ -36,6 +36,22 @@ class DeletingObjectStore implements MediaObjectStore {
     throw new Error("Não usado neste teste.");
   }
 
+  async headStagingObject(): Promise<{
+    byteSize: number | undefined;
+    contentType: string | undefined;
+    etag: string | undefined;
+  }> {
+    throw new Error("Não usado neste teste.");
+  }
+
+  async getStagingObjectRange(): Promise<Uint8Array> {
+    throw new Error("Não usado neste teste.");
+  }
+
+  async copyStagingObjectToPublic() {
+    throw new Error("Não usado neste teste.");
+  }
+
   async putPublicObject() {
     throw new Error("Não usado neste teste.");
   }

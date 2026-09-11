@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   createSnapshot: vi.fn(),
   deleteArticle: vi.fn(),
   deletionImpact: vi.fn(),
+  createMediaUpload: vi.fn(),
+  processMediaAsset: vi.fn(),
   requireContext: vi.fn(),
   after: vi.fn(),
   revalidatePath: vi.fn(),
@@ -26,16 +28,27 @@ vi.mock("@nite/editorial", async (importOriginal) => {
     createEditorialPreviewSnapshot: mocks.createSnapshot,
     deleteEditorialArticle: mocks.deleteArticle,
     getEditorialArticleDeletionImpact: mocks.deletionImpact,
+    createMediaUpload: mocks.createMediaUpload,
+    processMediaAsset: mocks.processMediaAsset,
   };
 });
+vi.mock("@/lib/media-storage", () => ({
+  getMediaObjectStore: vi.fn(() => ({ objectStore: true })),
+  sharpImageProcessor: { imageProcessor: true },
+}));
+vi.mock("@/lib/mp4box-video-inspector", () => ({
+  mp4BoxVideoInspector: { videoInspector: true },
+}));
 
 import { editorialPublishableInputSchema } from "@nite/editorial";
 
 import {
   createLivePreviewLink,
+  createMediaUploadAction,
   createPrivatePreviewLink,
   deleteEditorialArticleAction,
   getEditorialArticleDeletionImpactAction,
+  processMediaUploadAction,
   submitEditorialArticle,
 } from "./actions";
 
@@ -108,11 +121,95 @@ describe("ações do editor", () => {
     mocks.createSnapshot.mockReset();
     mocks.deleteArticle.mockReset();
     mocks.deletionImpact.mockReset();
+    mocks.createMediaUpload.mockReset();
+    mocks.processMediaAsset.mockReset();
     mocks.revalidatePath.mockReset();
     mocks.requireContext.mockResolvedValue({
       database: {},
       membership: { id: "membership-id" },
     });
+  });
+
+  it("inicia upload de vídeo com resultado generalizado", async () => {
+    const expiresAt = new Date("2026-09-11T12:05:00.000Z");
+    mocks.createMediaUpload.mockResolvedValue({
+      mediaId: "30000000-0000-4000-8000-000000000091",
+      mediaKind: "video",
+      uploadUrl: "https://upload.nite.test/video",
+      requiredHeaders: { "Content-Type": "video/mp4" },
+      expiresAt,
+    });
+
+    await expect(
+      createMediaUploadAction({
+        mediaKind: "video",
+        mimeType: "video/mp4",
+        byteSize: 12,
+      }),
+    ).resolves.toMatchObject({
+      status: "success",
+      data: { mediaKind: "video", expiresAt: expiresAt.toISOString() },
+    });
+    expect(mocks.createMediaUpload).toHaveBeenCalledWith(
+      {},
+      { objectStore: true },
+      {
+        actor: { id: "membership-id" },
+        file: { mediaKind: "video", mimeType: "video/mp4", byteSize: 12 },
+      },
+    );
+  });
+
+  it("explica todos os formatos aceitos quando o upload é inválido", async () => {
+    await expect(
+      createMediaUploadAction({
+        mediaKind: "captions",
+        mimeType: "text/vtt",
+        byteSize: 1024 * 1024 + 1,
+      }),
+    ).resolves.toMatchObject({
+      status: "operation_error",
+      code: "media_file",
+      message:
+        "Use JPEG, PNG ou WebP de até 10 MiB, MP4 de até 100 MiB ou WebVTT de até 1 MiB.",
+    });
+  });
+
+  it("processa vídeo com inspector injetado e devolve seus metadados", async () => {
+    mocks.processMediaAsset.mockResolvedValue({
+      id: "30000000-0000-4000-8000-000000000092",
+      mediaKind: "video",
+      status: "ready",
+      mimeType: "video/mp4",
+      publicObjectKey: "news/video/etag.mp4",
+      width: 1920,
+      height: 1080,
+      durationMs: 24_500,
+      videoCodec: "avc1.640028",
+      hasAudio: true,
+      checksumSha256: null,
+      objectEtag: '"etag"',
+    });
+
+    await expect(
+      processMediaUploadAction("30000000-0000-4000-8000-000000000092"),
+    ).resolves.toMatchObject({
+      status: "success",
+      data: {
+        mediaKind: "video",
+        mediaStatus: "ready",
+        durationMs: 24_500,
+        videoCodec: "avc1.640028",
+        hasAudio: true,
+      },
+    });
+    expect(mocks.processMediaAsset).toHaveBeenCalledWith(
+      {},
+      { objectStore: true },
+      { imageProcessor: true },
+      { mediaId: "30000000-0000-4000-8000-000000000092" },
+      { videoInspector: true },
+    );
   });
 
   it("consulta o impacto e exclui usando a revisão esperada", async () => {

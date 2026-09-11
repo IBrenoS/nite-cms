@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  createWebRevalidationDispatcher: vi.fn(() => ({ dispatch: vi.fn() })),
-  deleteExpiredEditorialPreviewSnapshots: vi.fn(),
-  getDatabase: vi.fn(() => ({ database: true })),
-  getMediaObjectStore: vi.fn(() => ({ store: true })),
-  purgeDeletingMediaAsset: vi.fn(),
-  processOutboxEvents: vi.fn(async () => ({ processed: 0 })),
-  readOutboxConfiguration: vi.fn(),
-  scheduleOrphanMediaPurges: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const deleteStagingObject = vi.fn();
+  return {
+    createWebRevalidationDispatcher: vi.fn(() => ({ dispatch: vi.fn() })),
+    deleteExpiredEditorialPreviewSnapshots: vi.fn(),
+    getDatabase: vi.fn(() => ({ database: true })),
+    deleteStagingObject,
+    getMediaObjectStore: vi.fn(() => ({
+      store: true,
+      deleteStagingObject,
+    })),
+    purgeDeletingMediaAsset: vi.fn(),
+    processOutboxEvents: vi.fn(async () => ({ processed: 0 })),
+    readOutboxConfiguration: vi.fn(),
+    scheduleOrphanMediaPurges: vi.fn(),
+  };
+});
 
 vi.mock("server-only", () => ({}));
 vi.mock("@nite/editorial", () => ({
@@ -74,7 +81,7 @@ describe("processamento diário do outbox", () => {
     });
     expect(mocks.purgeDeletingMediaAsset).toHaveBeenCalledWith(
       { database: true },
-      { store: true },
+      expect.objectContaining({ store: true }),
       { mediaId: "20000000-0000-4000-8000-000000000001" },
     );
     expect(webDispatch).not.toHaveBeenCalled();
@@ -88,5 +95,27 @@ describe("processamento diário do outbox", () => {
     };
     await dispatcher.dispatch(newsMessage);
     expect(webDispatch).toHaveBeenCalledWith(newsMessage);
+  });
+
+  it("remove staging pelo payload mesmo após purge concorrente do registro", async () => {
+    const webDispatch = vi.fn();
+    const dispatcher = createCmsOutboxDispatcher({
+      database: { database: true } as never,
+      webDispatcher: { dispatch: webDispatch },
+    });
+    const mediaId = "20000000-0000-4000-8000-000000000009";
+    const stagingObjectKey = `incoming/${mediaId}/original`;
+
+    await dispatcher.dispatch({
+      id: "10000000-0000-4000-8000-000000000009",
+      topic: "media.staging.purge",
+      aggregateId: mediaId,
+      payload: { mediaId, stagingObjectKey },
+      attempts: 1,
+    });
+
+    expect(mocks.deleteStagingObject).toHaveBeenCalledWith(stagingObjectKey);
+    expect(mocks.purgeDeletingMediaAsset).not.toHaveBeenCalled();
+    expect(webDispatch).not.toHaveBeenCalled();
   });
 });

@@ -11,8 +11,9 @@ import {
   processMediaAsset,
   type ImageProcessor,
   type MediaObjectStore,
+  type VideoInspector,
 } from "@nite/editorial";
-import { cmsMemberships, mediaAssets } from "@nite/cms-db";
+import { cmsMemberships, mediaAssets, outboxEvents } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 
 const migrationsFolder = fileURLToPath(
@@ -21,7 +22,19 @@ const migrationsFolder = fileURLToPath(
 
 class MemoryObjectStore implements MediaObjectStore {
   readonly objects = new Map<string, Uint8Array>();
+  readonly stagingMetadata = new Map<
+    string,
+    { byteSize: number; contentType: string; etag: string }
+  >();
   readonly publicWrites: string[] = [];
+  readonly rangeReads: Array<{ key: string; start: number; end: number }> = [];
+  readonly copies: Array<{
+    stagingObjectKey: string;
+    publicObjectKey: string;
+    sourceEtag: string;
+    contentType: "video/mp4";
+    cacheControl: string;
+  }> = [];
 
   async createStagingUploadUrl(input: {
     stagingObjectKey: string;
@@ -42,10 +55,38 @@ class MemoryObjectStore implements MediaObjectStore {
     return object;
   }
 
+  async headStagingObject(stagingObjectKey: string) {
+    const metadata = this.stagingMetadata.get(stagingObjectKey);
+    if (!metadata) throw new Error("Metadata ausente no fake store.");
+    return metadata;
+  }
+
+  async getStagingObjectRange(
+    stagingObjectKey: string,
+    start: number,
+    end: number,
+  ) {
+    this.rangeReads.push({ key: stagingObjectKey, start, end });
+    return this.getStagingObject(stagingObjectKey);
+  }
+
+  async copyStagingObjectToPublic(input: {
+    stagingObjectKey: string;
+    publicObjectKey: string;
+    sourceEtag: string;
+    contentType: "video/mp4";
+    cacheControl: string;
+  }) {
+    this.copies.push(input);
+    const body = this.objects.get(input.stagingObjectKey);
+    if (!body) throw new Error("Objeto ausente no fake store.");
+    this.objects.set(input.publicObjectKey, body);
+  }
+
   async putPublicObject(input: {
     publicObjectKey: string;
     body: Uint8Array;
-    contentType: "image/webp";
+    contentType: "image/webp" | "text/vtt; charset=utf-8";
   }) {
     this.publicWrites.push(input.publicObjectKey);
     this.objects.set(input.publicObjectKey, input.body);
@@ -109,6 +150,7 @@ describe("mídia editorial", () => {
 
     expect(upload).toMatchObject({
       mediaId: expect.any(String),
+      mediaKind: "image",
       uploadUrl: expect.stringMatching(
         /^https:\/\/upload\.nite\.test\/incoming\//,
       ),
@@ -143,6 +185,209 @@ describe("mídia editorial", () => {
           `news/${upload.mediaId}/6209589bb80ad2ff5714bbb9787f134865a556e402853dffa5759c9499b3f4bb.webp`,
       ),
     ).toBe(true);
+    await expect(
+      database
+        .select({ topic: outboxEvents.topic, payload: outboxEvents.payload })
+        .from(outboxEvents),
+    ).resolves.toEqual([
+      {
+        topic: "media.staging.purge",
+        payload: {
+          mediaId: upload.mediaId,
+          stagingObjectKey: `incoming/${upload.mediaId}/original`,
+        },
+      },
+    ]);
+  });
+
+  it("inspeciona no máximo 8 MiB e promove MP4 imutável pelo ETag", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "video-editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: {
+        mediaKind: "video",
+        mimeType: "video/mp4",
+        byteSize: 100 * 1024 * 1024,
+      },
+    });
+    const stagingObjectKey = `incoming/${upload.mediaId}/original`;
+    store.objects.set(stagingObjectKey, new Uint8Array([1, 2, 3]));
+    store.stagingMetadata.set(stagingObjectKey, {
+      byteSize: 100 * 1024 * 1024,
+      contentType: "video/mp4",
+      etag: '"etag-123"',
+    });
+    const inspector: VideoInspector = {
+      async inspect(input) {
+        expect(input).toEqual(new Uint8Array([1, 2, 3]));
+        return {
+          durationMs: 24_500,
+          width: 1920,
+          height: 1080,
+          codec: "avc1.640028",
+          hasAudio: true,
+        };
+      },
+    };
+
+    const processed = await processMediaAsset(
+      database,
+      store,
+      imageProcessor,
+      { mediaId: upload.mediaId },
+      inspector,
+    );
+
+    expect(store.rangeReads).toEqual([
+      { key: stagingObjectKey, start: 0, end: 8 * 1024 * 1024 - 1 },
+    ]);
+    expect(store.copies).toEqual([
+      {
+        stagingObjectKey,
+        publicObjectKey: `news/${upload.mediaId}/etag-123.mp4`,
+        sourceEtag: '"etag-123"',
+        contentType: "video/mp4",
+        cacheControl: "public, max-age=31536000, immutable",
+      },
+    ]);
+    expect(processed).toMatchObject({
+      mediaKind: "video",
+      publicObjectKey: `news/${upload.mediaId}/etag-123.mp4`,
+      mimeType: "video/mp4",
+      byteSize: 100 * 1024 * 1024,
+      durationMs: 24_500,
+      width: 1920,
+      height: 1080,
+      videoCodec: "avc1.640028",
+      hasAudio: true,
+      objectEtag: '"etag-123"',
+      status: "ready",
+    });
+    await expect(
+      database
+        .select({ topic: outboxEvents.topic, payload: outboxEvents.payload })
+        .from(outboxEvents),
+    ).resolves.toEqual([
+      {
+        topic: "media.staging.purge",
+        payload: { mediaId: upload.mediaId, stagingObjectKey },
+      },
+    ]);
+  });
+
+  it.each([
+    ["tamanho", { byteSize: 11, contentType: "video/mp4", etag: '"etag"' }],
+    ["MIME", { byteSize: 12, contentType: "image/png", etag: '"etag"' }],
+    ["ETag", { byteSize: 12, contentType: "video/mp4", etag: "" }],
+  ])(
+    "coloca vídeo em quarentena quando HEAD diverge em %s",
+    async (_case, head) => {
+      const database = drizzle(client, { schema: cmsSchema });
+      const [actor] = await database
+        .insert(cmsMemberships)
+        .values({
+          tenantId: "tenant-nite",
+          objectId: `video-head-${_case}`,
+          displayName: "Editora NITE",
+          role: "publisher",
+        })
+        .returning();
+      const store = new MemoryObjectStore();
+      const upload = await createMediaUpload(database, store, {
+        actor,
+        file: { mediaKind: "video", mimeType: "video/mp4", byteSize: 12 },
+      });
+      const key = `incoming/${upload.mediaId}/original`;
+      store.stagingMetadata.set(key, head);
+
+      await expect(
+        processMediaAsset(
+          database,
+          store,
+          imageProcessor,
+          { mediaId: upload.mediaId },
+          {
+            async inspect() {
+              throw new Error("não deve inspecionar");
+            },
+          },
+        ),
+      ).rejects.toThrow(/quarentena/i);
+      await expect(
+        database
+          .select({ status: mediaAssets.status })
+          .from(mediaAssets)
+          .where(eq(mediaAssets.id, upload.mediaId)),
+      ).resolves.toEqual([{ status: "quarantined" }]);
+      expect(store.copies).toEqual([]);
+    },
+  );
+
+  it("normaliza e publica WebVTT com hash e Content-Type UTF-8", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "captions-editor-oid",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const source = new TextEncoder().encode(
+      "WEBVTT\r\n\r\n00:00.000 --> 00:01.000\r\nOlá\r\n",
+    );
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: {
+        mediaKind: "captions",
+        mimeType: "text/vtt",
+        byteSize: source.byteLength,
+      },
+    });
+    store.objects.set(`incoming/${upload.mediaId}/original`, source);
+
+    const processed = await processMediaAsset(database, store, imageProcessor, {
+      mediaId: upload.mediaId,
+    });
+
+    expect(processed).toMatchObject({
+      mediaKind: "captions",
+      publicObjectKey: `news/${upload.mediaId}/205ee04138d423901b81ac73b6cc416c0b75bad9a8bb6b2ff1c8086a90a7852d.vtt`,
+      mimeType: "text/vtt",
+      checksumSha256:
+        "205ee04138d423901b81ac73b6cc416c0b75bad9a8bb6b2ff1c8086a90a7852d",
+      status: "ready",
+    });
+    expect(
+      new TextDecoder().decode(
+        store.objects.get(processed.publicObjectKey as string),
+      ),
+    ).toBe("WEBVTT\n\n00:00.000 --> 00:01.000\nOlá\n");
+    await expect(
+      database
+        .select({ topic: outboxEvents.topic, payload: outboxEvents.payload })
+        .from(outboxEvents),
+    ).resolves.toEqual([
+      {
+        topic: "media.staging.purge",
+        payload: {
+          mediaId: upload.mediaId,
+          stagingObjectKey: `incoming/${upload.mediaId}/original`,
+        },
+      },
+    ]);
   });
 
   it("marca como falha sem expor chave pública quando a publicação no destino falha", async () => {
@@ -186,6 +431,71 @@ describe("mídia editorial", () => {
         publicObjectKey: null,
       },
     ]);
+  });
+
+  it("não confirma ready quando a inserção atômica do purge de staging falha", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [actor] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "atomic-media-editor",
+        displayName: "Editora NITE",
+        role: "publisher",
+      })
+      .returning();
+    const store = new MemoryObjectStore();
+    const upload = await createMediaUpload(database, store, {
+      actor,
+      file: { mimeType: "image/png", byteSize: 12 },
+    });
+    store.objects.set(
+      `incoming/${upload.mediaId}/original`,
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]),
+    );
+    await client.query(`
+      CREATE FUNCTION reject_staging_purge() RETURNS trigger AS $$
+      BEGIN
+        IF NEW.topic = 'media.staging.purge' THEN
+          RAISE EXCEPTION 'outbox staging indisponível';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await client.query(`
+      CREATE TRIGGER reject_staging_purge_trigger
+      BEFORE INSERT ON outbox_events
+      FOR EACH ROW EXECUTE FUNCTION reject_staging_purge();
+    `);
+    await client.query(`
+      CREATE FUNCTION reject_failed_media() RETURNS trigger AS $$
+      BEGIN
+        IF NEW.status = 'failed' THEN
+          RAISE EXCEPTION 'não mascarar rollback';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await client.query(`
+      CREATE TRIGGER reject_failed_media_trigger
+      BEFORE UPDATE ON media_assets
+      FOR EACH ROW EXECUTE FUNCTION reject_failed_media();
+    `);
+
+    await expect(
+      processMediaAsset(database, store, imageProcessor, {
+        mediaId: upload.mediaId,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      database
+        .select({ status: mediaAssets.status })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.id, upload.mediaId)),
+    ).resolves.toEqual([{ status: "processing" }]);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
   });
 
   it("coloca em quarentena objeto cujo conteúdo não corresponde ao MIME", async () => {
@@ -460,13 +770,17 @@ describe("mídia editorial", () => {
     ).resolves.toMatchObject({ status: "ready" });
   });
 
-  it("aceita exatamente 10 MB e rejeita excesso ou MIME não permitido", () => {
+  it("mantém upload de imagem compatível e limita imagens a 10 MiB", () => {
     expect(
       mediaUploadFileSchema.parse({
         mimeType: "image/png",
         byteSize: 10 * 1024 * 1024,
       }),
-    ).toMatchObject({ byteSize: 10 * 1024 * 1024 });
+    ).toEqual({
+      mediaKind: "image",
+      mimeType: "image/png",
+      byteSize: 10 * 1024 * 1024,
+    });
     expect(() =>
       mediaUploadFileSchema.parse({
         mimeType: "image/png",
@@ -476,6 +790,62 @@ describe("mídia editorial", () => {
     expect(() =>
       mediaUploadFileSchema.parse({
         mimeType: "image/gif",
+        byteSize: 1,
+      }),
+    ).toThrow();
+  });
+
+  it("aceita MP4 até 100 MiB somente como vídeo", () => {
+    expect(
+      mediaUploadFileSchema.parse({
+        mediaKind: "video",
+        mimeType: "video/mp4",
+        byteSize: 100 * 1024 * 1024,
+      }),
+    ).toEqual({
+      mediaKind: "video",
+      mimeType: "video/mp4",
+      byteSize: 100 * 1024 * 1024,
+    });
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mediaKind: "video",
+        mimeType: "video/mp4",
+        byteSize: 100 * 1024 * 1024 + 1,
+      }),
+    ).toThrow();
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mediaKind: "image",
+        mimeType: "video/mp4",
+        byteSize: 1,
+      }),
+    ).toThrow();
+  });
+
+  it("aceita WebVTT até 1 MiB somente como legenda", () => {
+    expect(
+      mediaUploadFileSchema.parse({
+        mediaKind: "captions",
+        mimeType: "text/vtt",
+        byteSize: 1024 * 1024,
+      }),
+    ).toEqual({
+      mediaKind: "captions",
+      mimeType: "text/vtt",
+      byteSize: 1024 * 1024,
+    });
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mediaKind: "captions",
+        mimeType: "text/vtt",
+        byteSize: 1024 * 1024 + 1,
+      }),
+    ).toThrow();
+    expect(() =>
+      mediaUploadFileSchema.parse({
+        mediaKind: "video",
+        mimeType: "text/vtt",
         byteSize: 1,
       }),
     ).toThrow();
