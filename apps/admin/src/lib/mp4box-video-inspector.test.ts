@@ -149,8 +149,8 @@ describe("inspector MP4", () => {
     const uuidBox = concatenate(
       uint32(1),
       new TextEncoder().encode("uuid"),
-      new Uint8Array(16),
       uint64(32n),
+      new Uint8Array(16),
     );
 
     await expect(
@@ -195,6 +195,18 @@ describe("inspector MP4", () => {
     [
       "mp4a com object type não AAC",
       { ...validInfo, audioTracks: [{ codec: "mp4a.69" }] },
+    ],
+    [
+      "MPEG-4 Audio TwinVQ",
+      { ...validInfo, audioTracks: [{ codec: "mp4a.40.7" }] },
+    ],
+    [
+      "MPEG-4 Audio Layer-3",
+      { ...validInfo, audioTracks: [{ codec: "mp4a.40.34" }] },
+    ],
+    [
+      "MPEG-4 Audio object type desconhecido",
+      { ...validInfo, audioTracks: [{ codec: "mp4a.40.999" }] },
     ],
     [
       "dimensão inválida",
@@ -254,6 +266,50 @@ describe("inspector MP4", () => {
       expect(createMp4File).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    [
+      "moov pendente antes de mdat parcial",
+      concatenate(
+        box("moov", fullBox("stsz", concatenate(uint32(1), uint32(1_000_000)))),
+        uint32(1_000_000),
+        new TextEncoder().encode("mdat"),
+      ),
+    ],
+    [
+      "sample entry desconhecida pelo codec",
+      fullBox(
+        "stsd",
+        concatenate(
+          uint32(1),
+          box(
+            "hvc1",
+            concatenate(
+              new Uint8Array(78),
+              fullBox("stsz", concatenate(uint32(1), uint32(1_000_000))),
+            ),
+          ),
+        ),
+      ),
+    ],
+    [
+      "orçamento agregado de tabelas",
+      concatenate(
+        ...Array.from({ length: 8 }, () =>
+          fullBox("stsz", concatenate(uint32(1), uint32(250_000))),
+        ),
+      ),
+    ],
+  ])("rejeita %s antes de criar o parser", async (_case, input) => {
+    const createMp4File = vi.fn(() => {
+      throw new Error("mp4box não deve receber estrutura perigosa");
+    });
+
+    await expect(
+      createMp4BoxVideoInspector(createMp4File).inspect(input),
+    ).rejects.toThrow(/MP4/i);
+    expect(createMp4File).not.toHaveBeenCalled();
+  });
 
   it.each([
     [

@@ -17,6 +17,11 @@ const MAX_MP4_BOX_COUNT = 4_096;
 const MAX_MP4_BOX_DEPTH = 16;
 // 250k cobre cerca de 69 min a 60 fps ou 89 min de AAC 48 kHz/1024.
 const MAX_MP4_SAMPLE_COUNT = 250_000;
+const MAX_MP4_AGGREGATE_ENTRIES = 500_000;
+const supportedAacAudioObjectTypes = new Set([
+  1, 2, 3, 4, 5, 6, 17, 19, 23, 29, 39,
+]);
+const cardinalityBoxTypes = new Set(["stsz", "stz2", "stco", "co64", "trun"]);
 const containerBoxTypes = new Set([
   "dinf",
   "edts",
@@ -85,17 +90,27 @@ function requireCountFits(
 function validateCardinalityBox(
   type: string,
   view: DataView,
+  boxOffset: number,
   payloadOffset: number,
   boxEnd: number,
+  budget: { totalEntries: number; visitedOffsets: Set<number> },
 ) {
+  if (budget.visitedOffsets.has(boxOffset)) return;
+  budget.visitedOffsets.add(boxOffset);
   if (payloadOffset >= boxEnd) throw invalidMp4();
   const version = view.getUint8(payloadOffset);
-  if (version !== 0 && type !== "trun") return;
+  if (version !== 0 && type !== "trun") throw invalidMp4();
+
+  const consumeEntries = (count: number) => {
+    if (count > MAX_MP4_SAMPLE_COUNT) throw invalidMp4();
+    budget.totalEntries += count;
+    if (budget.totalEntries > MAX_MP4_AGGREGATE_ENTRIES) throw invalidMp4();
+  };
 
   if (type === "stsz") {
     const sampleSize = readUint32(view, payloadOffset + 4, boxEnd);
     const sampleCount = readUint32(view, payloadOffset + 8, boxEnd);
-    if (sampleCount > MAX_MP4_SAMPLE_COUNT) throw invalidMp4();
+    consumeEntries(sampleCount);
     if (sampleSize === 0) {
       requireCountFits(sampleCount, 4, payloadOffset + 12, boxEnd);
     }
@@ -109,7 +124,7 @@ function validateCardinalityBox(
       throw invalidMp4();
     }
     const sampleCount = readUint32(view, payloadOffset + 8, boxEnd);
-    if (sampleCount > MAX_MP4_SAMPLE_COUNT) throw invalidMp4();
+    consumeEntries(sampleCount);
     const requiredBytes = Math.ceil((sampleCount * fieldSize) / 8);
     if (requiredBytes > boxEnd - (payloadOffset + 12)) throw invalidMp4();
     return;
@@ -117,6 +132,7 @@ function validateCardinalityBox(
 
   if (type === "stco" || type === "co64") {
     const entryCount = readUint32(view, payloadOffset + 4, boxEnd);
+    consumeEntries(entryCount);
     requireCountFits(
       entryCount,
       type === "stco" ? 4 : 8,
@@ -133,7 +149,7 @@ function validateCardinalityBox(
       (view.getUint8(payloadOffset + 2) << 8) |
       view.getUint8(payloadOffset + 3);
     const sampleCount = readUint32(view, payloadOffset + 4, boxEnd);
-    if (sampleCount > MAX_MP4_SAMPLE_COUNT) throw invalidMp4();
+    consumeEntries(sampleCount);
     const optionalBytes = (flags & 0x1 ? 4 : 0) + (flags & 0x4 ? 4 : 0);
     const perSampleBytes =
       (flags & 0x100 ? 4 : 0) +
@@ -151,10 +167,60 @@ function validateCardinalityBox(
   }
 }
 
+function scanCardinalityBoxes(
+  view: DataView,
+  scanEnd: number,
+  budget: { totalEntries: number; visitedOffsets: Set<number> },
+) {
+  for (let offset = 0; offset + 8 <= scanEnd; offset += 1) {
+    const type = String.fromCharCode(
+      view.getUint8(offset + 4),
+      view.getUint8(offset + 5),
+      view.getUint8(offset + 6),
+      view.getUint8(offset + 7),
+    );
+    if (!cardinalityBoxTypes.has(type)) continue;
+
+    const size32 = readUint32(view, offset, scanEnd);
+    let headerSize = 8;
+    let boxSize = size32;
+    if (size32 === 1) {
+      if (offset + 16 > scanEnd) throw invalidMp4();
+      const extendedSize = view.getBigUint64(offset + 8);
+      if (extendedSize > BigInt(Number.MAX_SAFE_INTEGER)) throw invalidMp4();
+      headerSize = 16;
+      boxSize = Number(extendedSize);
+    } else if (size32 === 0) {
+      boxSize = scanEnd - offset;
+    }
+    const boxEnd = offset + boxSize;
+    if (
+      boxSize < headerSize ||
+      !Number.isSafeInteger(boxEnd) ||
+      boxEnd > scanEnd
+    ) {
+      throw invalidMp4();
+    }
+    validateCardinalityBox(
+      type,
+      view,
+      offset,
+      offset + headerSize,
+      boxEnd,
+      budget,
+    );
+  }
+}
+
 function preflightMp4Structure(input: Uint8Array) {
   const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
   const pending = [{ start: 0, end: input.byteLength, depth: 0 }];
+  const allocationBudget = {
+    totalEntries: 0,
+    visitedOffsets: new Set<number>(),
+  };
   let boxCount = 0;
+  let linearScanEnd = input.byteLength;
 
   while (pending.length > 0) {
     const range = pending.pop();
@@ -174,40 +240,49 @@ function preflightMp4Structure(input: Uint8Array) {
       let headerSize = 8;
       let boxSize = size32;
       let headerCursor = offset + 8;
-      if (type === "uuid") {
-        if (headerCursor + 16 > range.end) throw invalidMp4();
-        headerCursor += 16;
-        headerSize += 16;
-      }
       if (size32 === 1) {
         if (headerCursor + 8 > range.end) throw invalidMp4();
         const extendedSize = view.getBigUint64(headerCursor);
         if (extendedSize > BigInt(Number.MAX_SAFE_INTEGER)) {
           throw invalidMp4();
         }
+        headerCursor += 8;
         headerSize += 8;
         boxSize = Number(extendedSize);
       } else if (size32 === 0) {
         boxSize = range.end - offset;
       }
+      if (type === "uuid") {
+        if (headerCursor + 16 > range.end) throw invalidMp4();
+        headerCursor += 16;
+        headerSize += 16;
+      }
       if (boxSize < headerSize) throw invalidMp4();
       const boxEnd = offset + boxSize;
       if (!Number.isSafeInteger(boxEnd) || boxEnd > range.end) {
-        if (range.depth === 0 && type === "mdat") return;
+        if (range.depth === 0 && type === "mdat") {
+          linearScanEnd = Math.min(linearScanEnd, offset);
+          break;
+        }
         throw invalidMp4();
+      }
+
+      if (range.depth === 0 && type === "mdat") {
+        linearScanEnd = Math.min(linearScanEnd, offset);
       }
 
       boxCount += 1;
       if (boxCount > MAX_MP4_BOX_COUNT) throw invalidMp4();
       const payloadOffset = offset + headerSize;
-      if (
-        type === "stsz" ||
-        type === "stz2" ||
-        type === "stco" ||
-        type === "co64" ||
-        type === "trun"
-      ) {
-        validateCardinalityBox(type, view, payloadOffset, boxEnd);
+      if (cardinalityBoxTypes.has(type)) {
+        validateCardinalityBox(
+          type,
+          view,
+          offset,
+          payloadOffset,
+          boxEnd,
+          allocationBudget,
+        );
       }
 
       if (containerBoxTypes.has(type)) {
@@ -246,6 +321,14 @@ function preflightMp4Structure(input: Uint8Array) {
       offset = boxEnd;
     }
   }
+
+  scanCardinalityBoxes(view, linearScanEnd, allocationBudget);
+}
+
+function isSupportedAacCodec(codec: string): boolean {
+  const match = /^mp4a\.40\.(\d+)$/.exec(codec);
+  if (!match) return false;
+  return supportedAacAudioObjectTypes.has(Number(match[1]));
 }
 
 function readVideoMetadata(info: Movie) {
@@ -272,7 +355,7 @@ function readVideoMetadata(info: Movie) {
     durationMs <= 0 ||
     !Number.isFinite(info.timescale) ||
     info.timescale <= 0 ||
-    (audio !== undefined && !/^mp4a\.40\.[1-9]\d*$/.test(audio.codec))
+    (audio !== undefined && !isSupportedAacCodec(audio.codec))
   ) {
     throw invalidMp4();
   }
