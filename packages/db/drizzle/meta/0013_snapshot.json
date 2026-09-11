@@ -1,5 +1,5 @@
 {
-  "id": "ce311e20-ba14-44c7-939a-9c2b8957add6",
+  "id": "b9fdc625-5411-411d-a2dd-20ba53059765",
   "prevId": "daf3ab7c-c7f7-43ad-a174-ac8520c051a2",
   "version": "7",
   "dialect": "postgresql",
@@ -113,9 +113,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "auth_accounts_user_id_idx": {
           "name": "auth_accounts_user_id_idx",
@@ -128,20 +128,20 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "auth_accounts_user_id_auth_users_id_fk": {
           "name": "auth_accounts_user_id_auth_users_id_fk",
           "tableFrom": "auth_accounts",
-          "columnsFrom": ["user_id"],
           "tableTo": "auth_users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -179,29 +179,29 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "article_media_references_article_id_articles_id_fk": {
           "name": "article_media_references_article_id_articles_id_fk",
           "tableFrom": "article_media_references",
-          "columnsFrom": ["article_id"],
           "tableTo": "articles",
+          "columnsFrom": ["article_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "article_media_references_media_id_media_assets_id_fk": {
           "name": "article_media_references_media_id_media_assets_id_fk",
           "tableFrom": "article_media_references",
-          "columnsFrom": ["media_id"],
           "tableTo": "media_assets",
+          "columnsFrom": ["media_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -356,9 +356,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "article_revisions_article_idx": {
           "name": "article_revisions_article_idx",
@@ -371,38 +371,38 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "article_revisions_article_id_articles_id_fk": {
           "name": "article_revisions_article_id_articles_id_fk",
           "tableFrom": "article_revisions",
-          "columnsFrom": ["article_id"],
           "tableTo": "articles",
+          "columnsFrom": ["article_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "article_revisions_cover_media_id_media_assets_id_fk": {
           "name": "article_revisions_cover_media_id_media_assets_id_fk",
           "tableFrom": "article_revisions",
-          "columnsFrom": ["cover_media_id"],
           "tableTo": "media_assets",
+          "columnsFrom": ["cover_media_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "article_revisions_created_by_membership_id_cms_memberships_id_fk": {
           "name": "article_revisions_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "article_revisions",
-          "columnsFrom": ["created_by_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["created_by_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -532,55 +532,55 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "articles_current_revision_id_article_revisions_id_fk": {
           "name": "articles_current_revision_id_article_revisions_id_fk",
           "tableFrom": "articles",
-          "columnsFrom": ["current_revision_id"],
           "tableTo": "article_revisions",
+          "columnsFrom": ["current_revision_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "articles_published_revision_id_article_revisions_id_fk": {
           "name": "articles_published_revision_id_article_revisions_id_fk",
           "tableFrom": "articles",
-          "columnsFrom": ["published_revision_id"],
           "tableTo": "article_revisions",
+          "columnsFrom": ["published_revision_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "articles_created_by_membership_id_cms_memberships_id_fk": {
           "name": "articles_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "articles",
-          "columnsFrom": ["created_by_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["created_by_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "articles_updated_by_membership_id_cms_memberships_id_fk": {
           "name": "articles_updated_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "articles",
-          "columnsFrom": ["updated_by_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["updated_by_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "articles_slug_unique": {
           "name": "articles_slug_unique",
-          "columns": ["slug"],
-          "nullsNotDistinct": false
+          "nullsNotDistinct": false,
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -665,20 +665,20 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "audit_events_actor_membership_id_cms_memberships_id_fk": {
           "name": "audit_events_actor_membership_id_cms_memberships_id_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": ["actor_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["actor_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -794,10 +794,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"cms_membership_invitations\".\"status\" = 'pending'",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "cms_membership_invitations_accepted_membership_unique": {
           "name": "cms_membership_invitations_accepted_membership_unique",
@@ -810,10 +810,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"cms_membership_invitations\".\"accepted_membership_id\" is not null",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "cms_membership_invitations_tenant_status_idx": {
           "name": "cms_membership_invitations_tenant_status_idx",
@@ -838,38 +838,38 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "cms_membership_invitations_invited_by_membership_id_cms_memberships_id_fk": {
           "name": "cms_membership_invitations_invited_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "cms_membership_invitations",
-          "columnsFrom": ["invited_by_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["invited_by_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "cms_membership_invitations_accepted_membership_id_cms_memberships_id_fk": {
           "name": "cms_membership_invitations_accepted_membership_id_cms_memberships_id_fk",
           "tableFrom": "cms_membership_invitations",
-          "columnsFrom": ["accepted_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["accepted_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "cms_membership_invitations_replaces_invitation_id_cms_membership_invitations_id_fk": {
           "name": "cms_membership_invitations_replaces_invitation_id_cms_membership_invitations_id_fk",
           "tableFrom": "cms_membership_invitations",
-          "columnsFrom": ["replaces_invitation_id"],
           "tableTo": "cms_membership_invitations",
+          "columnsFrom": ["replaces_invitation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -973,9 +973,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "cms_memberships_role_idx": {
           "name": "cms_memberships_role_idx",
@@ -988,9 +988,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1010,6 +1010,14 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "media_kind": {
+          "name": "media_kind",
+          "type": "media_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'image'"
         },
         "staging_object_key": {
           "name": "staging_object_key",
@@ -1050,6 +1058,30 @@
         "checksum_sha256": {
           "name": "checksum_sha256",
           "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "video_codec": {
+          "name": "video_codec",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_audio": {
+          "name": "has_audio",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "object_etag": {
+          "name": "object_etag",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -1094,33 +1126,33 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "media_assets_created_by_membership_id_cms_memberships_id_fk": {
           "name": "media_assets_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "media_assets",
-          "columnsFrom": ["created_by_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["created_by_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "media_assets_staging_object_key_unique": {
           "name": "media_assets_staging_object_key_unique",
-          "columns": ["staging_object_key"],
-          "nullsNotDistinct": false
+          "nullsNotDistinct": false,
+          "columns": ["staging_object_key"]
         },
         "media_assets_public_object_key_unique": {
           "name": "media_assets_public_object_key_unique",
-          "columns": ["public_object_key"],
-          "nullsNotDistinct": false
+          "nullsNotDistinct": false,
+          "columns": ["public_object_key"]
         }
       },
       "policies": {},
@@ -1133,9 +1165,17 @@
           "name": "media_assets_dimensions_check",
           "value": "(\"media_assets\".\"width\" is null or \"media_assets\".\"width\" > 0) and (\"media_assets\".\"height\" is null or \"media_assets\".\"height\" > 0)"
         },
+        "media_assets_duration_check": {
+          "name": "media_assets_duration_check",
+          "value": "\"media_assets\".\"duration_ms\" is null or \"media_assets\".\"duration_ms\" > 0"
+        },
+        "media_assets_kind_metadata_check": {
+          "name": "media_assets_kind_metadata_check",
+          "value": "(\"media_assets\".\"media_kind\" = 'image' and \"media_assets\".\"duration_ms\" is null and \"media_assets\".\"video_codec\" is null and \"media_assets\".\"has_audio\" is null and \"media_assets\".\"object_etag\" is null)\n        or (\"media_assets\".\"media_kind\" = 'video' and \"media_assets\".\"checksum_sha256\" is null)\n        or (\"media_assets\".\"media_kind\" = 'captions' and \"media_assets\".\"width\" is null and \"media_assets\".\"height\" is null and \"media_assets\".\"duration_ms\" is null and \"media_assets\".\"video_codec\" is null and \"media_assets\".\"has_audio\" is null and \"media_assets\".\"object_etag\" is null)"
+        },
         "media_assets_ready_metadata_check": {
           "name": "media_assets_ready_metadata_check",
-          "value": "\"media_assets\".\"status\" <> 'ready' or (\"media_assets\".\"public_object_key\" is not null and \"media_assets\".\"checksum_sha256\" is not null and \"media_assets\".\"width\" is not null and \"media_assets\".\"height\" is not null)"
+          "value": "\"media_assets\".\"status\" <> 'ready' or (\n        (\"media_assets\".\"media_kind\" = 'image' and \"media_assets\".\"public_object_key\" is not null and \"media_assets\".\"checksum_sha256\" is not null and \"media_assets\".\"width\" is not null and \"media_assets\".\"height\" is not null)\n        or (\"media_assets\".\"media_kind\" = 'video' and \"media_assets\".\"mime_type\" = 'video/mp4' and \"media_assets\".\"public_object_key\" is not null and \"media_assets\".\"object_etag\" is not null and \"media_assets\".\"width\" is not null and \"media_assets\".\"height\" is not null and \"media_assets\".\"duration_ms\" is not null and \"media_assets\".\"video_codec\" is not null and \"media_assets\".\"has_audio\" is not null)\n        or (\"media_assets\".\"media_kind\" = 'captions' and \"media_assets\".\"mime_type\" = 'text/vtt' and \"media_assets\".\"public_object_key\" is not null and \"media_assets\".\"checksum_sha256\" is not null)\n      )"
         },
         "media_assets_non_ready_public_key_check": {
           "name": "media_assets_non_ready_public_key_check",
@@ -1251,9 +1291,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1297,29 +1337,29 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "preview_media_references_snapshot_id_preview_snapshots_id_fk": {
           "name": "preview_media_references_snapshot_id_preview_snapshots_id_fk",
           "tableFrom": "preview_media_references",
-          "columnsFrom": ["snapshot_id"],
           "tableTo": "preview_snapshots",
+          "columnsFrom": ["snapshot_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "preview_media_references_media_id_media_assets_id_fk": {
           "name": "preview_media_references_media_id_media_assets_id_fk",
           "tableFrom": "preview_media_references",
-          "columnsFrom": ["media_id"],
           "tableTo": "media_assets",
+          "columnsFrom": ["media_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1400,9 +1440,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "preview_snapshots_expiration_idx": {
           "name": "preview_snapshots_expiration_idx",
@@ -1415,38 +1455,38 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "preview_snapshots_article_id_articles_id_fk": {
           "name": "preview_snapshots_article_id_articles_id_fk",
           "tableFrom": "preview_snapshots",
-          "columnsFrom": ["article_id"],
           "tableTo": "articles",
+          "columnsFrom": ["article_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "preview_snapshots_base_revision_id_article_revisions_id_fk": {
           "name": "preview_snapshots_base_revision_id_article_revisions_id_fk",
           "tableFrom": "preview_snapshots",
-          "columnsFrom": ["base_revision_id"],
           "tableTo": "article_revisions",
+          "columnsFrom": ["base_revision_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "preview_snapshots_actor_membership_id_cms_memberships_id_fk": {
           "name": "preview_snapshots_actor_membership_id_cms_memberships_id_fk",
           "tableFrom": "preview_snapshots",
-          "columnsFrom": ["actor_membership_id"],
           "tableTo": "cms_memberships",
+          "columnsFrom": ["actor_membership_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1527,28 +1567,28 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "auth_sessions_user_id_auth_users_id_fk": {
           "name": "auth_sessions_user_id_auth_users_id_fk",
           "tableFrom": "auth_sessions",
-          "columnsFrom": ["user_id"],
           "tableTo": "auth_users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_sessions_token_unique": {
           "name": "auth_sessions_token_unique",
-          "columns": ["token"],
-          "nullsNotDistinct": false
+          "nullsNotDistinct": false,
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -1611,8 +1651,8 @@
       "uniqueConstraints": {
         "auth_users_email_unique": {
           "name": "auth_users_email_unique",
-          "columns": ["email"],
-          "nullsNotDistinct": false
+          "nullsNotDistinct": false,
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -1674,9 +1714,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1703,6 +1743,11 @@
       "schema": "public",
       "values": ["admin", "publisher"]
     },
+    "public.media_kind": {
+      "name": "media_kind",
+      "schema": "public",
+      "values": ["image", "video", "captions"]
+    },
     "public.media_status": {
       "name": "media_status",
       "schema": "public",
@@ -1722,10 +1767,11 @@
     }
   },
   "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
   "views": {
     "public.published_articles": {
-      "name": "published_articles",
-      "schema": "public",
       "columns": {
         "article_id": {
           "name": "article_id",
@@ -1854,13 +1900,12 @@
           "notNull": true
         }
       },
-      "materialized": false,
-      "isExisting": true
+      "name": "published_articles",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": false
     }
   },
-  "sequences": {},
-  "roles": {},
-  "policies": {},
   "_meta": {
     "columns": {},
     "schemas": {},
