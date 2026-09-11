@@ -321,7 +321,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
         body: output.body,
         contentType: "image/webp",
       });
-      return markClaimReady(database, claimed, {
+      return await markClaimReady(database, claimed, {
         publicObjectKey,
         mimeType: "image/webp",
         byteSize: output.body.byteLength,
@@ -379,7 +379,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
         contentType: "video/mp4",
         cacheControl: IMMUTABLE_CACHE_CONTROL,
       });
-      return markClaimReady(database, claimed, {
+      return await markClaimReady(database, claimed, {
         publicObjectKey,
         mimeType: "video/mp4",
         byteSize: claimed.byteSize,
@@ -408,7 +408,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
       body: output.body,
       contentType: "text/vtt; charset=utf-8",
     });
-    return markClaimReady(database, claimed, {
+    return await markClaimReady(database, claimed, {
       publicObjectKey,
       mimeType: "text/vtt",
       byteSize: output.body.byteLength,

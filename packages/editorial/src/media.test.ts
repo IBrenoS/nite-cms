@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   createMediaUpload,
   mediaUploadFileSchema,
+  MediaProcessingError,
   processMediaAsset,
   type ImageProcessor,
   type MediaObjectStore,
@@ -433,7 +434,7 @@ describe("mídia editorial", () => {
     ]);
   });
 
-  it("não confirma ready quando a inserção atômica do purge de staging falha", async () => {
+  it("faz rollback de ready e tipa a falha quando o purge atômico não pode ser inserido", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [actor] = await database
       .insert(cmsMemberships)
@@ -468,33 +469,20 @@ describe("mídia editorial", () => {
       BEFORE INSERT ON outbox_events
       FOR EACH ROW EXECUTE FUNCTION reject_staging_purge();
     `);
-    await client.query(`
-      CREATE FUNCTION reject_failed_media() RETURNS trigger AS $$
-      BEGIN
-        IF NEW.status = 'failed' THEN
-          RAISE EXCEPTION 'não mascarar rollback';
-        END IF;
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-    await client.query(`
-      CREATE TRIGGER reject_failed_media_trigger
-      BEFORE UPDATE ON media_assets
-      FOR EACH ROW EXECUTE FUNCTION reject_failed_media();
-    `);
-
     await expect(
       processMediaAsset(database, store, imageProcessor, {
         mediaId: upload.mediaId,
       }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(MediaProcessingError);
     await expect(
       database
-        .select({ status: mediaAssets.status })
+        .select({
+          status: mediaAssets.status,
+          publicObjectKey: mediaAssets.publicObjectKey,
+        })
         .from(mediaAssets)
         .where(eq(mediaAssets.id, upload.mediaId)),
-    ).resolves.toEqual([{ status: "processing" }]);
+    ).resolves.toEqual([{ status: "failed", publicObjectKey: null }]);
     await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
   });
 
