@@ -6,6 +6,11 @@ import { Textarea } from "@nite/cms-ui";
 import { EditorToolbar } from "./editor-toolbar";
 import { EditorInlineImagePanel } from "./editor-inline-image-panel";
 import { EditorSelectedImagePanel } from "./editor-selected-image-panel";
+import {
+  EditorInlineVideoPanel,
+  type VideoUploadState,
+} from "./editor-inline-video-panel";
+import { EditorSelectedVideoPanel } from "./editor-selected-video-panel";
 import type { EditorialFieldErrors } from "@/lib/editorial-form";
 
 type EditorCanvasProps = {
@@ -21,6 +26,22 @@ type EditorCanvasProps = {
   inlineCredit: string;
   inlineLayout: "normal" | "wide" | "full";
   inlineAltError?: string;
+  videoPanelOpen: boolean;
+  videoState: VideoUploadState;
+  videoProgress: number;
+  videoMessage?: string;
+  captionsState: VideoUploadState;
+  captionsProgress: number;
+  captionsMessage?: string;
+  videoPlaybackMode: "autoplay" | "manual";
+  videoDescription: string;
+  videoCaption: string;
+  videoCredit: string;
+  videoLayout: "normal" | "wide" | "full";
+  videoDurationMs?: number;
+  videoHasAudio?: boolean;
+  videoReplacementPending: boolean;
+  videoReplacementMessage?: string;
   wordCount: number;
   isDirty: boolean;
   onTitleChange: (value: string) => void;
@@ -32,6 +53,21 @@ type EditorCanvasProps = {
   onInlineLayoutChange: (value: "normal" | "wide" | "full") => void;
   onInlineFileSelect: (file: File) => void;
   onInsertInlineImage: () => void;
+  onToggleVideoPanel: () => void;
+  onVideoFileSelect: (file: File) => void;
+  onCaptionsFileSelect: (file: File) => void;
+  onCancelVideo: () => void;
+  onCancelCaptions: () => void;
+  onRetryVideo: () => void;
+  onRetryCaptions: () => void;
+  onVideoPlaybackModeChange: (value: "autoplay" | "manual") => void;
+  onVideoDescriptionChange: (value: string) => void;
+  onVideoCaptionChange: (value: string) => void;
+  onVideoCreditChange: (value: string) => void;
+  onVideoLayoutChange: (value: "normal" | "wide" | "full") => void;
+  onInsertVideo: () => void;
+  onReplaceSelectedVideo: (file: File) => void;
+  onReplaceSelectedCaptions: (file: File) => void;
 };
 
 export function EditorCanvas({
@@ -47,6 +83,22 @@ export function EditorCanvas({
   inlineCredit,
   inlineLayout,
   inlineAltError,
+  videoPanelOpen,
+  videoState,
+  videoProgress,
+  videoMessage,
+  captionsState,
+  captionsProgress,
+  captionsMessage,
+  videoPlaybackMode,
+  videoDescription,
+  videoCaption,
+  videoCredit,
+  videoLayout,
+  videoDurationMs,
+  videoHasAudio,
+  videoReplacementPending,
+  videoReplacementMessage,
   wordCount,
   isDirty,
   onTitleChange,
@@ -58,6 +110,21 @@ export function EditorCanvas({
   onInlineLayoutChange,
   onInlineFileSelect,
   onInsertInlineImage,
+  onToggleVideoPanel,
+  onVideoFileSelect,
+  onCaptionsFileSelect,
+  onCancelVideo,
+  onCancelCaptions,
+  onRetryVideo,
+  onRetryCaptions,
+  onVideoPlaybackModeChange,
+  onVideoDescriptionChange,
+  onVideoCaptionChange,
+  onVideoCreditChange,
+  onVideoLayoutChange,
+  onInsertVideo,
+  onReplaceSelectedVideo,
+  onReplaceSelectedCaptions,
 }: EditorCanvasProps) {
   return (
     <div className="space-y-4">
@@ -153,7 +220,9 @@ export function EditorCanvas({
         <EditorToolbar
           editor={editor}
           inlinePanelOpen={inlinePanelOpen}
+          videoPanelOpen={videoPanelOpen}
           onToggleInlinePanel={onToggleInlinePanel}
+          onToggleVideoPanel={onToggleVideoPanel}
         />
 
         {inlinePanelOpen ? (
@@ -171,6 +240,36 @@ export function EditorCanvas({
             onLayoutChange={onInlineLayoutChange}
             onFileSelect={onInlineFileSelect}
             onInsert={onInsertInlineImage}
+          />
+        ) : null}
+
+        {videoPanelOpen ? (
+          <EditorInlineVideoPanel
+            videoState={videoState}
+            videoProgress={videoProgress}
+            videoMessage={videoMessage}
+            captionsState={captionsState}
+            captionsProgress={captionsProgress}
+            captionsMessage={captionsMessage}
+            playbackMode={videoPlaybackMode}
+            description={videoDescription}
+            caption={videoCaption}
+            credit={videoCredit}
+            layout={videoLayout}
+            durationMs={videoDurationMs}
+            hasAudio={videoHasAudio}
+            onVideoFileSelect={onVideoFileSelect}
+            onCaptionsFileSelect={onCaptionsFileSelect}
+            onCancelVideo={onCancelVideo}
+            onCancelCaptions={onCancelCaptions}
+            onRetryVideo={onRetryVideo}
+            onRetryCaptions={onRetryCaptions}
+            onPlaybackModeChange={onVideoPlaybackModeChange}
+            onDescriptionChange={onVideoDescriptionChange}
+            onCaptionChange={onVideoCaptionChange}
+            onCreditChange={onVideoCreditChange}
+            onLayoutChange={onVideoLayoutChange}
+            onInsert={onInsertVideo}
           />
         ) : null}
 
@@ -196,6 +295,39 @@ export function EditorCanvas({
                 ? editor.getAttributes("image").layout
                 : "normal",
             }}
+          />
+        ) : null}
+
+        {editor?.isActive("video") ? (
+          <EditorSelectedVideoPanel
+            editor={editor}
+            video={{
+              playbackMode:
+                editor.getAttributes("video").playbackMode === "autoplay"
+                  ? "autoplay"
+                  : "manual",
+              layout: ["normal", "wide", "full"].includes(
+                editor.getAttributes("video").layout,
+              )
+                ? editor.getAttributes("video").layout
+                : "normal",
+              description:
+                typeof editor.getAttributes("video").description === "string"
+                  ? editor.getAttributes("video").description
+                  : "",
+              caption:
+                typeof editor.getAttributes("video").caption === "string"
+                  ? editor.getAttributes("video").caption
+                  : "",
+              credit:
+                typeof editor.getAttributes("video").credit === "string"
+                  ? editor.getAttributes("video").credit
+                  : "",
+            }}
+            replacementPending={videoReplacementPending}
+            replacementMessage={videoReplacementMessage}
+            onReplaceVideo={onReplaceSelectedVideo}
+            onReplaceCaptions={onReplaceSelectedCaptions}
           />
         ) : null}
 

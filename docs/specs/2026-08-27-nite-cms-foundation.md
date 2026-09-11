@@ -2,7 +2,7 @@
 
 **Status:** implementação local concluída; provisionamento e smoke test de homologação pendentes
 **Escopo:** contrato, persistência, Admin, API pública v2, autenticação, memberships, editor, mídia, preview, ciclo editorial, auditoria, outbox e revalidação
-**Fora do escopo:** provisionamento/deploy, conteúdo oficial, compatibilidade `/v1`, aprovação, agendamento, autosave, exclusão e validação E2E com recursos reais
+**Fora do escopo:** provisionamento/deploy, conteúdo oficial, compatibilidade `/v1`, aprovação, agendamento, autosave, transcodificação, streaming adaptativo e validação E2E com recursos reais
 
 ## Objetivo e topologia aprovada
 
@@ -70,19 +70,19 @@ identificador de autorização e pode apenas sincronizar o perfil. Corrigir um
 convite revoga o registro anterior e cria outro ligado ao histórico. O fluxo
 não consulta Microsoft Graph nem requer `User.Read.All`.
 
-## Contrato editorial v2
+## Contrato editorial V1/V2/V3
 
 A API expõe `GET /v2/news` e `GET /v2/news/{slug}` com envelope
 `version: 2`. Não existe rota ou payload legado `/v1`.
 
-`NewsArticle.body` aceita `EditorialDocumentV1` e `EditorialDocumentV2`, com
-raiz versionada `{ schemaVersion, type: "doc", content: [...] }`. Novas
-revisões são gravadas em V2; V1 permanece legível e é convertido apenas no
-próximo salvamento. O documento aceita
-parágrafos, H2/H3, listas ordenadas e não ordenadas, citações e imagens; texto
-pode ter bold, italic e link. Links são limitados a HTTP(S), `mailto:` e
-caminhos internos seguros. HTML livre, vídeo, embeds, nós e marks desconhecidos
-são rejeitados no servidor.
+`NewsArticle.body` aceita `EditorialDocumentV1`, V2 e V3, com raiz versionada
+`{ schemaVersion, type: "doc", content: [...] }`. Novas revisões são gravadas
+em V3; documentos anteriores permanecem legíveis e são convertidos apenas no
+próximo salvamento. O documento aceita parágrafos, H2/H3, listas ordenadas e
+não ordenadas, citações, imagens e, na V3, vídeos top-level; texto pode ter
+bold, italic e link. Links são limitados a HTTP(S), `mailto:` e caminhos
+internos seguros. HTML livre, embeds, vídeo aninhado e nós ou marks
+desconhecidos são rejeitados no servidor.
 
 Imagens do AST referenciam assets `ready`; na fronteira pública, a referência é
 resolvida para URL, dimensões e alt. Em V2, imagens internas também aceitam
@@ -92,14 +92,30 @@ legenda e crédito são opcionais. O tempo
 de leitura não é entrada editorial: o servidor conta o texto visível a 200
 palavras por minuto, arredonda para cima e limita a 1–30 minutos.
 
+Vídeos V3 referenciam MP4 pronto, modo `autoplay | manual`, largura
+`normal | wide | full` e, opcionalmente, descrição, legenda visual, crédito e
+WebVTT pt-BR. Autoplay é sempre mudo, sem controles, `playsInline` e em loop;
+aceita no máximo três blocos e 60 segundos por vídeo. Reprodução manual aceita
+áudio e exige WebVTT quando o arquivo possui faixa sonora. Rascunhos podem
+conter anexos ainda incompletos, mas preview e publicação aplicam todas essas
+regras e exigem mídia `ready` do tipo correto.
+
 ## Mídia em dois buckets
 
-Uploads JPEG/PNG/WebP de até 10 MB recebem presigned URL somente para
+Uploads JPEG/PNG/WebP de até 10 MB, MP4 de até 100 MB e WebVTT de até 1 MB
+recebem presigned URL somente para
 `R2_STAGING_BUCKET`, privado e com CORS limitado ao Admin. O processamento
 confere tamanho, magic bytes e MIME, normaliza orientação, remove EXIF, limita
 a 2400 px, converte para WebP e grava uma chave content-addressed imutável em
 `R2_PUBLIC_BUCKET`. `R2_PUBLIC_BASE_URL` serve os objetos prontos com cache
 immutable.
+
+MP4 é aceito somente com vídeo H.264 `avc1`/`avc3`, no máximo uma faixa de
+áudio AAC, dimensões e duração positivas e `moov` antes de `mdat` (fast-start).
+Não há transcodificação, poster automático, HLS/DASH ou múltiplas qualidades.
+WebVTT deve ser UTF-8, começar com `WEBVTT`, conter cue válido e terminar até a
+duração do vídeo associado. Após a promoção por `CopyObject`,
+`media.staging.purge` remove de forma idempotente o MP4/WebVTT temporário.
 
 O original é retido no staging enquanto a mídia estiver referenciada. A
 exclusão definitiva de uma matéria remove revisões e snapshots, preserva
@@ -143,13 +159,15 @@ recebe privilégios nas tabelas-base.
    outbox são cobertas no domínio.
 3. AST, Tiptap, links, mídia e tempo de leitura são validados no servidor.
 4. A API pública publica somente v2 e conteúdo elegível.
-5. Upload/processamento seleciona os dois buckets e não usa deleção.
+5. Upload/processamento seleciona os dois buckets e o outbox executa purge
+   idempotente de staging ou de mídia órfã.
 6. Admin cobre memberships, editor, conflitos e ciclo editorial.
 7. Preview resolve a revisão exata sem expor conteúdo à cache pública.
 
 ## Aceite operacional pendente
 
 O rollout permanece bloqueado até homologar Entra autorizado/não autorizado,
-PostgreSQL com os três logins, os dois buckets R2, domínios reais, API v2,
-preview entre projetos, revalidação e o fluxo editorial completo. Não publicar
-a primeira matéria real até CMS/API e Portal estarem no contrato v2.
+PostgreSQL com os três logins, os dois buckets R2, CORS público para MP4/WebVTT,
+domínios reais, API v2, preview entre projetos, revalidação e o fluxo editorial
+completo. Não produzir V3 até consumidor, migration 0013 e Admin/API estarem no
+contrato compatível.

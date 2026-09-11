@@ -10,9 +10,10 @@ CMS editorial independente do Portal NITE. O repositório contém o painel admin
 O domínio fica em `packages/editorial`, a persistência e as migrations em
 `packages/db` e a UI exclusiva do painel em `packages/cms-ui`. Os únicos papéis
 são `publisher | admin`; os estados editoriais são
-`draft | published | archived`. A leitura aceita `EditorialDocumentV1` e
-`EditorialDocumentV2`; novos salvamentos são gravados em V2 e documentos V1
-são convertidos somente quando uma nova revisão é salva.
+`draft | published | archived`. A leitura aceita `EditorialDocumentV1`, V2 e
+V3; novos salvamentos são gravados em V3 e documentos anteriores são
+convertidos somente quando uma nova revisão é salva. A V3 adiciona vídeo MP4
+estruturado e legenda WebVTT sem alterar o envelope público `version: 2`.
 
 ## Fronteira com o Portal
 

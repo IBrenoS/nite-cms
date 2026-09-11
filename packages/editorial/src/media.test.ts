@@ -369,6 +369,7 @@ describe("mídia editorial", () => {
       mimeType: "text/vtt",
       checksumSha256:
         "205ee04138d423901b81ac73b6cc416c0b75bad9a8bb6b2ff1c8086a90a7852d",
+      durationMs: 1_000,
       status: "ready",
     });
     expect(

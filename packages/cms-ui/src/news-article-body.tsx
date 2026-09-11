@@ -1,5 +1,6 @@
 import type { EditorialDocument } from "@nite/editorial";
 import type { ReactNode } from "react";
+import { EditorialVideo } from "./editorial-video";
 
 type NewsArticleBodyProps = {
   document: EditorialDocument;
@@ -12,6 +13,7 @@ type InlineContentNode = Extract<
   { type: "paragraph" }
 >["content"];
 type EditorialImageNode = Extract<EditorialContentNode, { type: "image" }>;
+type EditorialVideoNode = Extract<EditorialContentNode, { type: "video" }>;
 type ResolvedEditorialImageNode = EditorialImageNode & {
   attrs: {
     mediaId: string;
@@ -30,6 +32,31 @@ function isPublicImage(
 ): node is ResolvedEditorialImageNode {
   return (
     node.type === "image" &&
+    "src" in node.attrs &&
+    "width" in node.attrs &&
+    "height" in node.attrs &&
+    typeof node.attrs.src === "string" &&
+    typeof node.attrs.width === "number" &&
+    typeof node.attrs.height === "number"
+  );
+}
+
+function isPublicVideo(node: EditorialVideoNode): node is EditorialVideoNode & {
+  attrs: EditorialVideoNode["attrs"] & {
+    src: string;
+    width: number;
+    height: number;
+    durationSeconds: number;
+    mimeType: "video/mp4";
+    captions?: {
+      src: string;
+      mimeType: "text/vtt";
+      srclang: "pt-BR";
+      label: "Português";
+    };
+  };
+} {
+  return (
     "src" in node.attrs &&
     "width" in node.attrs &&
     "height" in node.attrs &&
@@ -117,6 +144,37 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
       );
     }
     return <figure key={key} aria-label={node.attrs.alt} />;
+  }
+  if (node.type === "video") {
+    if (!isPublicVideo(node)) return null;
+    const layoutClass = {
+      normal: "w-full",
+      wide: "relative left-1/2 w-[min(64rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(64rem,calc(100vw-4rem))]",
+      full: "relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(80rem,calc(100vw-4rem))]",
+    }[node.attrs.layout];
+    return (
+      <figure
+        key={key}
+        data-editorial-layout={node.attrs.layout}
+        className={layoutClass}
+      >
+        <EditorialVideo
+          key={`${node.attrs.mediaId}:${node.attrs.src}`}
+          src={node.attrs.src}
+          width={node.attrs.width}
+          height={node.attrs.height}
+          playbackMode={node.attrs.playbackMode}
+          description={node.attrs.description}
+          captions={node.attrs.captions}
+        />
+        {node.attrs.caption || node.attrs.credit ? (
+          <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-sm leading-5 text-nite-text-secondary">
+            {node.attrs.caption ? <span>{node.attrs.caption}</span> : null}
+            {node.attrs.credit ? <span>{node.attrs.credit}</span> : null}
+          </figcaption>
+        ) : null}
+      </figure>
+    );
   }
   return null;
 }

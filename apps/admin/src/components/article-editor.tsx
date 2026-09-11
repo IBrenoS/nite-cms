@@ -25,6 +25,10 @@ import {
   normalizeEditorialPastedHtml,
 } from "@/lib/editorial-tiptap";
 import {
+  MediaUploadCanceledError,
+  uploadMediaFile,
+} from "@/lib/media-upload-client";
+import {
   parseEditorialFormData,
   type EditorialField,
   type EditorialFieldErrors,
@@ -183,6 +187,37 @@ export function ArticleEditor({
   >("idle");
   const [inlineMediaMessage, setInlineMediaMessage] = useState<string>();
   const [inlineAltError, setInlineAltError] = useState<string>();
+  const [videoPanelOpen, setVideoPanelOpen] = useState(false);
+  const [videoMediaId, setVideoMediaId] = useState("");
+  const [captionsMediaId, setCaptionsMediaId] = useState("");
+  const [videoState, setVideoState] = useState<
+    "idle" | "uploading" | "processing" | "ready" | "error"
+  >("idle");
+  const [captionsState, setCaptionsState] = useState<
+    "idle" | "uploading" | "processing" | "ready" | "error"
+  >("idle");
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [captionsProgress, setCaptionsProgress] = useState(0);
+  const [videoMessage, setVideoMessage] = useState<string>();
+  const [captionsMessage, setCaptionsMessage] = useState<string>();
+  const [videoPlaybackMode, setVideoPlaybackMode] = useState<
+    "autoplay" | "manual"
+  >("manual");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoCaption, setVideoCaption] = useState("");
+  const [videoCredit, setVideoCredit] = useState("");
+  const [videoLayout, setVideoLayout] = useState<"normal" | "wide" | "full">(
+    "normal",
+  );
+  const [videoDurationMs, setVideoDurationMs] = useState<number>();
+  const [videoHasAudio, setVideoHasAudio] = useState<boolean>();
+  const [videoReplacementPending, setVideoReplacementPending] = useState(false);
+  const [videoReplacementMessage, setVideoReplacementMessage] =
+    useState<string>();
+  const videoAbortRef = useRef<AbortController | null>(null);
+  const captionsAbortRef = useRef<AbortController | null>(null);
+  const lastVideoFileRef = useRef<File | null>(null);
+  const lastCaptionsFileRef = useRef<File | null>(null);
   const [clientFieldErrors, setClientFieldErrors] =
     useState<EditorialFieldErrors>({});
   const [dismissedServerFields, setDismissedServerFields] = useState<
@@ -326,6 +361,32 @@ export function ArticleEditor({
     }
   }
 
+  async function uploadAndProcessMedia(
+    file: File,
+    mediaKind: "image" | "video" | "captions",
+    signal?: AbortSignal,
+    onProgress?: (percentage: number) => void,
+    onUploaded?: () => void,
+  ) {
+    const upload = await createMediaUploadAction({
+      mediaKind,
+      mimeType: file.type,
+      byteSize: file.size,
+    });
+    if (upload.status !== "success") throw new Error(upload.message);
+    await uploadMediaFile({
+      url: upload.data.uploadUrl,
+      headers: upload.data.requiredHeaders,
+      file,
+      signal,
+      onProgress,
+    });
+    onUploaded?.();
+    const processed = await processMediaUploadAction(upload.data.mediaId);
+    if (processed.status !== "success") throw new Error(processed.message);
+    return processed.data;
+  }
+
   async function uploadCover(file: File) {
     setMediaMessage(undefined);
     setMediaState("uploading");
@@ -334,33 +395,14 @@ export function ArticleEditor({
       setCoverPreviewUrl(URL.createObjectURL(file));
     }
     try {
-      const upload = await createMediaUploadAction({
-        mimeType: file.type,
-        byteSize: file.size,
-      });
-      if (upload.status !== "success") {
-        setMediaState("error");
-        setMediaMessage(upload.message);
-        return;
-      }
-      const response = await fetch(upload.data.uploadUrl, {
-        method: "PUT",
-        headers: upload.data.requiredHeaders,
-        body: file,
-      });
-      if (!response.ok) {
-        setMediaState("error");
-        setMediaMessage("A transferência da capa falhou. Tente novamente.");
-        return;
-      }
-      setMediaState("processing");
-      const processed = await processMediaUploadAction(upload.data.mediaId);
-      if (processed.status !== "success") {
-        setMediaState("error");
-        setMediaMessage(processed.message);
-        return;
-      }
-      setMediaId(processed.data.id);
+      const processed = await uploadAndProcessMedia(
+        file,
+        "image",
+        undefined,
+        undefined,
+        () => setMediaState("processing"),
+      );
+      setMediaId(processed.id);
       setMediaState("ready");
       clearFieldError("coverMedia");
       setMediaMessage("Capa validada e convertida para WebP.");
@@ -376,35 +418,14 @@ export function ArticleEditor({
     setInlineMediaMessage(undefined);
     setInlineMediaState("uploading");
     try {
-      const upload = await createMediaUploadAction({
-        mimeType: file.type,
-        byteSize: file.size,
-      });
-      if (upload.status !== "success") {
-        setInlineMediaState("error");
-        setInlineMediaMessage(upload.message);
-        return;
-      }
-      const response = await fetch(upload.data.uploadUrl, {
-        method: "PUT",
-        headers: upload.data.requiredHeaders,
-        body: file,
-      });
-      if (!response.ok) {
-        setInlineMediaState("error");
-        setInlineMediaMessage(
-          "A transferência da imagem inline falhou. Tente novamente.",
-        );
-        return;
-      }
-      setInlineMediaState("processing");
-      const processed = await processMediaUploadAction(upload.data.mediaId);
-      if (processed.status !== "success") {
-        setInlineMediaState("error");
-        setInlineMediaMessage(processed.message);
-        return;
-      }
-      setInlineMediaId(processed.data.id);
+      const processed = await uploadAndProcessMedia(
+        file,
+        "image",
+        undefined,
+        undefined,
+        () => setInlineMediaState("processing"),
+      );
+      setInlineMediaId(processed.id);
       setInlineMediaState("ready");
     } catch {
       setInlineMediaState("error");
@@ -448,6 +469,186 @@ export function ArticleEditor({
     setInlineMediaState("idle");
     setInlinePanelOpen(false);
     setIsDirty(true);
+  }
+
+  async function uploadVideo(file: File) {
+    lastVideoFileRef.current = file;
+    videoAbortRef.current?.abort();
+    const controller = new AbortController();
+    videoAbortRef.current = controller;
+    setVideoState("uploading");
+    setVideoProgress(0);
+    setVideoMessage("Enviando MP4…");
+    try {
+      const processed = await uploadAndProcessMedia(
+        file,
+        "video",
+        controller.signal,
+        setVideoProgress,
+        () => {
+          setVideoState("processing");
+          setVideoMessage("Validando H.264, áudio e fast-start…");
+        },
+      );
+      if (processed.mediaKind !== "video") {
+        throw new Error("A mídia processada não é um vídeo.");
+      }
+      setVideoMediaId(processed.id);
+      setVideoDurationMs(processed.durationMs ?? undefined);
+      setVideoHasAudio(processed.hasAudio ?? undefined);
+      setVideoState("ready");
+      setVideoMessage("Vídeo MP4 pronto para inserir.");
+    } catch (error) {
+      if (error instanceof MediaUploadCanceledError) {
+        setVideoState("idle");
+        setVideoMessage("Upload do vídeo cancelado.");
+      } else {
+        setVideoState("error");
+        setVideoMessage(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível processar o vídeo.",
+        );
+      }
+    } finally {
+      if (videoAbortRef.current === controller) videoAbortRef.current = null;
+    }
+  }
+
+  async function uploadCaptions(file: File) {
+    lastCaptionsFileRef.current = file;
+    captionsAbortRef.current?.abort();
+    const controller = new AbortController();
+    captionsAbortRef.current = controller;
+    setCaptionsState("uploading");
+    setCaptionsProgress(0);
+    setCaptionsMessage("Enviando WebVTT…");
+    try {
+      const processed = await uploadAndProcessMedia(
+        file,
+        "captions",
+        controller.signal,
+        setCaptionsProgress,
+        () => {
+          setCaptionsState("processing");
+          setCaptionsMessage("Validando cues e timestamps…");
+        },
+      );
+      if (processed.mediaKind !== "captions") {
+        throw new Error("A mídia processada não é uma legenda WebVTT.");
+      }
+      setCaptionsMediaId(processed.id);
+      setCaptionsState("ready");
+      setCaptionsMessage("Legenda WebVTT pt-BR pronta.");
+    } catch (error) {
+      if (error instanceof MediaUploadCanceledError) {
+        setCaptionsState("idle");
+        setCaptionsMessage("Upload da legenda cancelado.");
+      } else {
+        setCaptionsState("error");
+        setCaptionsMessage(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível processar a legenda.",
+        );
+      }
+    } finally {
+      if (captionsAbortRef.current === controller) {
+        captionsAbortRef.current = null;
+      }
+    }
+  }
+
+  function insertVideo() {
+    if (!editor || videoState !== "ready" || !videoMediaId) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "video",
+        attrs: {
+          mediaId: videoMediaId,
+          ...(captionsState === "ready" && captionsMediaId
+            ? { captionsMediaId }
+            : {}),
+          playbackMode: videoPlaybackMode,
+          layout: videoLayout,
+          ...(videoDescription.trim()
+            ? { description: videoDescription.trim() }
+            : {}),
+          ...(videoCaption.trim() ? { caption: videoCaption.trim() } : {}),
+          ...(videoCredit.trim() ? { credit: videoCredit.trim() } : {}),
+        },
+      })
+      .run();
+    setVideoMediaId("");
+    setCaptionsMediaId("");
+    setVideoState("idle");
+    setCaptionsState("idle");
+    setVideoProgress(0);
+    setCaptionsProgress(0);
+    setVideoMessage(undefined);
+    setCaptionsMessage(undefined);
+    setVideoDescription("");
+    setVideoCaption("");
+    setVideoCredit("");
+    setVideoLayout("normal");
+    setVideoDurationMs(undefined);
+    setVideoHasAudio(undefined);
+    setVideoPanelOpen(false);
+    setIsDirty(true);
+  }
+
+  async function replaceSelectedVideo(file: File) {
+    if (!editor?.isActive("video")) return;
+    setVideoReplacementPending(true);
+    setVideoReplacementMessage("Substituindo vídeo…");
+    try {
+      const processed = await uploadAndProcessMedia(file, "video");
+      if (processed.mediaKind !== "video")
+        throw new Error("Mídia incompatível.");
+      editor
+        .chain()
+        .focus()
+        .updateAttributes("video", { mediaId: processed.id })
+        .run();
+      setVideoReplacementMessage("Vídeo substituído.");
+      setIsDirty(true);
+    } catch (error) {
+      setVideoReplacementMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível substituir o vídeo.",
+      );
+    } finally {
+      setVideoReplacementPending(false);
+    }
+  }
+
+  async function replaceSelectedCaptions(file: File) {
+    if (!editor?.isActive("video")) return;
+    setVideoReplacementPending(true);
+    setVideoReplacementMessage("Substituindo legenda…");
+    try {
+      const processed = await uploadAndProcessMedia(file, "captions");
+      if (processed.mediaKind !== "captions")
+        throw new Error("Mídia incompatível.");
+      editor
+        .chain()
+        .focus()
+        .updateAttributes("video", { captionsMediaId: processed.id })
+        .run();
+      setVideoReplacementMessage("Legenda WebVTT substituída.");
+      setIsDirty(true);
+    } catch (error) {
+      setVideoReplacementMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível substituir a legenda.",
+      );
+    } finally {
+      setVideoReplacementPending(false);
+    }
   }
 
   function transitionLifecycle(intent: "unpublish" | "archive" | "restore") {
@@ -513,7 +714,12 @@ export function ArticleEditor({
     mediaState === "uploading" ||
     mediaState === "processing" ||
     inlineMediaState === "uploading" ||
-    inlineMediaState === "processing";
+    inlineMediaState === "processing" ||
+    videoState === "uploading" ||
+    videoState === "processing" ||
+    captionsState === "uploading" ||
+    captionsState === "processing" ||
+    videoReplacementPending;
   const actionMessage =
     actionState.status === "idle" ? undefined : actionState.message;
   const bodyText = useMemo(() => documentText(bodyDocument), [bodyDocument]);
@@ -628,6 +834,22 @@ export function ArticleEditor({
               inlineCredit={inlineCredit}
               inlineLayout={inlineLayout}
               inlineAltError={inlineAltError}
+              videoPanelOpen={videoPanelOpen}
+              videoState={videoState}
+              videoProgress={videoProgress}
+              videoMessage={videoMessage}
+              captionsState={captionsState}
+              captionsProgress={captionsProgress}
+              captionsMessage={captionsMessage}
+              videoPlaybackMode={videoPlaybackMode}
+              videoDescription={videoDescription}
+              videoCaption={videoCaption}
+              videoCredit={videoCredit}
+              videoLayout={videoLayout}
+              videoDurationMs={videoDurationMs}
+              videoHasAudio={videoHasAudio}
+              videoReplacementPending={videoReplacementPending}
+              videoReplacementMessage={videoReplacementMessage}
               wordCount={wordCount}
               isDirty={isDirty}
               onTitleChange={(nextTitle) => {
@@ -637,7 +859,10 @@ export function ArticleEditor({
                 }
               }}
               onSummaryChange={(nextSummary) => setSummary(nextSummary)}
-              onToggleInlinePanel={() => setInlinePanelOpen((open) => !open)}
+              onToggleInlinePanel={() => {
+                setInlinePanelOpen((open) => !open);
+                setVideoPanelOpen(false);
+              }}
               onInlineAltChange={(value) => {
                 setInlineAlt(value);
                 setInlineAltError(undefined);
@@ -647,6 +872,32 @@ export function ArticleEditor({
               onInlineLayoutChange={setInlineLayout}
               onInlineFileSelect={(file) => void uploadInlineImage(file)}
               onInsertInlineImage={insertInlineImage}
+              onToggleVideoPanel={() => {
+                setVideoPanelOpen((open) => !open);
+                setInlinePanelOpen(false);
+              }}
+              onVideoFileSelect={(file) => void uploadVideo(file)}
+              onCaptionsFileSelect={(file) => void uploadCaptions(file)}
+              onCancelVideo={() => videoAbortRef.current?.abort()}
+              onCancelCaptions={() => captionsAbortRef.current?.abort()}
+              onRetryVideo={() => {
+                const file = lastVideoFileRef.current;
+                if (file) void uploadVideo(file);
+              }}
+              onRetryCaptions={() => {
+                const file = lastCaptionsFileRef.current;
+                if (file) void uploadCaptions(file);
+              }}
+              onVideoPlaybackModeChange={setVideoPlaybackMode}
+              onVideoDescriptionChange={setVideoDescription}
+              onVideoCaptionChange={setVideoCaption}
+              onVideoCreditChange={setVideoCredit}
+              onVideoLayoutChange={setVideoLayout}
+              onInsertVideo={insertVideo}
+              onReplaceSelectedVideo={(file) => void replaceSelectedVideo(file)}
+              onReplaceSelectedCaptions={(file) =>
+                void replaceSelectedCaptions(file)
+              }
             />
           </div>
         </div>

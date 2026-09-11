@@ -250,6 +250,7 @@ describe("snapshot editorial temporário", () => {
         publicObjectKey: "news/preview-video.pt-BR.vtt",
         mimeType: "text/vtt",
         byteSize: 512,
+        durationMs: 44_000,
         checksumSha256:
           "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
         status: "ready",

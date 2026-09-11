@@ -4,6 +4,7 @@ import { Editor } from "@tiptap/core";
 import {
   tiptapDocumentToEditorialDocumentV1,
   tiptapDocumentToEditorialDocumentV2,
+  tiptapDocumentToEditorialDocumentV3,
 } from "@nite/editorial";
 import {
   createEditorialTiptapExtensions,
@@ -248,6 +249,49 @@ describe("integração Tiptap editorial", () => {
     });
   });
 
+  it("preserva vídeo top-level e seus metadados no documento V3", () => {
+    const editor = new Editor({
+      extensions: createEditorialTiptapExtensions(),
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "video",
+            attrs: {
+              mediaId: "30000000-0000-4000-8000-000000000201",
+              captionsMediaId: "30000000-0000-4000-8000-000000000202",
+              playbackMode: "manual",
+              layout: "wide",
+              description: "Apresentação do projeto NiteNews.",
+              caption: "Demonstração completa.",
+              credit: "Vídeo: NITE",
+            },
+          },
+        ],
+      },
+    });
+    editors.push(editor);
+
+    expect(tiptapDocumentToEditorialDocumentV3(editor.getJSON())).toEqual({
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        {
+          type: "video",
+          attrs: {
+            mediaId: "30000000-0000-4000-8000-000000000201",
+            captionsMediaId: "30000000-0000-4000-8000-000000000202",
+            playbackMode: "manual",
+            layout: "wide",
+            description: "Apresentação do projeto NiteNews.",
+            caption: "Demonstração completa.",
+            credit: "Vídeo: NITE",
+          },
+        },
+      ],
+    });
+  });
+
   it("limpa estilos e elementos inseguros da colagem sem perder semântica", () => {
     const pasted = normalizeEditorialPastedHtml(
       '<h2 class="MsoTitle" style="margin-left: 40px">Título</h2>' +
@@ -258,6 +302,14 @@ describe("integração Tiptap editorial", () => {
     expect(pasted).toBe(
       '<h2>Título</h2><p><strong>Texto</strong> <a href="https://nite.test">fonte</a></p>',
     );
+  });
+
+  it("descarta vídeo e sources colados para impedir mídia por URL manual", () => {
+    expect(
+      normalizeEditorialPastedHtml(
+        '<p>Antes</p><video src="https://unsafe.test/a.mp4"><source src="https://unsafe.test/a.mp4"><track src="https://unsafe.test/a.vtt"></video><p>Depois</p>',
+      ),
+    ).toBe("<p>Antes</p><p>Depois</p>");
   });
 
   it("não registra nós ou marks fora do contrato editorial", () => {

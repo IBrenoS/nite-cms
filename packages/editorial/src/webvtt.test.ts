@@ -18,10 +18,11 @@ describe("WebVTT editorial", () => {
     expect(result.checksumSha256).toBe(
       "205ee04138d423901b81ac73b6cc416c0b75bad9a8bb6b2ff1c8086a90a7852d",
     );
+    expect(result.durationMs).toBe(1_000);
   });
 
   it("aceita identificador, horas e cues adjacentes em ordem", () => {
-    expect(() =>
+    expect(
       parseAndNormalizeWebVtt(
         encode(
           [
@@ -35,8 +36,8 @@ describe("WebVTT editorial", () => {
             "Segunda legenda",
           ].join("\n"),
         ),
-      ),
-    ).not.toThrow();
+      ).durationMs,
+    ).toBe(3_724_005);
   });
 
   it.each([

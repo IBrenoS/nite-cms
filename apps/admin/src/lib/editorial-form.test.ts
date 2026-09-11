@@ -88,6 +88,48 @@ describe("formulário editorial", () => {
     });
   });
 
+  it("preserva vídeo estruturado incompleto em rascunho V3", () => {
+    const parsed = parseEditorialFormData(
+      formData({
+        bodyDocument: JSON.stringify({
+          type: "doc",
+          content: [
+            {
+              type: "video",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000201",
+                playbackMode: "manual",
+                layout: "wide",
+                description: "Apresentação institucional do NiteNews.",
+                caption: "Demonstração do produto.",
+                credit: "Vídeo: NITE",
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(parsed.intent).toBe("save");
+    expect(parsed.input.body).toEqual({
+      schemaVersion: 3,
+      type: "doc",
+      content: [
+        {
+          type: "video",
+          attrs: {
+            mediaId: "30000000-0000-4000-8000-000000000201",
+            playbackMode: "manual",
+            layout: "wide",
+            description: "Apresentação institucional do NiteNews.",
+            caption: "Demonstração do produto.",
+            credit: "Vídeo: NITE",
+          },
+        },
+      ],
+    });
+  });
+
   it("associa as pendências de publicação aos campos da interface", () => {
     try {
       parseEditorialFormData(formData({ intent: "publish" }));

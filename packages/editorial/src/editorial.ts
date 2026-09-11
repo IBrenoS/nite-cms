@@ -457,11 +457,15 @@ export async function validateEditorialInputForPublication<
         );
       }
       if (video.attrs.captionsMediaId) {
-        if (
-          assetById.get(video.attrs.captionsMediaId)?.mediaKind !== "captions"
-        ) {
+        const captionsAsset = assetById.get(video.attrs.captionsMediaId);
+        if (captionsAsset?.mediaKind !== "captions") {
           throw new EditorialPublicationError(
             "A legenda possui tipo de mídia incompatível.",
+          );
+        }
+        if ((captionsAsset.durationMs ?? 0) > (videoAsset.durationMs ?? 0)) {
+          throw new EditorialPublicationError(
+            "A legenda não pode ultrapassar a duração do vídeo.",
           );
         }
       } else if (

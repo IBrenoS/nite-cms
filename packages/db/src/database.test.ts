@@ -660,11 +660,11 @@ describe("persistencia editorial", () => {
       client.query(`
         insert into media_assets
           (staging_object_key, public_object_key, media_kind, mime_type,
-           byte_size, checksum_sha256, status)
+           byte_size, checksum_sha256, duration_ms, status)
         values
           ('incoming/legenda-valida/original', 'news/legenda-valida.vtt',
            'captions', 'text/vtt', 128,
-           'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+           'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 1000,
            'ready')
       `),
     ).resolves.toBeDefined();
@@ -728,11 +728,11 @@ describe("persistencia editorial", () => {
     await client.query(
       `insert into media_assets
         (id, staging_object_key, public_object_key, media_kind, mime_type,
-         byte_size, checksum_sha256, status)
+         byte_size, checksum_sha256, duration_ms, status)
        values
         ($1, 'incoming/view-captions/original', 'news/view-captions.vtt',
          'captions', 'text/vtt', 256,
-         '3333333333333333333333333333333333333333333333333333333333333333',
+         '3333333333333333333333333333333333333333333333333333333333333333', 42000,
          'ready')`,
       [captionsId],
     );
@@ -800,6 +800,7 @@ describe("persistencia editorial", () => {
             mediaKind: "captions",
             objectKey: "news/view-captions.vtt",
             mimeType: "text/vtt",
+            durationMs: 42_000,
           },
         },
       },

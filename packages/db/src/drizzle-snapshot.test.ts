@@ -90,5 +90,15 @@ describe("Drizzle migration metadata", () => {
     expect(kindMetadata.value).toEqual(expect.stringContaining("video_codec"));
     expect(readyMetadata.value).toEqual(expect.stringContaining("duration_ms"));
     expect(readyMetadata.value).toEqual(expect.stringContaining("object_etag"));
+    expect(readyMetadata.value).toEqual(
+      expect.stringContaining(
+        'media_kind" = \'captions\' and "media_assets"."mime_type" = \'text/vtt\'',
+      ),
+    );
+    expect(readyMetadata.value).toEqual(
+      expect.stringContaining(
+        'checksum_sha256" is not null and "media_assets"."duration_ms" is not null',
+      ),
+    );
   });
 });

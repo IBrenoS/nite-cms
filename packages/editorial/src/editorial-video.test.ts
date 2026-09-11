@@ -226,6 +226,36 @@ describe("vídeo no ciclo editorial", () => {
     ).rejects.toThrow(/legenda.*vídeo manual.*áudio/i);
   });
 
+  it("rejeita legenda cujo último cue ultrapassa a duração do vídeo", async () => {
+    const { database, actor } = await seedActorAndCover();
+    await insertVideo(database, {
+      id: videoMediaIds[0],
+      durationMs: 30_000,
+      hasAudio: true,
+    });
+    await database.insert(mediaAssets).values({
+      id: captionsMediaId,
+      mediaKind: "captions",
+      stagingObjectKey: "incoming/captions/ready.vtt",
+      publicObjectKey: "news/captions/ready.vtt",
+      mimeType: "text/vtt",
+      byteSize: 128,
+      durationMs: 30_001,
+      checksumSha256:
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      status: "ready",
+    });
+
+    await expect(
+      validateEditorialInputForPublication(database, {
+        actor,
+        input: inputWithVideos([
+          videoNode(videoMediaIds[0], "manual", captionsMediaId),
+        ]),
+      }),
+    ).rejects.toThrow(/legenda.*duração do vídeo/i);
+  });
+
   it("limita autoplay a três blocos e sessenta segundos por vídeo", async () => {
     const { database, actor } = await seedActorAndCover();
     for (const [index, mediaId] of videoMediaIds.entries()) {

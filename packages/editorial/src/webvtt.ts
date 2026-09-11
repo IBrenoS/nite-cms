@@ -22,6 +22,7 @@ function parseTimestamp(value: string): number {
 export function parseAndNormalizeWebVtt(input: Uint8Array): {
   body: Uint8Array;
   checksumSha256: string;
+  durationMs: number;
 } {
   let text: string;
   try {
@@ -67,5 +68,6 @@ export function parseAndNormalizeWebVtt(input: Uint8Array): {
   return {
     body,
     checksumSha256: createHash("sha256").update(body).digest("hex"),
+    durationMs: previousEnd,
   };
 }

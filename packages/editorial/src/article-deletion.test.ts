@@ -31,6 +31,8 @@ const migrationsFolder = fileURLToPath(
 );
 const sharedMediaId = "30000000-0000-4000-8000-000000000301";
 const exclusiveMediaId = "30000000-0000-4000-8000-000000000302";
+const sharedVideoId = "30000000-0000-4000-8000-000000000303";
+const exclusiveCaptionsId = "30000000-0000-4000-8000-000000000304";
 
 function mediaValues(id: string, suffix: string) {
   return {
@@ -43,6 +45,39 @@ function mediaValues(id: string, suffix: string) {
     height: 675,
     checksumSha256:
       "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    status: "ready" as const,
+  };
+}
+
+function videoValues(id: string, suffix: string) {
+  return {
+    id,
+    mediaKind: "video" as const,
+    stagingObjectKey: `incoming/${suffix}/original`,
+    publicObjectKey: `news/${suffix}/video.mp4`,
+    mimeType: "video/mp4",
+    byteSize: 4096,
+    width: 1920,
+    height: 1080,
+    durationMs: 30_000,
+    videoCodec: "avc1.640028",
+    hasAudio: true,
+    objectEtag: `etag-${suffix}`,
+    status: "ready" as const,
+  };
+}
+
+function captionsValues(id: string, suffix: string) {
+  return {
+    id,
+    mediaKind: "captions" as const,
+    stagingObjectKey: `incoming/${suffix}/original`,
+    publicObjectKey: `news/${suffix}/captions.vtt`,
+    mimeType: "text/vtt",
+    byteSize: 512,
+    durationMs: 29_000,
+    checksumSha256:
+      "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
     status: "ready" as const,
   };
 }
@@ -81,6 +116,29 @@ function articleInput(title: string, includeExclusiveMedia = false) {
               ],
             },
           ],
+    },
+  };
+}
+
+function videoArticleInput(title: string, playbackMode: "autoplay" | "manual") {
+  return {
+    ...articleInput(title),
+    body: {
+      schemaVersion: 3 as const,
+      type: "doc" as const,
+      content: [
+        {
+          type: "video" as const,
+          attrs: {
+            mediaId: sharedVideoId,
+            ...(playbackMode === "manual"
+              ? { captionsMediaId: exclusiveCaptionsId }
+              : {}),
+            playbackMode,
+            layout: "normal" as const,
+          },
+        },
+      ],
     },
   };
 }
@@ -226,6 +284,64 @@ describe("exclusão editorial definitiva", () => {
         .select({ topic: outboxEvents.topic })
         .from(outboxEvents)
         .where(eq(outboxEvents.aggregateId, exclusiveMediaId)),
+    ).resolves.toEqual([{ topic: "media.asset.purge" }]);
+  });
+
+  it("preserva MP4 compartilhado e agenda o WebVTT exclusivo ao excluir V3", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-nite",
+        objectId: "admin-delete-video-oid",
+        displayName: "Admin Delete Video",
+        role: "admin",
+      })
+      .returning();
+    await database
+      .insert(mediaAssets)
+      .values([
+        mediaValues(sharedMediaId, "video-cover"),
+        videoValues(sharedVideoId, "shared-video"),
+        captionsValues(exclusiveCaptionsId, "exclusive-captions"),
+      ]);
+
+    await createArticleDraft(database, {
+      actor: admin,
+      input: videoArticleInput(
+        "Matéria que mantém o MP4 compartilhado",
+        "autoplay",
+      ),
+    });
+    const target = await createArticleDraft(database, {
+      actor: admin,
+      input: videoArticleInput("Matéria V3 com legenda exclusiva", "manual"),
+    });
+
+    await expect(
+      deleteEditorialArticle(database, {
+        actor: admin,
+        articleId: target.article.id,
+        expectedRevisionId: target.revision.id,
+      }),
+    ).resolves.toMatchObject({ scheduledMediaCount: 1 });
+
+    await expect(
+      database
+        .select({ id: mediaAssets.id, status: mediaAssets.status })
+        .from(mediaAssets),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        { id: sharedMediaId, status: "ready" },
+        { id: sharedVideoId, status: "ready" },
+        { id: exclusiveCaptionsId, status: "deleting" },
+      ]),
+    );
+    await expect(
+      database
+        .select({ topic: outboxEvents.topic })
+        .from(outboxEvents)
+        .where(eq(outboxEvents.aggregateId, exclusiveCaptionsId)),
     ).resolves.toEqual([{ topic: "media.asset.purge" }]);
   });
 

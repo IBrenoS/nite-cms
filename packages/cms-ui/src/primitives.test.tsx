@@ -159,4 +159,52 @@ describe("@nite/cms-ui", () => {
       "wide",
     );
   });
+
+  it("renderiza vídeo manual V3 com WebVTT e largura editorial", () => {
+    render(
+      <NewsArticleBody
+        document={{
+          schemaVersion: 3,
+          type: "doc",
+          content: [
+            {
+              type: "video",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000201",
+                captionsMediaId: "30000000-0000-4000-8000-000000000202",
+                playbackMode: "manual",
+                layout: "full",
+                src: "https://media.nite.test/video.mp4",
+                width: 1920,
+                height: 1080,
+                durationSeconds: 42.5,
+                mimeType: "video/mp4",
+                description: "Apresentação do NiteNews",
+                caption: "Demonstração editorial.",
+                credit: "Vídeo: NITE",
+                captions: {
+                  src: "https://media.nite.test/pt-BR.vtt",
+                  mimeType: "text/vtt",
+                  srclang: "pt-BR",
+                  label: "Português",
+                },
+              },
+            },
+          ],
+        }}
+      />,
+    );
+
+    const video = document.querySelector("video");
+    expect(video).toHaveAttribute("controls");
+    expect(video).toHaveAttribute("crossorigin", "anonymous");
+    expect(video).toHaveAttribute("preload", "metadata");
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(document.querySelector("track")).toHaveAttribute("srclang", "pt-BR");
+    expect(screen.getByText("Demonstração editorial.")).toBeVisible();
+    expect(screen.getByRole("figure")).toHaveAttribute(
+      "data-editorial-layout",
+      "full",
+    );
+  });
 });

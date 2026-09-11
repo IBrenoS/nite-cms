@@ -256,14 +256,14 @@ export const mediaAssets = pgTable(
       "media_assets_kind_metadata_check",
       sql`(${table.mediaKind} = 'image' and ${table.durationMs} is null and ${table.videoCodec} is null and ${table.hasAudio} is null and ${table.objectEtag} is null)
         or (${table.mediaKind} = 'video' and ${table.checksumSha256} is null)
-        or (${table.mediaKind} = 'captions' and ${table.width} is null and ${table.height} is null and ${table.durationMs} is null and ${table.videoCodec} is null and ${table.hasAudio} is null and ${table.objectEtag} is null)`,
+        or (${table.mediaKind} = 'captions' and ${table.width} is null and ${table.height} is null and ${table.videoCodec} is null and ${table.hasAudio} is null and ${table.objectEtag} is null)`,
     ),
     check(
       "media_assets_ready_metadata_check",
       sql`${table.status} <> 'ready' or (
         (${table.mediaKind} = 'image' and ${table.publicObjectKey} is not null and ${table.checksumSha256} is not null and ${table.width} is not null and ${table.height} is not null)
         or (${table.mediaKind} = 'video' and ${table.mimeType} = 'video/mp4' and ${table.publicObjectKey} is not null and ${table.objectEtag} is not null and ${table.width} is not null and ${table.height} is not null and ${table.durationMs} is not null and ${table.videoCodec} is not null and ${table.hasAudio} is not null)
-        or (${table.mediaKind} = 'captions' and ${table.mimeType} = 'text/vtt' and ${table.publicObjectKey} is not null and ${table.checksumSha256} is not null)
+        or (${table.mediaKind} = 'captions' and ${table.mimeType} = 'text/vtt' and ${table.publicObjectKey} is not null and ${table.checksumSha256} is not null and ${table.durationMs} is not null)
       )`,
     ),
     check(

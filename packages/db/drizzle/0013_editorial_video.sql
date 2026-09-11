@@ -21,7 +21,6 @@ CHECK (
 	or ("media_assets"."media_kind" = 'captions'
 		and "media_assets"."width" is null
 		and "media_assets"."height" is null
-		and "media_assets"."duration_ms" is null
 		and "media_assets"."video_codec" is null
 		and "media_assets"."has_audio" is null
 		and "media_assets"."object_etag" is null)
@@ -47,7 +46,8 @@ CHECK (
 		or ("media_assets"."media_kind" = 'captions'
 			and "media_assets"."mime_type" = 'text/vtt'
 			and "media_assets"."public_object_key" is not null
-			and "media_assets"."checksum_sha256" is not null)
+			and "media_assets"."checksum_sha256" is not null
+			and "media_assets"."duration_ms" is not null)
 	)
 );--> statement-breakpoint
 ALTER TABLE "article_revisions" DROP CONSTRAINT "article_revisions_body_root_check";--> statement-breakpoint

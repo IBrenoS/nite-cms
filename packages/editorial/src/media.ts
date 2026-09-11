@@ -413,6 +413,7 @@ export async function processMediaAsset<TQueryResult extends PgQueryResultHKT>(
       mimeType: "text/vtt",
       byteSize: output.body.byteLength,
       checksumSha256: output.checksumSha256,
+      durationMs: output.durationMs,
     });
   } catch (error) {
     if (error instanceof MediaQuarantinedError) throw error;

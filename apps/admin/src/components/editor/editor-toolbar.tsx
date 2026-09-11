@@ -19,13 +19,17 @@ import {
 type EditorToolbarProps = {
   editor: Editor | null;
   inlinePanelOpen: boolean;
+  videoPanelOpen: boolean;
   onToggleInlinePanel: () => void;
+  onToggleVideoPanel: () => void;
 };
 
 export function EditorToolbar({
   editor,
   inlinePanelOpen,
+  videoPanelOpen,
   onToggleInlinePanel,
+  onToggleVideoPanel,
 }: EditorToolbarProps) {
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
   const [linkHref, setLinkHref] = useState("");
@@ -234,6 +238,18 @@ export function EditorToolbar({
         >
           <ImagePlusIcon aria-hidden="true" />
           <span className="hidden sm:inline">Inserir imagem</span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label="Inserir vídeo no conteúdo"
+          aria-expanded={videoPanelOpen}
+          className="text-xs text-nite-brand-primary hover:bg-nite-surface"
+          onClick={onToggleVideoPanel}
+        >
+          <span aria-hidden="true">▶</span>
+          <span className="hidden sm:inline">Inserir vídeo</span>
         </Button>
       </div>
       {linkPanelOpen ? (

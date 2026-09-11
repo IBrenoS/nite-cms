@@ -17,7 +17,11 @@ const mocks = vi.hoisted(() => ({
   transition: vi.fn(),
   deletionImpact: vi.fn(),
   deleteArticle: vi.fn(),
+  uploadFile: vi.fn(),
+  insertContent: vi.fn(),
+  updateAttributes: vi.fn(),
   imageActive: false,
+  videoActive: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -37,10 +41,16 @@ vi.mock("@/lib/editorial-tiptap", () => ({
   createEditorialTiptapExtensions: () => [],
   normalizeEditorialPastedHtml: (html: string) => html,
 }));
+vi.mock("@/lib/media-upload-client", () => ({
+  MediaUploadCanceledError: class MediaUploadCanceledError extends Error {},
+  uploadMediaFile: mocks.uploadFile,
+}));
 vi.mock("@tiptap/react", () => ({
   EditorContent: () => <div aria-label="Corpo da matéria" />,
   useEditor: () => ({
-    isActive: (name: string) => name === "image" && mocks.imageActive,
+    isActive: (name: string) =>
+      (name === "image" && mocks.imageActive) ||
+      (name === "video" && mocks.videoActive),
     getAttributes: (name: string) =>
       name === "image"
         ? {
@@ -49,11 +59,24 @@ vi.mock("@tiptap/react", () => ({
             credit: "Foto: NITE",
             layout: "wide",
           }
-        : {},
+        : name === "video"
+          ? {
+              mediaId: "30000000-0000-4000-8000-000000000201",
+              captionsMediaId: "30000000-0000-4000-8000-000000000202",
+              playbackMode: "manual",
+              layout: "wide",
+              description: "Apresentação acessível",
+              caption: "Legenda atual",
+              credit: "Vídeo: NITE",
+            }
+          : {},
     chain() {
       const chain = {
         focus: () => chain,
-        insertContent: () => chain,
+        insertContent: (content: unknown) => {
+          mocks.insertContent(content);
+          return chain;
+        },
         deleteSelection: () => chain,
         redo: () => chain,
         run: () => true,
@@ -66,7 +89,10 @@ vi.mock("@tiptap/react", () => ({
         toggleItalic: () => chain,
         toggleOrderedList: () => chain,
         undo: () => chain,
-        updateAttributes: () => chain,
+        updateAttributes: (name: string, attrs: unknown) => {
+          mocks.updateAttributes(name, attrs);
+          return chain;
+        },
         unsetLink: () => chain,
       };
       return chain;
@@ -121,8 +147,13 @@ describe("ArticleEditor", () => {
     mocks.transition.mockReset();
     mocks.deletionImpact.mockReset();
     mocks.deleteArticle.mockReset();
+    mocks.uploadFile.mockReset();
+    mocks.insertContent.mockReset();
+    mocks.updateAttributes.mockReset();
     mocks.imageActive = false;
+    mocks.videoActive = false;
     mocks.submit.mockResolvedValue({ status: "idle" });
+    mocks.uploadFile.mockResolvedValue(undefined);
   });
 
   it("mostra exclusão apenas para administradora e exige EXCLUIR", async () => {
@@ -583,6 +614,129 @@ describe("ArticleEditor", () => {
       "Informe o texto alternativo antes de inserir a imagem.",
     );
     vi.unstubAllGlobals();
+  });
+
+  it("envia MP4 e WebVTT, mostra progresso e insere vídeo estruturado", async () => {
+    mocks.createUpload
+      .mockResolvedValueOnce({
+        status: "success",
+        data: {
+          mediaId: "30000000-0000-4000-8000-000000000201",
+          uploadUrl: "https://upload.nite.test/video",
+          requiredHeaders: { "content-type": "video/mp4" },
+          expiresAt: new Date().toISOString(),
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        data: {
+          mediaId: "30000000-0000-4000-8000-000000000202",
+          uploadUrl: "https://upload.nite.test/captions",
+          requiredHeaders: { "content-type": "text/vtt" },
+          expiresAt: new Date().toISOString(),
+        },
+      });
+    mocks.processUpload
+      .mockResolvedValueOnce({
+        status: "success",
+        data: {
+          id: "30000000-0000-4000-8000-000000000201",
+          mediaKind: "video",
+          mediaStatus: "ready",
+          durationMs: 18 * 60 * 1_000,
+          hasAudio: true,
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        data: {
+          id: "30000000-0000-4000-8000-000000000202",
+          mediaKind: "captions",
+          mediaStatus: "ready",
+        },
+      });
+    mocks.uploadFile.mockImplementation(
+      async ({ onProgress }: { onProgress?: (value: number) => void }) => {
+        onProgress?.(50);
+        onProgress?.(100);
+      },
+    );
+    render(<ArticleEditor canPublish />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Inserir vídeo no conteúdo" }),
+    );
+    fireEvent.change(screen.getByLabelText("Vídeo MP4"), {
+      target: {
+        files: [new File(["video"], "apresentacao.mp4", { type: "video/mp4" })],
+      },
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByText("Vídeo MP4 pronto para inserir."),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Este vídeo contém áudio/u)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Legenda WebVTT pt-BR"), {
+      target: {
+        files: [new File(["WEBVTT"], "pt-BR.vtt", { type: "text/vtt" })],
+      },
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByText("Legenda WebVTT pt-BR pronta."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.change(screen.getByLabelText("Descrição acessível do vídeo"), {
+      target: { value: "Apresentação do NiteNews" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Inserir vídeo" }));
+
+    expect(mocks.createUpload).toHaveBeenNthCalledWith(1, {
+      mediaKind: "video",
+      mimeType: "video/mp4",
+      byteSize: 5,
+    });
+    expect(mocks.createUpload).toHaveBeenNthCalledWith(2, {
+      mediaKind: "captions",
+      mimeType: "text/vtt",
+      byteSize: 6,
+    });
+    expect(mocks.insertContent).toHaveBeenCalledWith({
+      type: "video",
+      attrs: {
+        mediaId: "30000000-0000-4000-8000-000000000201",
+        captionsMediaId: "30000000-0000-4000-8000-000000000202",
+        playbackMode: "manual",
+        layout: "normal",
+        description: "Apresentação do NiteNews",
+      },
+    });
+  });
+
+  it("permite editar, substituir anexos e remover vídeo selecionado", () => {
+    mocks.videoActive = true;
+    render(<ArticleEditor canPublish />);
+
+    expect(
+      screen.getByRole("heading", { name: "Editar vídeo interno" }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Reprodução do vídeo selecionado"), {
+      target: { value: "autoplay" },
+    });
+    expect(mocks.updateAttributes).toHaveBeenCalledWith("video", {
+      playbackMode: "autoplay",
+    });
+    expect(
+      screen.getByLabelText("Substituir vídeo selecionado"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Substituir legenda do vídeo selecionado"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remover vídeo do conteúdo" }),
+    ).toBeEnabled();
   });
 
   it("recupera o CTA de preview quando a chamada falha antes de retornar", async () => {

@@ -59,6 +59,64 @@ const EditorialImage = Node.create({
   },
 });
 
+const EditorialVideo = Node.create({
+  name: "video",
+  group: "block",
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      mediaId: { default: null },
+      captionsMediaId: { default: null },
+      playbackMode: { default: "manual" },
+      layout: { default: "normal" },
+      description: { default: null },
+      caption: { default: null },
+      credit: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "figure[data-editorial-video]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const {
+      mediaId,
+      captionsMediaId,
+      playbackMode,
+      layout,
+      description,
+      caption,
+      credit,
+    } = HTMLAttributes;
+    return [
+      "figure",
+      {
+        "data-editorial-video": "true",
+        "data-media-id": mediaId,
+        ...(typeof captionsMediaId === "string"
+          ? { "data-captions-media-id": captionsMediaId }
+          : {}),
+        "data-playback-mode": playbackMode,
+        "data-layout": layout,
+        ...(typeof description === "string"
+          ? { "data-description": description }
+          : {}),
+        ...(typeof caption === "string" ? { "data-caption": caption } : {}),
+        ...(typeof credit === "string" ? { "data-credit": credit } : {}),
+        role: "img",
+        "aria-label":
+          typeof description === "string" && description.length > 0
+            ? description
+            : "Vídeo editorial",
+      },
+      `Vídeo editorial · ${playbackMode === "autoplay" ? "automático" : "manual"}`,
+    ];
+  },
+});
+
 const discardedPastedElements = new Set([
   "SCRIPT",
   "STYLE",
@@ -67,6 +125,9 @@ const discardedPastedElements = new Set([
   "IFRAME",
   "OBJECT",
   "EMBED",
+  "VIDEO",
+  "SOURCE",
+  "TRACK",
 ]);
 
 export function normalizeEditorialPastedHtml(html: string) {
@@ -127,5 +188,6 @@ export function createEditorialTiptapExtensions() {
     }),
     EditorialBlockquote,
     EditorialImage,
+    EditorialVideo,
   ];
 }

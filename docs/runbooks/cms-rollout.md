@@ -13,9 +13,11 @@ alteração de secrets ou publicação de conteúdo em produção.
 - tenant e aplicação Microsoft Entra do domínio do Admin;
 - `R2_STAGING_BUCKET` privado, com CORS de upload limitado ao Admin;
 - `R2_PUBLIC_BUCKET` servido pela URL HTTPS de `R2_PUBLIC_BASE_URL`;
+- CORS `GET/HEAD` no bucket público para o domínio Vercel do Portal;
 - domínios HTTPS do Admin, API, Portal e mídia;
 - identidades de teste `admin`, `publisher` e não autorizada;
-- uma imagem e uma matéria aprovadas somente para homologação;
+- uma imagem, um MP4 H.264/AAC, um WebVTT pt-BR e uma matéria aprovados somente
+  para homologação;
 - secrets independentes de Better Auth, revalidação, cron e preview.
 
 Nenhum valor de credencial deve ser armazenado no repositório ou em logs.
@@ -61,8 +63,10 @@ separada.
 - `R2_ACCOUNT_ID`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
-- `R2_STAGING_BUCKET`: bucket privado dos originais; sem deleção no MVP.
-- `R2_PUBLIC_BUCKET`: bucket dos WebPs processados sob chaves imutáveis.
+- `R2_STAGING_BUCKET`: bucket privado dos uploads; MP4/WebVTT promovidos e
+  objetos órfãos são removidos pelo outbox.
+- `R2_PUBLIC_BUCKET`: bucket de WebP, MP4 e WebVTT processados sob chaves
+  imutáveis.
 - `R2_PUBLIC_BASE_URL`: base HTTPS pública usada para resolver a mídia.
 - `PORTAL_PREVIEW_URL`: URL HTTPS exata de `GET /api/preview` no Portal.
 - `PREVIEW_HMAC_SECRET`: secret exclusivo de preview, com pelo menos 32
@@ -76,7 +80,8 @@ O usuário/role R2 do Admin precisa das operações usadas para upload no stagin
 leitura do staging, escrita no bucket público e `DeleteObject` em ambos os
 buckets. Restrinja a permissão aos buckets `R2_STAGING_BUCKET` e
 `R2_PUBLIC_BUCKET`. Configure CORS do staging somente para origem, métodos e
-headers do Admin.
+headers do Admin e CORS `GET/HEAD` no público somente para o domínio Vercel do
+Portal.
 
 Em desenvolvimento local, `PORTAL_PREVIEW_URL` vazio é um estado válido e
 significa que o Preview no Portal ainda não foi integrado. O Admin permanece
@@ -190,7 +195,7 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
 
 ## Ordem de homologação
 
-1. Publique primeiro o Portal consumidor capaz de ler documentos V1 e V2, sem
+1. Publique primeiro o Portal consumidor capaz de ler documentos V1, V2 e V3, sem
    alterar conteúdo editorial.
 2. Faça backup e, com autorização operacional, aplique migrations usando
    somente `DATABASE_MIGRATION_URL`.
@@ -200,7 +205,7 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
    preview, revalidação, cron e autenticação.
 5. Publique CMS Admin e CMS API v2; valide `/health`, `/v2/news` e um 404 de
    slug inexistente antes de conectar conteúdo real.
-6. Não habilite o Admin a produzir V2 antes de Portal, migration e API estarem
+6. Não habilite o Admin a produzir V3 antes de Portal, migration 0013 e API estarem
    no mesmo contrato. Não publique uma matéria durante a janela intermediária.
 7. Entre como identidade não autorizada, `publisher` e `admin`. Confirme acesso
    negado, permissões editoriais e exclusividade da gestão de equipe.
@@ -214,31 +219,37 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
 9. Faça upload JPEG/PNG/WebP autorizado. Confirme original no staging,
    processamento sem EXIF, dimensão máxima de 2400 px, WebP público, cache
    immutable, estado `ready` e alt obrigatório.
-10. Crie e salve uma matéria; confirme revisão imutável e conflito por
+10. Faça upload direto de MP4 H.264 de até 100 MB e WebVTT pt-BR. Confirme
+    progresso/cancelamento/retry, validação de fast-start, codecs, duração e
+    cues, promoção pública, purge do staging e CORS `GET/HEAD` no Portal.
+11. Crie e salve uma matéria; confirme revisão imutável e conflito por
     `expectedRevisionId` desatualizado.
-11. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
+12. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
     CMS e Preview no Portal e confirme os valores atuais, a versão/revisão
     corrente inalterada e ausência de nova `article_revision`. Confirme Draft
     Mode, faixa “Prévia — ainda não publicada”, isolamento por slug/snapshot,
     `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e
     saída por POST.
-12. Teste tokens v1/v2 válidos, expirados, adulterados, assinados por chave
+13. Teste tokens v1/v2 válidos, expirados, adulterados, assinados por chave
     divergente e com revisão/snapshot inexistente. Somente os válidos podem
     habilitar Draft Mode. Confirme resposta externa genérica e logs sem token,
     payload editorial ou secret.
-13. Publique, despublique, republique, arquive e restaure. Confirme primeira
+14. Valide vídeo manual com controles e track; autoplay mudo, inline, sem
+    controles e em loop; limite de 60 segundos e três autoplays; bloqueios de
+    navegador, erro de rede e `prefers-reduced-motion` em desktop e mobile.
+15. Publique, despublique, republique, arquive e restaure. Confirme primeira
     `publishedAt`, slug bloqueado, auditoria, outbox, 404 quando fora do ar,
     revalidação de lista/artigo/filtros/sitemap e restauração em draft.
-14. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
+16. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
     em logs. Prove recuperação de uma falha transitória da outbox.
-15. Execute Playwright desktop/mobile do Admin com storage states dedicados e
+17. Execute Playwright desktop/mobile do Admin com storage states dedicados e
     faça smoke visual do corpo rico e preview no Portal.
 
 ## Corte de produção
 
 O corte só está liberado após todos os passos de homologação e aprovação do
 conteúdo oficial. Aplicar Portal, migration e CMS é uma operação coordenada:
-Portal consumidor V1/V2 primeiro, migration depois e CMS Admin/API produtores
+Portal consumidor V1/V2/V3 primeiro, migration depois e CMS Admin/API produtores
 por último, sem publicar matéria durante a janela intermediária. Faça smoke de
 `/atualizacoes`, slug, sitemap, preview e revalidação; monitore API, outbox e
 processamento de mídia.
