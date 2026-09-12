@@ -41,6 +41,14 @@ function renderPanel(
 }
 
 describe("EditorInlineVideoPanel", () => {
+  it("informa o limite de 806 px para a largura normal", () => {
+    renderPanel();
+
+    expect(
+      screen.getByRole("option", { name: "Normal · até 806 px" }),
+    ).toBeVisible();
+  });
+
   it("mostra progresso e permite cancelar upload", () => {
     const callbacks = renderPanel({
       videoState: "uploading",

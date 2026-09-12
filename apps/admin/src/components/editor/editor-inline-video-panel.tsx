@@ -164,7 +164,7 @@ export function EditorInlineVideoPanel(props: Props) {
           }
           className="nite-form-field mt-1 min-h-9 w-full rounded-md border px-2 text-xs"
         >
-          <option value="normal">Normal · coluna do texto</option>
+          <option value="normal">Normal · até 806 px</option>
           <option value="wide">Ampla · largura editorial</option>
           <option value="full">Total · container principal</option>
         </select>

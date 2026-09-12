@@ -207,4 +207,35 @@ describe("@nite/cms-ui", () => {
       "full",
     );
   });
+
+  it("limita vídeo normal ao padrão editorial de 806,4 px", () => {
+    render(
+      <NewsArticleBody
+        document={{
+          schemaVersion: 3,
+          type: "doc",
+          content: [
+            {
+              type: "video",
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000203",
+                playbackMode: "manual",
+                layout: "normal",
+                src: "https://media.nite.test/video-normal.mp4",
+                width: 1920,
+                height: 1080,
+                durationSeconds: 30,
+                mimeType: "video/mp4",
+              },
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("figure")).toHaveClass(
+      "w-[min(50.4rem,calc(100vw-2rem))]",
+      "sm:w-[min(50.4rem,calc(100vw-4rem))]",
+    );
+  });
 });

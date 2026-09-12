@@ -148,7 +148,8 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
   if (node.type === "video") {
     if (!isPublicVideo(node)) return null;
     const layoutClass = {
-      normal: "w-full",
+      normal:
+        "relative left-1/2 w-[min(50.4rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(50.4rem,calc(100vw-4rem))]",
       wide: "relative left-1/2 w-[min(64rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(64rem,calc(100vw-4rem))]",
       full: "relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2 sm:w-[min(80rem,calc(100vw-4rem))]",
     }[node.attrs.layout];
