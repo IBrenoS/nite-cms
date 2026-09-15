@@ -19,6 +19,7 @@ type EditorHeaderProps = {
   operationPending: boolean;
   canPublish: boolean;
   currentStatus?: "draft" | "published" | "archived";
+  hasUnpublishedChanges?: boolean;
   openLivePreview: (target: "cms" | "portal") => void;
 };
 
@@ -30,8 +31,14 @@ export function EditorHeader({
   operationPending,
   canPublish,
   currentStatus,
+  hasUnpublishedChanges,
   openLivePreview,
 }: EditorHeaderProps) {
+  const publishLabel =
+    currentStatus === "published" || hasUnpublishedChanges
+      ? "Publicar alterações"
+      : "Publicar matéria";
+
   return (
     <header className="sticky top-14 z-30 flex min-h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur sm:px-6 lg:top-0 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
@@ -148,11 +155,11 @@ export function EditorHeader({
             form="article-editor-form"
             name="intent"
             value="publish"
-            aria-label="Publicar revisão"
+            aria-label={publishLabel}
             disabled={operationPending || currentStatus === "archived"}
             className="inline-flex min-h-8 items-center justify-center rounded-md bg-nite-brand-primary px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            {pending ? "Publicando…" : "Publicar"}
+            {pending ? "Publicando…" : publishLabel}
           </button>
         ) : null}
       </div>

@@ -15,6 +15,7 @@ import { deriveEditorialSlug, type EditorialDraftInput } from "@nite/editorial";
 import {
   createMediaUploadAction,
   createLivePreviewLink,
+  createPrivatePreviewLink,
   processMediaUploadAction,
   submitEditorialArticle,
   transitionEditorialArticle,
@@ -37,6 +38,7 @@ import {
 import { EditorHeader } from "./editor/editor-header";
 import { EditorCanvas } from "./editor/editor-canvas";
 import { EditorInspector } from "./editor/editor-inspector";
+import { EditorialConfirmDialog } from "./editor/editorial-confirm-dialog";
 
 type ArticleStatus = "draft" | "published" | "archived";
 
@@ -231,6 +233,42 @@ export function ArticleEditor({
   const [isDirty, setIsDirty] = useState(!initial);
   const [, setSelectionRevision] = useState(0);
   const [lifecyclePending, startLifecycleTransition] = useTransition();
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const confirmedPublishRef = useRef(false);
+  const [lifecycleIntent, setLifecycleIntent] = useState<
+    "unpublish" | "archive" | "restore" | null
+  >(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [inspectorMode, setInspectorMode] = useState<"drawer" | "sheet">(
+    "drawer",
+  );
+  const inspectorTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    const updateMode = () => {
+      setInspectorMode(window.innerWidth < 768 ? "sheet" : "drawer");
+    };
+    updateMode();
+    window.addEventListener("resize", updateMode);
+    return () => window.removeEventListener("resize", updateMode);
+  }, []);
+
+  const handleCloseInspector = () => {
+    setIsInspectorOpen(false);
+    inspectorTriggerRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!isInspectorOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleCloseInspector();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isInspectorOpen]);
 
   const fieldErrors: EditorialFieldErrors = { ...clientFieldErrors };
   if (actionState.status === "validation_error") {
@@ -353,11 +391,29 @@ export function ArticleEditor({
       focusFirstInvalidField(nextErrors);
       return;
     }
-    if (
-      submitter?.value === "publish" &&
-      !window.confirm(`Publicar “${title}” em /atualizacoes/${slug}?`)
-    ) {
-      event.preventDefault();
+    if (submitter?.value === "publish") {
+      if (!confirmedPublishRef.current) {
+        event.preventDefault();
+        setPublishDialogOpen(true);
+        return;
+      }
+      confirmedPublishRef.current = false;
+    }
+  }
+
+  function handleConfirmPublish() {
+    confirmedPublishRef.current = true;
+    setPublishDialogOpen(false);
+    const form = formRef.current;
+    if (form) {
+      const publishButton = form.querySelector<HTMLButtonElement>(
+        'button[name="intent"][value="publish"]',
+      );
+      if (publishButton && typeof form.requestSubmit === "function") {
+        form.requestSubmit(publishButton);
+      } else if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      }
     }
   }
 
@@ -653,12 +709,13 @@ export function ArticleEditor({
 
   function transitionLifecycle(intent: "unpublish" | "archive" | "restore") {
     if (!initial) return;
-    const confirmation = {
-      unpublish: "Despublicar esta matéria do Portal?",
-      archive: "Arquivar esta matéria?",
-      restore: "Restaurar esta matéria como rascunho?",
-    }[intent];
-    if (!window.confirm(confirmation)) return;
+    setLifecycleIntent(intent);
+  }
+
+  function handleConfirmLifecycle() {
+    if (!initial || !lifecycleIntent) return;
+    const intent = lifecycleIntent;
+    setLifecycleIntent(null);
     startLifecycleTransition(async () => {
       const result = await transitionEditorialArticle({
         articleId: initial.articleId,
@@ -701,6 +758,31 @@ export function ArticleEditor({
       }
     } catch {
       setPreviewMessage("Não foi possível abrir o preview no Portal.");
+    } finally {
+      setPreviewPending(false);
+    }
+  }
+
+  async function openRevisionPreview(revisionId: string) {
+    if (!initial) return;
+    setPreviewPending(true);
+    setPreviewMessage(undefined);
+    try {
+      const result = await createPrivatePreviewLink({
+        articleId: initial.articleId,
+        revisionId,
+      });
+      if (result.status === "success") {
+        window.open(result.data.url, "_blank", "noopener,noreferrer");
+      } else {
+        setPreviewMessage(
+          result.status === "unexpected_error"
+            ? `${result.message} Código de suporte: ${result.errorId}.`
+            : result.message,
+        );
+      }
+    } catch {
+      setPreviewMessage("Não foi possível abrir esta versão no Portal.");
     } finally {
       setPreviewPending(false);
     }
@@ -762,9 +844,68 @@ export function ArticleEditor({
     (item) => item.complete,
   ).length;
 
+  const commonInspectorProps = {
+    title,
+    summary,
+    isExisting,
+    articleId: initial?.articleId,
+    currentRevisionId,
+    publishedRevisionId,
+    currentStatus,
+    revisions,
+    fieldErrors,
+    preparationCount,
+    readyForFinalReview,
+    completePreparationItems,
+    category,
+    byline,
+    eventDate: initial?.eventDate,
+    featured: initial?.featured,
+    slug,
+    slugLocked,
+    slugPanelOpen,
+    coverPreviewUrl,
+    coverAlt,
+    coverCaption,
+    coverCredit,
+    mediaState,
+    mediaMessage,
+    seoTitle,
+    seoDescription,
+    seoPanelOpen,
+    operationPending,
+    canDelete,
+    isDirty,
+    lifecyclePending,
+    onCategoryChange: (val: typeof category) => setCategory(val),
+    onBylineChange: (val: string) => setByline(val),
+    onSlugChange: (val: string) => {
+      if (slugLocked) return;
+      setSlug(val);
+      setSlugManuallyEdited(true);
+    },
+    onSlugToggle: (open: boolean) => setSlugPanelOpen(open),
+    onCoverFileSelect: (file: File) => void uploadCover(file),
+    onCoverAltChange: (val: string) => setCoverAlt(val),
+    onCoverCaptionChange: (val: string) => setCoverCaption(val),
+    onCoverCreditChange: (val: string) => setCoverCredit(val),
+    onSeoTitleChange: (val: string) => setSeoTitle(val),
+    onSeoDescriptionChange: (val: string) => setSeoDescription(val),
+    onSeoToggle: (open: boolean) => setSeoPanelOpen(open),
+    onTransitionLifecycle: transitionLifecycle,
+    onViewRevision: (revisionId: string) =>
+      void openRevisionPreview(revisionId),
+    onDeletionPendingChange: setDeletionPending,
+    onDeleted: (scheduledMediaCount: number) => {
+      setIsDirty(false);
+      router.replace(`/?deletedMedia=${scheduledMediaCount}`);
+    },
+  };
+
   return (
     <form
       id="article-editor-form"
+      ref={formRef}
       action={formAction}
       noValidate
       onSubmit={handleSubmit}
@@ -791,8 +932,88 @@ export function ArticleEditor({
         operationPending={operationPending}
         canPublish={canPublish}
         currentStatus={currentStatus}
+        hasUnpublishedChanges={hasUnpublishedChanges}
         openLivePreview={(target) => void openLivePreview(target)}
       />
+
+      {/* Faixa de Notificações / Status Banner com aria-live="polite" */}
+      {previewMessage ? (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 border-b border-status-warning/40 bg-status-warning/10 px-4 py-2 text-xs text-nite-text-primary sm:px-6 lg:px-8"
+        >
+          <span>{previewMessage}</span>
+          <button
+            type="button"
+            onClick={() => setPreviewMessage(undefined)}
+            aria-label="Fechar aviso"
+            className="text-xs text-nite-text-secondary hover:text-nite-text-primary"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
+      {Object.keys(fieldErrors).length > 0 ? (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 border-b border-status-error/30 bg-status-error/10 px-4 py-2 text-xs text-status-error sm:px-6 lg:px-8"
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">Revise os campos destacados.</span>
+            <span className="hidden text-status-error/80 sm:inline">
+              Existem dados pendentes que impedem a publicação.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => focusFirstInvalidField(fieldErrors)}
+            className="shrink-0 text-xs font-medium underline hover:text-red-800"
+          >
+            Ir para o primeiro campo
+          </button>
+        </div>
+      ) : null}
+
+      {lifecycleMessage ? (
+        <div
+          role={lifecycleError ? "alert" : "status"}
+          aria-live="polite"
+          className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-xs sm:px-6 lg:px-8 ${
+            lifecycleError
+              ? "border-status-error/30 bg-status-error/10 text-status-error"
+              : "border-status-done/30 bg-status-done/10 text-status-done"
+          }`}
+        >
+          <span>{lifecycleMessage}</span>
+          <button
+            type="button"
+            onClick={() => setLifecycleMessage(undefined)}
+            aria-label="Fechar aviso"
+            className="text-xs opacity-75 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
+      {actionMessage &&
+      actionState.status !== "idle" &&
+      actionState.status !== "validation_error" ? (
+        <div
+          role={actionState.status !== "success" ? "alert" : "status"}
+          aria-live="polite"
+          className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-xs sm:px-6 lg:px-8 ${
+            actionState.status !== "success"
+              ? "border-status-error/30 bg-status-error/10 text-status-error"
+              : "border-status-done/30 bg-status-done/10 text-status-done"
+          }`}
+        >
+          <span>{actionMessage}</span>
+        </div>
+      ) : null}
 
       <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-56px)] xl:overflow-hidden">
         {/* Hidden Form Inputs */}
@@ -903,74 +1124,120 @@ export function ArticleEditor({
         </div>
 
         {/* Right Inspector Rail: ~350px, independent scroll, border-l */}
-        <div className="w-full xl:w-[350px] xl:shrink-0 xl:border-l border-nite-border-subtle bg-nite-surface xl:overflow-y-auto p-4 sm:p-5">
-          <EditorInspector
-            title={title}
-            summary={summary}
-            isExisting={isExisting}
-            articleId={initial?.articleId}
-            currentRevisionId={currentRevisionId}
-            publishedRevisionId={publishedRevisionId}
-            currentStatus={currentStatus}
-            revisions={revisions}
-            fieldErrors={fieldErrors}
-            preparationCount={preparationCount}
-            readyForFinalReview={readyForFinalReview}
-            completePreparationItems={completePreparationItems}
-            category={category}
-            byline={byline}
-            eventDate={initial?.eventDate}
-            featured={initial?.featured}
-            slug={slug}
-            slugLocked={slugLocked}
-            slugPanelOpen={slugPanelOpen}
-            coverPreviewUrl={coverPreviewUrl}
-            coverAlt={coverAlt}
-            coverCaption={coverCaption}
-            coverCredit={coverCredit}
-            mediaState={mediaState}
-            mediaMessage={mediaMessage}
-            seoTitle={seoTitle}
-            seoDescription={seoDescription}
-            seoPanelOpen={seoPanelOpen}
-            operationPending={operationPending}
-            canDelete={canDelete}
-            isDirty={isDirty}
-            lifecyclePending={lifecyclePending}
-            lifecycleMessage={lifecycleMessage}
-            lifecycleError={lifecycleError}
-            previewMessage={previewMessage}
-            actionMessage={actionMessage}
-            actionStatus={actionState.status}
-            actionErrorId={
-              actionState.status === "unexpected_error"
-                ? actionState.errorId
-                : undefined
-            }
-            onCategoryChange={(val) => setCategory(val)}
-            onBylineChange={(val) => setByline(val)}
-            onSlugChange={(val) => {
-              if (slugLocked) return;
-              setSlug(val);
-              setSlugManuallyEdited(true);
-            }}
-            onSlugToggle={(open) => setSlugPanelOpen(open)}
-            onCoverFileSelect={(file) => void uploadCover(file)}
-            onCoverAltChange={(val) => setCoverAlt(val)}
-            onCoverCaptionChange={(val) => setCoverCaption(val)}
-            onCoverCreditChange={(val) => setCoverCredit(val)}
-            onSeoTitleChange={(val) => setSeoTitle(val)}
-            onSeoDescriptionChange={(val) => setSeoDescription(val)}
-            onSeoToggle={(open) => setSeoPanelOpen(open)}
-            onTransitionLifecycle={transitionLifecycle}
-            onDeletionPendingChange={setDeletionPending}
-            onDeleted={(scheduledMediaCount) => {
-              setIsDirty(false);
-              router.replace(`/?deletedMedia=${scheduledMediaCount}`);
-            }}
-          />
+        <div className="hidden xl:block xl:w-[350px] xl:shrink-0 xl:border-l border-nite-border-subtle bg-nite-surface xl:overflow-y-auto p-4 sm:p-5">
+          <EditorInspector mode="rail" {...commonInspectorProps} />
         </div>
       </div>
+
+      {/* Sticky Bottom Bar for screens < 1280px */}
+      <div className="sticky bottom-0 z-30 flex items-center justify-between border-t border-nite-border-subtle bg-nite-surface/95 px-4 py-2.5 shadow-md backdrop-blur xl:hidden">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-semibold text-nite-text-primary">
+            Preparação {preparationCount}/6
+          </span>
+          {Object.keys(fieldErrors).length > 0 ? (
+            <span className="rounded bg-status-error/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-error">
+              {Object.keys(fieldErrors).length}{" "}
+              {Object.keys(fieldErrors).length === 1
+                ? "pendência"
+                : "pendências"}
+            </span>
+          ) : readyForFinalReview ? (
+            <span className="rounded bg-status-done/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-done">
+              Pronta
+            </span>
+          ) : null}
+        </div>
+        <button
+          ref={inspectorTriggerRef}
+          type="button"
+          onClick={() => setIsInspectorOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={isInspectorOpen}
+          className="inline-flex items-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 py-1.5 text-xs font-semibold text-nite-text-primary shadow-xs hover:bg-nite-section"
+        >
+          <span>Configurações</span>
+        </button>
+      </div>
+
+      {/* Responsive Inspector Overlay: Drawer (tablet) or Sheet (mobile) */}
+      {isInspectorOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Configurações da matéria"
+          className="fixed inset-0 z-50 xl:hidden"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={handleCloseInspector}
+            aria-hidden="true"
+          />
+
+          {/* Modal content */}
+          <div
+            className={`fixed z-50 bg-nite-surface shadow-2xl overflow-y-auto p-4 sm:p-5 transition-transform ${
+              inspectorMode === "sheet"
+                ? "inset-x-0 bottom-0 top-12 rounded-t-xl border-t border-nite-border-subtle"
+                : "inset-y-0 right-0 w-full max-w-[380px] border-l border-nite-border-subtle"
+            }`}
+          >
+            <EditorInspector
+              mode={inspectorMode}
+              onClose={handleCloseInspector}
+              {...commonInspectorProps}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Dialogs */}
+      <EditorialConfirmDialog
+        open={publishDialogOpen}
+        title={
+          currentStatus === "published"
+            ? "Publicar alterações no Portal?"
+            : "Publicar matéria no Portal?"
+        }
+        description={`A matéria “${title || "Sem título"}” ficará visível publicamente em /atualizacoes/${slug}.`}
+        confirmLabel="Confirmar publicação"
+        cancelLabel="Continuar editando"
+        variant="primary"
+        pending={pending}
+        onConfirm={handleConfirmPublish}
+        onCancel={() => setPublishDialogOpen(false)}
+      />
+
+      <EditorialConfirmDialog
+        open={lifecycleIntent !== null}
+        title={
+          lifecycleIntent === "unpublish"
+            ? "Despublicar matéria?"
+            : lifecycleIntent === "archive"
+              ? "Arquivar matéria?"
+              : "Restaurar matéria como rascunho?"
+        }
+        description={
+          lifecycleIntent === "unpublish"
+            ? "A matéria sairá do ar e não ficará visível no Portal NITE."
+            : lifecycleIntent === "archive"
+              ? "A matéria será arquivada e não ficará visível no Portal NITE."
+              : "A matéria retornará ao status de rascunho para edição."
+        }
+        confirmLabel={
+          lifecycleIntent === "unpublish"
+            ? "Despublicar matéria"
+            : lifecycleIntent === "archive"
+              ? "Arquivar matéria"
+              : "Restaurar rascunho"
+        }
+        cancelLabel="Cancelar"
+        variant={lifecycleIntent === "restore" ? "primary" : "destructive"}
+        pending={lifecyclePending}
+        onConfirm={handleConfirmLifecycle}
+        onCancel={() => setLifecycleIntent(null)}
+      />
     </form>
   );
 }

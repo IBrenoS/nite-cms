@@ -357,7 +357,12 @@ async function getPublishableRevision<TQueryResult extends PgQueryResultHKT>(
       seo: articleRevisions.seo,
     })
     .from(articleRevisions)
-    .where(eq(articleRevisions.id, revisionId))
+    .where(
+      and(
+        eq(articleRevisions.id, revisionId),
+        eq(articleRevisions.articleId, article.id),
+      ),
+    )
     .limit(1);
   if (!revision) throw new EditorialConflictError();
   return validateEditorialInputForPublication(database, {
@@ -501,6 +506,26 @@ export async function validateEditorialRevisionForPublication<
     throw new EditorialConflictError();
   }
   return getPublishableRevision(database, article, command.expectedRevisionId);
+}
+
+export async function validateEditorialRevisionForPreview<
+  TQueryResult extends PgQueryResultHKT,
+>(
+  database: CmsDatabase<TQueryResult>,
+  command: {
+    actor: CmsMembership;
+    articleId: string;
+    revisionId: string;
+  },
+) {
+  await requireActiveCmsMembership(database, command.actor.id);
+  const [article] = await database
+    .select()
+    .from(articles)
+    .where(eq(articles.id, command.articleId))
+    .limit(1);
+  if (!article) throw new EditorialConflictError();
+  return getPublishableRevision(database, article, command.revisionId);
 }
 
 export async function publishArticle<TQueryResult extends PgQueryResultHKT>(

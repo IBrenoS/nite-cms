@@ -227,30 +227,39 @@ export function EditorToolbar({
           <QuoteIcon className="size-4" aria-hidden="true" />
         </button>
 
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          aria-label="Inserir imagem no conteúdo"
-          aria-expanded={inlinePanelOpen}
-          className="ml-auto text-xs text-nite-brand-primary hover:bg-nite-surface"
-          onClick={onToggleInlinePanel}
+        <div
+          className="ml-auto flex items-center gap-1 border-l border-nite-border-subtle pl-2.5"
+          role="toolbar"
+          aria-label="Adicionar ao conteúdo"
         >
-          <ImagePlusIcon aria-hidden="true" />
-          <span className="hidden sm:inline">Inserir imagem</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          aria-label="Inserir vídeo no conteúdo"
-          aria-expanded={videoPanelOpen}
-          className="text-xs text-nite-brand-primary hover:bg-nite-surface"
-          onClick={onToggleVideoPanel}
-        >
-          <span aria-hidden="true">▶</span>
-          <span className="hidden sm:inline">Inserir vídeo</span>
-        </Button>
+          <span className="hidden text-[11px] font-semibold text-nite-text-muted xl:inline">
+            Adicionar:
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-label="Inserir imagem no conteúdo"
+            aria-expanded={inlinePanelOpen}
+            className="text-xs text-nite-brand-primary hover:bg-nite-surface"
+            onClick={onToggleInlinePanel}
+          >
+            <ImagePlusIcon aria-hidden="true" />
+            <span className="hidden sm:inline">Imagem</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-label="Inserir vídeo no conteúdo"
+            aria-expanded={videoPanelOpen}
+            className="text-xs text-nite-brand-primary hover:bg-nite-surface"
+            onClick={onToggleVideoPanel}
+          >
+            <span aria-hidden="true">▶</span>
+            <span className="hidden sm:inline">Vídeo</span>
+          </Button>
+        </div>
       </div>
       {linkPanelOpen ? (
         <div className="flex flex-wrap items-end gap-2 border-t border-nite-border-subtle p-3">

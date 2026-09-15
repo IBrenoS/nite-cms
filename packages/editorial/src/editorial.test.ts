@@ -17,6 +17,7 @@ import {
   saveArticleRevision,
   submitEditorialRevision,
   validateEditorialInputForPublication,
+  validateEditorialRevisionForPreview,
 } from "@nite/editorial";
 import {
   articleMediaReferences,
@@ -260,6 +261,53 @@ describe("comandos editoriais", () => {
         .from(articleRevisions)
         .where(eq(articleRevisions.articleId, created.article.id)),
     ).resolves.toEqual([{ version: 1 }, { version: 2 }, { version: 3 }]);
+  });
+
+  it("valida uma revisão histórica para preview sem exigir que seja a atual", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [publisher] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId: "tenant-preview-historico",
+        objectId: "publisher-preview-historico-oid",
+        displayName: "Publisher Preview Histórico",
+        role: "publisher",
+      })
+      .returning();
+    await database.insert(mediaAssets).values({
+      id: firstDraft.coverMediaId,
+      stagingObjectKey: "incoming/capa-preview-historico/original",
+      publicObjectKey: "news/capa-preview-historico/processed.webp",
+      mimeType: "image/webp",
+      byteSize: 4096,
+      width: 1200,
+      height: 675,
+      checksumSha256:
+        "dededededededededededededededededededededededededededededededede",
+      status: "ready",
+    });
+    const created = await createArticleDraft(database, {
+      actor: publisher,
+      input: firstDraft,
+    });
+    await saveArticleRevision(database, {
+      actor: publisher,
+      articleId: created.article.id,
+      expectedRevisionId: created.revision.id,
+      input: {
+        ...firstDraft,
+        slug: created.article.slug,
+        title: "Versão atual da matéria",
+      },
+    });
+
+    const preview = await validateEditorialRevisionForPreview(database, {
+      actor: publisher,
+      articleId: created.article.id,
+      revisionId: created.revision.id,
+    });
+
+    expect(preview.title).toBe(firstDraft.title);
   });
 
   it("valida um snapshot publicavel sem criar revisao", async () => {

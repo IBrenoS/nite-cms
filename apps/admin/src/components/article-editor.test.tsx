@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   createUpload: vi.fn(),
   processUpload: vi.fn(),
   preview: vi.fn(),
+  privatePreview: vi.fn(),
   transition: vi.fn(),
   deletionImpact: vi.fn(),
   deleteArticle: vi.fn(),
@@ -30,7 +31,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/(workspace)/articles/actions", () => ({
   createLivePreviewLink: mocks.preview,
   createMediaUploadAction: mocks.createUpload,
-  createPrivatePreviewLink: mocks.preview,
+  createPrivatePreviewLink: mocks.privatePreview,
   getEditorialArticleDeletionImpactAction: mocks.deletionImpact,
   deleteEditorialArticleAction: mocks.deleteArticle,
   processMediaUploadAction: mocks.processUpload,
@@ -45,8 +46,76 @@ vi.mock("@/lib/media-upload-client", () => ({
   MediaUploadCanceledError: class MediaUploadCanceledError extends Error {},
   uploadMediaFile: mocks.uploadFile,
 }));
+import { ImageNodeView } from "./editor/image-node-view";
+import { VideoNodeView } from "./editor/video-node-view";
+import { ArticleEditor } from "./article-editor";
+
 vi.mock("@tiptap/react", () => ({
-  EditorContent: () => <div aria-label="Corpo da matéria" />,
+  NodeViewWrapper: ({
+    children,
+    as: Component = "div",
+    ...props
+  }: {
+    children?: React.ReactNode;
+    as?: React.ElementType;
+    [key: string]: unknown;
+  }) => <Component {...props}>{children}</Component>,
+  EditorContent: () => (
+    <div aria-label="Corpo da matéria">
+      {mocks.imageActive ? (
+        <ImageNodeView
+          node={
+            {
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000001",
+                alt: "Pessoas no laboratório",
+                caption: "Legenda atual",
+                credit: "Foto: NITE",
+                layout: "wide",
+              },
+            } as never
+          }
+          updateAttributes={(attrs) => mocks.updateAttributes("image", attrs)}
+          deleteNode={() => mocks.updateAttributes("image", { deleted: true })}
+          selected={true}
+          editor={null as never}
+          getPos={() => 0}
+          extension={null as never}
+          decorations={[]}
+          view={null as never}
+          innerDecorations={null as never}
+          HTMLAttributes={null as never}
+        />
+      ) : null}
+      {mocks.videoActive ? (
+        <VideoNodeView
+          node={
+            {
+              attrs: {
+                mediaId: "30000000-0000-4000-8000-000000000201",
+                captionsMediaId: "30000000-0000-4000-8000-000000000202",
+                playbackMode: "manual",
+                layout: "wide",
+                description: "Apresentação acessível",
+                caption: "Legenda atual",
+                credit: "Vídeo: NITE",
+              },
+            } as never
+          }
+          updateAttributes={(attrs) => mocks.updateAttributes("video", attrs)}
+          deleteNode={() => mocks.updateAttributes("video", { deleted: true })}
+          selected={true}
+          editor={null as never}
+          getPos={() => 0}
+          extension={null as never}
+          decorations={[]}
+          view={null as never}
+          innerDecorations={null as never}
+          HTMLAttributes={null as never}
+        />
+      ) : null}
+    </div>
+  ),
   useEditor: () => ({
     isActive: (name: string) =>
       (name === "image" && mocks.imageActive) ||
@@ -100,8 +169,6 @@ vi.mock("@tiptap/react", () => ({
   }),
 }));
 
-import { ArticleEditor } from "./article-editor";
-
 const initialArticle = {
   articleId: "10000000-0000-4000-8000-000000000001",
   revisionId: "20000000-0000-4000-8000-000000000001",
@@ -144,6 +211,7 @@ describe("ArticleEditor", () => {
     mocks.createUpload.mockReset();
     mocks.processUpload.mockReset();
     mocks.preview.mockReset();
+    mocks.privatePreview.mockReset();
     mocks.transition.mockReset();
     mocks.deletionImpact.mockReset();
     mocks.deleteArticle.mockReset();
@@ -153,6 +221,8 @@ describe("ArticleEditor", () => {
     mocks.imageActive = false;
     mocks.videoActive = false;
     mocks.submit.mockResolvedValue({ status: "idle" });
+    mocks.transition.mockResolvedValue({ status: "success" });
+    mocks.privatePreview.mockResolvedValue({ status: "idle" });
     mocks.uploadFile.mockResolvedValue(undefined);
   });
 
@@ -305,7 +375,7 @@ describe("ArticleEditor", () => {
     );
     expect(container.querySelector("form")).toHaveAttribute("novalidate");
     expect(
-      screen.getByRole("button", { name: "Publicar revisão" }),
+      screen.getByRole("button", { name: "Publicar matéria" }),
     ).toBeEnabled();
   });
 
@@ -534,11 +604,53 @@ describe("ArticleEditor", () => {
     ).toBeEnabled();
   });
 
+  it("abre uma revisão histórica no preview privado do Portal", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    mocks.privatePreview.mockResolvedValue({
+      status: "success",
+      data: { url: "https://portal.nite.test/api/preview?token=historica" },
+    });
+    render(
+      <ArticleEditor
+        canPublish
+        revisions={[
+          {
+            id: initialArticle.revisionId,
+            version: 1,
+            title: initialArticle.title,
+            createdAt: new Date("2026-09-12T12:00:00.000Z"),
+          },
+        ]}
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Revisões/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Visualizar versão" }));
+
+    await waitFor(() =>
+      expect(mocks.privatePreview).toHaveBeenCalledWith({
+        articleId: initialArticle.articleId,
+        revisionId: initialArticle.revisionId,
+      }),
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://portal.nite.test/api/preview?token=historica",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    open.mockRestore();
+  });
+
   it("mostra pendências e leva ao título antes de confirmar uma publicação inválida", async () => {
     const confirm = vi.spyOn(window, "confirm");
     render(<ArticleEditor canPublish />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Publicar revisão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar matéria" }));
 
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Título")).toHaveAttribute(
@@ -826,5 +938,98 @@ describe("ArticleEditor", () => {
         "Código de suporte: preview-error-id.",
       ),
     );
+  });
+
+  it("abre modal acessível para confirmar publicação sem usar window.confirm", async () => {
+    const confirm = vi.spyOn(window, "confirm");
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Publicar matéria" }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Publicar matéria no Portal?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /ficará visível publicamente em \/atualizacoes\/agenda-personalizada/,
+      ),
+    ).toBeInTheDocument();
+
+    const dialogConfirmBtn = screen.getByRole("button", {
+      name: "Confirmar publicação",
+    });
+    expect(dialogConfirmBtn).toBeInTheDocument();
+    fireEvent.click(dialogConfirmBtn);
+
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("abre modal acessível para transição de ciclo de vida sem usar window.confirm", async () => {
+    const confirm = vi.spyOn(window, "confirm");
+    render(
+      <ArticleEditor
+        canPublish
+        initial={{
+          ...initialArticle,
+          status: "published",
+          slugManuallyEdited: false,
+          slugLocked: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Despublicar" }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Despublicar matéria?" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Despublicar matéria" }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.transition).toHaveBeenCalledWith({
+        articleId: initialArticle.articleId,
+        expectedRevisionId: initialArticle.revisionId,
+        intent: "unpublish",
+      }),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("permite abrir o painel de configurações na barra inferior e fechar com Escape", async () => {
+    render(<ArticleEditor canPublish />);
+
+    const openButton = screen.getByRole("button", { name: "Configurações" });
+    expect(openButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(openButton);
+
+    expect(openButton).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("dialog", { name: "Configurações da matéria" }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Configurações da matéria" }),
+      ).toBeNull();
+    });
   });
 });

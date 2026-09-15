@@ -15,7 +15,7 @@ import {
   submitEditorialRevision,
   unpublishArticle,
   getEditorialRevisionPreview,
-  validateEditorialRevisionForPublication,
+  validateEditorialRevisionForPreview,
 } from "@nite/editorial";
 import { revalidatePath } from "next/cache";
 import { requireCmsContext } from "@/lib/auth";
@@ -301,10 +301,10 @@ export async function createPrivatePreviewLink(input: unknown) {
         message: "Revisão não encontrada.",
         retryable: false,
       };
-    await validateEditorialRevisionForPublication(context.database, {
+    await validateEditorialRevisionForPreview(context.database, {
       actor: context.membership,
       articleId: request.articleId,
-      expectedRevisionId: request.revisionId,
+      revisionId: request.revisionId,
     });
     const preview = readPreviewConfiguration(process.env);
     if (!preview.configured) {

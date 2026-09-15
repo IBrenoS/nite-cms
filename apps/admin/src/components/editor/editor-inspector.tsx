@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState, type ChangeEvent } from "react";
 import {
   ArchiveIcon,
@@ -31,7 +30,7 @@ type RevisionItem = {
   createdAt: Date;
 };
 
-type EditorInspectorProps = {
+export type EditorInspectorProps = {
   title: string;
   summary: string;
   isExisting: boolean;
@@ -64,12 +63,8 @@ type EditorInspectorProps = {
   canDelete: boolean;
   isDirty: boolean;
   lifecyclePending: boolean;
-  lifecycleMessage?: string;
-  lifecycleError: boolean;
-  previewMessage?: string;
-  actionMessage?: string;
-  actionStatus?: string;
-  actionErrorId?: string;
+  mode?: "rail" | "drawer" | "sheet";
+  onClose?: () => void;
   onCategoryChange: (value: EditorialDraftInput["category"]) => void;
   onBylineChange: (value: string) => void;
   onSlugChange: (value: string) => void;
@@ -82,6 +77,7 @@ type EditorInspectorProps = {
   onSeoDescriptionChange: (value: string) => void;
   onSeoToggle: (open: boolean) => void;
   onTransitionLifecycle: (intent: "unpublish" | "archive" | "restore") => void;
+  onViewRevision: (revisionId: string) => void;
   onDeletionPendingChange: (pending: boolean) => void;
   onDeleted: (scheduledMediaCount: number) => void;
 };
@@ -149,12 +145,8 @@ export function EditorInspector({
   canDelete,
   isDirty,
   lifecyclePending,
-  lifecycleMessage,
-  lifecycleError,
-  previewMessage,
-  actionMessage,
-  actionStatus,
-  actionErrorId,
+  mode = "rail",
+  onClose,
   onCategoryChange,
   onBylineChange,
   onSlugChange,
@@ -167,6 +159,7 @@ export function EditorInspector({
   onSeoDescriptionChange,
   onSeoToggle,
   onTransitionLifecycle,
+  onViewRevision,
   onDeletionPendingChange,
   onDeleted,
 }: EditorInspectorProps) {
@@ -184,6 +177,28 @@ export function EditorInspector({
 
   return (
     <aside className="space-y-4 text-xs" aria-label="Configurações da matéria">
+      {/* Header for drawer/sheet mode */}
+      {mode !== "rail" && onClose ? (
+        <div className="flex items-center justify-between border-b border-nite-border-subtle pb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-nite-text-primary">
+              Configurações da matéria
+            </h2>
+            <p className="text-[11px] text-nite-text-secondary">
+              Preparação {preparationCount}/6
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar painel"
+            className="flex size-8 items-center justify-center rounded-md border border-nite-border-subtle text-nite-text-secondary hover:bg-nite-section hover:text-nite-text-primary"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
       {/* Inspector Tabs (when revisions available) */}
       {revisions.length > 0 ? (
         <div className="flex rounded-md border border-nite-border-subtle bg-nite-section/50 p-0.5">
@@ -213,8 +228,8 @@ export function EditorInspector({
       ) : null}
 
       {activeTab === "revisions" && revisions.length > 0 ? (
-        <section className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-          <div className="border-b border-nite-border-subtle px-4 py-2.5">
+        <section className="space-y-3">
+          <div className="border-b border-nite-border-subtle pb-2">
             <h2 className="text-xs font-semibold text-nite-text-primary">
               Histórico de revisões
             </h2>
@@ -226,7 +241,7 @@ export function EditorInspector({
             {revisions.map((rev) => (
               <li
                 key={rev.id}
-                className="flex items-center justify-between gap-2 p-3 transition-colors hover:bg-nite-section/40"
+                className="flex items-center justify-between gap-2 py-3 transition-colors hover:bg-nite-section/30"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
@@ -248,127 +263,129 @@ export function EditorInspector({
                   </p>
                 </div>
                 {articleId ? (
-                  <Link
-                    href={`/preview/articles/${articleId}?revision=${rev.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded border border-nite-border-subtle px-2 py-1 text-[11px] font-medium text-nite-brand-primary hover:bg-nite-section shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => onViewRevision(rev.id)}
+                    disabled={operationPending}
+                    className="inline-flex items-center gap-1 rounded border border-nite-border-subtle px-2.5 py-1 text-[11px] font-medium text-nite-brand-primary hover:bg-nite-section shrink-0"
                   >
                     <EyeIcon className="size-3" aria-hidden="true" />
-                    <span>Ver</span>
-                  </Link>
+                    <span>Visualizar versão</span>
+                  </button>
                 ) : null}
               </li>
             ))}
           </ol>
         </section>
       ) : (
-        <>
-          {/* Validation Banner */}
-          <section
-            className={`rounded-lg border p-3.5 ${
-              fieldErrorEntries.length > 0
-                ? "border-status-error/40 bg-status-error/5"
-                : "border-nite-border-subtle bg-nite-surface"
-            }`}
-            aria-labelledby="validation-title"
-            role={fieldErrorEntries.length > 0 ? "alert" : undefined}
-          >
-            <div className="flex items-start gap-2.5">
-              <span
-                className={`flex size-6 shrink-0 items-center justify-center rounded ${
-                  fieldErrorEntries.length > 0
-                    ? "bg-status-error/10 text-status-error"
-                    : readyForFinalReview
-                      ? "bg-status-done/10 text-status-done"
-                      : "bg-status-warning/10 text-status-warning"
-                }`}
-              >
-                {readyForFinalReview && fieldErrorEntries.length === 0 ? (
-                  <CheckCircleIcon className="size-3.5" aria-hidden="true" />
-                ) : (
-                  <CircleAlertIcon className="size-3.5" aria-hidden="true" />
-                )}
-              </span>
-              <div className="min-w-0">
-                <h2 id="validation-title" className="text-xs font-semibold">
-                  {fieldErrorEntries.length > 0
-                    ? "Revise os campos destacados."
-                    : readyForFinalReview
-                      ? "Pronta para revisão final"
-                      : "Antes de publicar"}
-                </h2>
-                {fieldErrorEntries.length > 0 ? (
-                  <ul className="mt-1.5 grid gap-1 text-[11px] text-status-error">
-                    {fieldErrorEntries.map(([field, messages]) => (
-                      <li key={field}>
-                        <a
-                          href={`#${editorialFieldTarget[field]}`}
-                          className="underline outline-none hover:text-red-700"
-                        >
-                          {messages[0]}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-0.5 text-[11px] text-nite-text-secondary">
-                    {readyForFinalReview
-                      ? "Os requisitos editoriais foram preenchidos."
-                      : "As pendências são acompanhadas na preparação e levam você ao campo que precisa de atenção."}
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Preparation Status */}
-          <section className="rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-nite-text-primary">
-                Preparação
-              </h2>
-              <span className="font-mono text-[11px] font-semibold text-nite-text-secondary">
-                {preparationCount} de 6
-              </span>
-            </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-nite-section">
-              <div
-                className="h-full bg-nite-brand-primary transition-all duration-200"
-                style={{ width: `${(preparationCount / 6) * 100}%` }}
-              />
-            </div>
-            <ul className="mt-3 space-y-1.5 text-[11px]">
-              {completePreparationItems.map((item) => (
-                <li
-                  key={item.label}
-                  className={`flex items-center gap-1.5 ${
-                    item.complete
-                      ? "text-status-done"
-                      : "text-nite-text-secondary"
+        /* Superfície Contínua: Seções separadas por divisores */
+        <div className="divide-y divide-nite-border-subtle">
+          {/* 1. Preparação e pendências */}
+          <div className="space-y-3 pb-4">
+            {/* Validation Banner if errors exist */}
+            <div
+              className={`rounded-lg border p-3 ${
+                fieldErrorEntries.length > 0
+                  ? "border-status-error/40 bg-status-error/5"
+                  : "border-nite-border-subtle bg-nite-section/30"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <span
+                  className={`flex size-6 shrink-0 items-center justify-center rounded ${
+                    fieldErrorEntries.length > 0
+                      ? "bg-status-error/10 text-status-error"
+                      : readyForFinalReview
+                        ? "bg-status-done/10 text-status-done"
+                        : "bg-status-warning/10 text-status-warning"
                   }`}
                 >
-                  {item.complete ? (
-                    <CheckCircleIcon
-                      className="size-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
+                  {readyForFinalReview && fieldErrorEntries.length === 0 ? (
+                    <CheckCircleIcon className="size-3.5" aria-hidden="true" />
                   ) : (
-                    <CircleIcon
-                      className="size-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
+                    <CircleAlertIcon className="size-3.5" aria-hidden="true" />
                   )}
-                  <span>{item.label}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-xs font-semibold">
+                    {fieldErrorEntries.length > 0
+                      ? "Revise os campos destacados."
+                      : readyForFinalReview
+                        ? "Pronta para revisão final"
+                        : "Antes de publicar"}
+                  </h2>
+                  {fieldErrorEntries.length > 0 ? (
+                    <ul className="mt-1.5 grid gap-1 text-[11px] text-status-error">
+                      {fieldErrorEntries.map(([field, messages]) => (
+                        <li key={field}>
+                          <a
+                            href={`#${editorialFieldTarget[field]}`}
+                            className="underline outline-none hover:text-red-700"
+                          >
+                            {messages[0]}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-0.5 text-[11px] text-nite-text-secondary">
+                      {readyForFinalReview
+                        ? "Os requisitos editoriais foram preenchidos."
+                        : "As pendências são acompanhadas na preparação e levam você ao campo que precisa de atenção."}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          {/* Publication Essentials */}
-          <section className="rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5 space-y-3">
+            {/* Preparation Progress & Checklist */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold text-nite-text-primary">
+                  Preparação
+                </h2>
+                <span className="font-mono text-[11px] font-semibold text-nite-text-secondary">
+                  {preparationCount} de 6
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-nite-section">
+                <div
+                  className="h-full bg-nite-brand-primary transition-all duration-200"
+                  style={{ width: `${(preparationCount / 6) * 100}%` }}
+                />
+              </div>
+              <ul className="mt-2 space-y-1.5 text-[11px]">
+                {completePreparationItems.map((item) => (
+                  <li
+                    key={item.label}
+                    className={`flex items-center gap-1.5 ${
+                      item.complete
+                        ? "text-status-done"
+                        : "text-nite-text-secondary"
+                    }`}
+                  >
+                    {item.complete ? (
+                      <CheckCircleIcon
+                        className="size-3.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <CircleIcon
+                        className="size-3.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span>{item.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* 2. Publicação essencial */}
+          <div className="space-y-3 py-4">
             <h2 className="text-xs font-semibold text-nite-text-primary">
-              Publicação
+              Publicação essencial
             </h2>
 
             <div>
@@ -445,120 +462,10 @@ export function EditorInspector({
                 </p>
               ) : null}
             </div>
+          </div>
 
-            <div>
-              <label
-                className="mb-1 block text-xs font-semibold text-nite-text-primary"
-                htmlFor="eventDate"
-              >
-                Data do evento{" "}
-                <span className="font-normal text-nite-text-secondary">
-                  (opcional)
-                </span>
-              </label>
-              <Input
-                id="eventDate"
-                name="eventDate"
-                type="date"
-                data-editorial-field="eventDate"
-                aria-invalid={Boolean(fieldErrors.eventDate)}
-                aria-describedby={
-                  fieldErrors.eventDate ? "event-date-error" : undefined
-                }
-                defaultValue={eventDate}
-                className="min-h-8 rounded-md text-xs"
-              />
-              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
-                Mostrada quando a matéria se refere a um evento específico.
-              </p>
-              {fieldErrors.eventDate ? (
-                <p
-                  id="event-date-error"
-                  className="mt-1 text-[11px] text-status-error"
-                >
-                  {fieldErrors.eventDate[0]}
-                </p>
-              ) : null}
-            </div>
-
-            <label className="flex items-start gap-2 text-xs">
-              <input
-                type="checkbox"
-                name="featured"
-                defaultChecked={featured}
-                className="mt-0.5 size-3.5 accent-[var(--nite-brand-primary)]"
-              />
-              <span>
-                <span className="block font-semibold text-nite-text-primary">
-                  Destacar no Nite News
-                </span>
-                <span className="block text-[11px] text-nite-text-secondary">
-                  Dá maior evidência à matéria no portal.
-                </span>
-              </span>
-            </label>
-
-            {/* Slug Accordion */}
-            <details
-              className="group border-t border-nite-border-subtle pt-2.5"
-              open={slugPanelOpen || Boolean(fieldErrors.slug)}
-              onToggle={(event) => onSlugToggle(event.currentTarget.open)}
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-secondary hover:text-nite-text-primary">
-                <span>Configuração avançada do slug</span>
-                <ChevronDownIcon
-                  className="size-3.5 transition-transform group-open:rotate-180"
-                  aria-hidden="true"
-                />
-              </summary>
-              <label className="mt-2 block" htmlFor="slug">
-                <span className="sr-only">Slug</span>
-                <Input
-                  id="slug"
-                  name="slug"
-                  pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                  data-editorial-field="slug"
-                  value={slug}
-                  readOnly={slugLocked}
-                  aria-invalid={Boolean(fieldErrors.slug)}
-                  aria-describedby={
-                    fieldErrors.slug
-                      ? "slug-error"
-                      : slugLocked
-                        ? "slug-lock-help"
-                        : "slug-help"
-                  }
-                  className="min-h-8 rounded-md font-mono text-[11px]"
-                  onChange={(event) => onSlugChange(event.target.value)}
-                />
-              </label>
-              {fieldErrors.slug ? (
-                <p
-                  id="slug-error"
-                  className="mt-1 text-[11px] text-status-error"
-                >
-                  {fieldErrors.slug[0]}
-                </p>
-              ) : slugLocked ? (
-                <p
-                  id="slug-lock-help"
-                  className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
-                >
-                  O slug foi bloqueado permanentemente na primeira publicação.
-                </p>
-              ) : (
-                <p
-                  id="slug-help"
-                  className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
-                >
-                  Gerado pelo título e bloqueado na primeira publicação.
-                </p>
-              )}
-            </details>
-          </section>
-
-          {/* Cover Section */}
-          <section className="rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5 space-y-2.5">
+          {/* 3. Capa da matéria */}
+          <div className="space-y-3 py-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold text-nite-text-primary">
                 Capa da matéria
@@ -568,9 +475,7 @@ export function EditorInspector({
               </span>
             </div>
             <p className="text-[11px] leading-4 text-nite-text-secondary">
-              Obrigatória: aparece nos cards e como imagem principal no topo da
-              matéria. Não faz parte do corpo do texto. Prefira uma foto limpa,
-              sem interface ou texto dominante.
+              Aparece nos cards e como imagem principal no topo da matéria.
             </p>
 
             <div className="relative aspect-[16/9] overflow-hidden rounded-md border border-dashed border-nite-border-strong bg-nite-section">
@@ -661,8 +566,7 @@ export function EditorInspector({
                 onChange={(event) => onCoverAltChange(event.target.value)}
               />
               <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
-                Descreva o que é relevante na imagem. Esse texto ajuda leitores
-                de tela e não aparece como legenda.
+                Descreva o que é relevante na imagem para leitores de tela.
               </p>
               {fieldErrors.coverAlt ? (
                 <p
@@ -743,112 +647,250 @@ export function EditorInspector({
                       : "Capa pronta.")}
               </p>
             ) : null}
-          </section>
+          </div>
 
-          {/* SEO Accordion */}
-          <details
-            className="group rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5"
-            open={
-              seoPanelOpen ||
-              Boolean(fieldErrors.seoTitle || fieldErrors.seoDescription)
-            }
-            onToggle={(event) => onSeoToggle(event.currentTarget.open)}
-          >
-            <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-primary">
-              <span>Aparência na busca (opcional)</span>
-              <ChevronDownIcon
-                className="size-3.5 text-nite-text-secondary transition-transform group-open:rotate-180"
-                aria-hidden="true"
-              />
-            </summary>
-            <p className="mt-1.5 text-[11px] text-nite-text-secondary">
-              Se os campos ficarem vazios, o título e o resumo da matéria serão
-              usados automaticamente.
-            </p>
-            <div className="mt-2.5 space-y-2.5">
-              <div
-                aria-label="Prévia na busca"
-                className="rounded-md border border-nite-border-subtle bg-nite-section/40 p-2.5"
-              >
-                <p className="truncate text-sm font-semibold text-nite-brand-primary">
-                  {seoTitle.trim() || title.trim() || "Título da matéria"}
-                </p>
-                <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-nite-text-secondary">
-                  {seoDescription.trim() ||
-                    summary.trim() ||
-                    "O resumo da matéria aparecerá aqui."}
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
-                  Título SEO
-                </label>
-                <Input
-                  aria-label="Título SEO"
-                  name="seoTitle"
-                  maxLength={60}
-                  value={seoTitle}
-                  data-editorial-field="seoTitle"
-                  aria-invalid={Boolean(fieldErrors.seoTitle)}
-                  aria-describedby={
-                    fieldErrors.seoTitle ? "seo-title-error" : undefined
-                  }
-                  className="min-h-8 rounded-md text-xs"
-                  onChange={(event) => onSeoTitleChange(event.target.value)}
+          {/* 4. Opções complementares (Disclosure) */}
+          <div className="py-4">
+            <details
+              className="group"
+              open={Boolean(
+                eventDate ||
+                featured ||
+                fieldErrors.eventDate ||
+                fieldErrors.slug ||
+                slugPanelOpen,
+              )}
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-primary">
+                <span>Opções complementares</span>
+                <ChevronDownIcon
+                  className="size-3.5 text-nite-text-secondary transition-transform group-open:rotate-180"
+                  aria-hidden="true"
                 />
-                <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
-                  {fieldErrors.seoTitle ? (
-                    <span id="seo-title-error" className="text-status-error">
-                      {fieldErrors.seoTitle[0]}
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label
+                    className="mb-1 block text-xs font-semibold text-nite-text-primary"
+                    htmlFor="eventDate"
+                  >
+                    Data do evento{" "}
+                    <span className="font-normal text-nite-text-secondary">
+                      (opcional)
                     </span>
-                  ) : (
-                    <span />
-                  )}
-                  <span className="font-mono">{seoTitle.length}/60</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
-                  Descrição SEO
-                </label>
-                <Textarea
-                  aria-label="Descrição SEO"
-                  name="seoDescription"
-                  maxLength={160}
-                  value={seoDescription}
-                  data-editorial-field="seoDescription"
-                  aria-invalid={Boolean(fieldErrors.seoDescription)}
-                  aria-describedby={
-                    fieldErrors.seoDescription
-                      ? "seo-description-error"
-                      : undefined
-                  }
-                  className="min-h-16 resize-none rounded-md text-xs"
-                  onChange={(event) =>
-                    onSeoDescriptionChange(event.target.value)
-                  }
-                />
-                <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
-                  {fieldErrors.seoDescription ? (
-                    <span
-                      id="seo-description-error"
-                      className="text-status-error"
+                  </label>
+                  <Input
+                    id="eventDate"
+                    name="eventDate"
+                    type="date"
+                    data-editorial-field="eventDate"
+                    aria-invalid={Boolean(fieldErrors.eventDate)}
+                    aria-describedby={
+                      fieldErrors.eventDate ? "event-date-error" : undefined
+                    }
+                    defaultValue={eventDate}
+                    className="min-h-8 rounded-md text-xs"
+                  />
+                  <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                    Mostrada quando a matéria se refere a um evento específico.
+                  </p>
+                  {fieldErrors.eventDate ? (
+                    <p
+                      id="event-date-error"
+                      className="mt-1 text-[11px] text-status-error"
                     >
-                      {fieldErrors.seoDescription[0]}
+                      {fieldErrors.eventDate[0]}
+                    </p>
+                  ) : null}
+                </div>
+
+                <label className="flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    name="featured"
+                    defaultChecked={featured}
+                    className="mt-0.5 size-3.5 accent-[var(--nite-brand-primary)]"
+                  />
+                  <span>
+                    <span className="block font-semibold text-nite-text-primary">
+                      Destacar no Nite News
                     </span>
+                    <span className="block text-[11px] text-nite-text-secondary">
+                      Dá maior evidência à matéria no portal.
+                    </span>
+                  </span>
+                </label>
+
+                {/* Slug sub-accordion */}
+                <details
+                  className="group border-t border-nite-border-subtle pt-2.5"
+                  open={slugPanelOpen || Boolean(fieldErrors.slug)}
+                  onToggle={(event) => onSlugToggle(event.currentTarget.open)}
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-secondary hover:text-nite-text-primary">
+                    <span>Configuração avançada do slug</span>
+                    <ChevronDownIcon
+                      className="size-3.5 transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <label className="mt-2 block" htmlFor="slug">
+                    <span className="sr-only">Slug</span>
+                    <Input
+                      id="slug"
+                      name="slug"
+                      pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                      data-editorial-field="slug"
+                      value={slug}
+                      readOnly={slugLocked}
+                      aria-invalid={Boolean(fieldErrors.slug)}
+                      aria-describedby={
+                        fieldErrors.slug
+                          ? "slug-error"
+                          : slugLocked
+                            ? "slug-lock-help"
+                            : "slug-help"
+                      }
+                      className="min-h-8 rounded-md font-mono text-[11px]"
+                      onChange={(event) => onSlugChange(event.target.value)}
+                    />
+                  </label>
+                  {fieldErrors.slug ? (
+                    <p
+                      id="slug-error"
+                      className="mt-1 text-[11px] text-status-error"
+                    >
+                      {fieldErrors.slug[0]}
+                    </p>
+                  ) : slugLocked ? (
+                    <p
+                      id="slug-lock-help"
+                      className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
+                    >
+                      O slug foi bloqueado permanentemente na primeira
+                      publicação.
+                    </p>
                   ) : (
-                    <span />
+                    <p
+                      id="slug-help"
+                      className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
+                    >
+                      Gerado pelo título e bloqueado na primeira publicação.
+                    </p>
                   )}
-                  <span className="font-mono">{seoDescription.length}/160</span>
+                </details>
+              </div>
+            </details>
+          </div>
+
+          {/* 5. Aparência na busca (SEO) */}
+          <div className="py-4">
+            <details
+              className="group"
+              open={
+                seoPanelOpen ||
+                Boolean(fieldErrors.seoTitle || fieldErrors.seoDescription)
+              }
+              onToggle={(event) => onSeoToggle(event.currentTarget.open)}
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-nite-text-primary">
+                <span>Aparência na busca (opcional)</span>
+                <ChevronDownIcon
+                  className="size-3.5 text-nite-text-secondary transition-transform group-open:rotate-180"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p className="mt-1.5 text-[11px] text-nite-text-secondary">
+                Se os campos ficarem vazios, o título e o resumo da matéria
+                serão usados automaticamente.
+              </p>
+              <div className="mt-2.5 space-y-2.5">
+                <div
+                  aria-label="Prévia na busca"
+                  className="rounded-md border border-nite-border-subtle bg-nite-section/40 p-2.5"
+                >
+                  <p className="truncate text-sm font-semibold text-nite-brand-primary">
+                    {seoTitle.trim() || title.trim() || "Título da matéria"}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-nite-text-secondary">
+                    {seoDescription.trim() ||
+                      summary.trim() ||
+                      "O resumo da matéria aparecerá aqui."}
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
+                    Título SEO
+                  </label>
+                  <Input
+                    aria-label="Título SEO"
+                    name="seoTitle"
+                    maxLength={60}
+                    value={seoTitle}
+                    data-editorial-field="seoTitle"
+                    aria-invalid={Boolean(fieldErrors.seoTitle)}
+                    aria-describedby={
+                      fieldErrors.seoTitle ? "seo-title-error" : undefined
+                    }
+                    className="min-h-8 rounded-md text-xs"
+                    onChange={(event) => onSeoTitleChange(event.target.value)}
+                  />
+                  <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
+                    {fieldErrors.seoTitle ? (
+                      <span id="seo-title-error" className="text-status-error">
+                        {fieldErrors.seoTitle[0]}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="font-mono">{seoTitle.length}/60</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
+                    Descrição SEO
+                  </label>
+                  <Textarea
+                    aria-label="Descrição SEO"
+                    name="seoDescription"
+                    maxLength={160}
+                    value={seoDescription}
+                    data-editorial-field="seoDescription"
+                    aria-invalid={Boolean(fieldErrors.seoDescription)}
+                    aria-describedby={
+                      fieldErrors.seoDescription
+                        ? "seo-description-error"
+                        : undefined
+                    }
+                    className="min-h-16 resize-none rounded-md text-xs"
+                    onChange={(event) =>
+                      onSeoDescriptionChange(event.target.value)
+                    }
+                  />
+                  <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
+                    {fieldErrors.seoDescription ? (
+                      <span
+                        id="seo-description-error"
+                        className="text-status-error"
+                      >
+                        {fieldErrors.seoDescription[0]}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="font-mono">
+                      {seoDescription.length}/160
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </details>
+            </details>
+          </div>
 
-          {/* Lifecycle Section */}
+          {/* 6. Estado editorial */}
           {isExisting ? (
-            <section className="rounded-lg border border-nite-border-subtle bg-nite-surface p-3.5 space-y-2">
+            <div className="py-4 space-y-2">
               <h2 className="text-xs font-semibold text-nite-text-primary">
                 Estado editorial
               </h2>
@@ -906,41 +948,9 @@ export function EditorInspector({
                   />
                 ) : null}
               </div>
-            </section>
+            </div>
           ) : null}
-
-          {/* Global Action Messages */}
-          {actionMessage && actionStatus !== "validation_error" ? (
-            <p
-              role={actionStatus === "success" ? "status" : "alert"}
-              className={`rounded-md border p-2.5 text-xs ${
-                actionStatus === "success"
-                  ? "border-status-done/30 bg-status-done/5 text-status-done"
-                  : "border-status-error/30 bg-status-error/5 text-status-error"
-              }`}
-            >
-              {actionMessage}
-              {actionStatus === "unexpected_error" && actionErrorId
-                ? ` Código de suporte: ${actionErrorId}.`
-                : null}
-            </p>
-          ) : null}
-
-          {lifecycleMessage ? (
-            <p
-              role={lifecycleError ? "alert" : "status"}
-              className={`text-xs ${lifecycleError ? "text-status-error" : "text-nite-text-secondary"}`}
-            >
-              {lifecycleMessage}
-            </p>
-          ) : null}
-
-          {previewMessage ? (
-            <p role="alert" className="text-xs text-status-error">
-              {previewMessage}
-            </p>
-          ) : null}
-        </>
+        </div>
       )}
     </aside>
   );

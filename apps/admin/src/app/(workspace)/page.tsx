@@ -136,7 +136,7 @@ export default async function DashboardPage({
         aria-label="Resumo das matérias"
         className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
       >
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href="/"
             className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${!status ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
@@ -192,7 +192,7 @@ export default async function DashboardPage({
         </h2>
 
         <div className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-          <div className="hidden grid-cols-[minmax(280px,1fr)_120px_110px_70px_120px_64px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2 text-[11px] font-semibold tracking-wider text-nite-text-secondary uppercase xl:grid">
+          <div className="hidden min-[860px]:grid grid-cols-[minmax(260px,1fr)_120px_110px_70px_130px_72px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2 text-[11px] font-semibold tracking-wider text-nite-text-secondary uppercase">
             <span>Matéria</span>
             <span>Categoria</span>
             <span>Estado</span>
@@ -228,7 +228,11 @@ export default async function DashboardPage({
                 <article
                   key={article.id}
                   aria-labelledby={titleId}
-                  className={`grid gap-3 p-3.5 xl:grid-cols-[minmax(280px,1fr)_120px_110px_70px_120px_64px] xl:items-center xl:px-4 xl:py-2.5 transition-colors hover:bg-nite-section/30 ${index < records.length - 1 ? "border-b border-nite-border-subtle" : ""}`}
+                  className={`p-3.5 min-[860px]:grid min-[860px]:grid-cols-[minmax(260px,1fr)_120px_110px_70px_130px_72px] min-[860px]:items-center min-[860px]:gap-3 min-[860px]:px-4 min-[860px]:py-2.5 transition-colors hover:bg-nite-section/30 ${
+                    index < records.length - 1
+                      ? "border-b border-nite-border-subtle"
+                      : ""
+                  }`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="relative flex h-8 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-nite-border-subtle bg-nite-section text-nite-text-secondary">
@@ -257,40 +261,61 @@ export default async function DashboardPage({
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-nite-text-secondary">
-                    <span className="mr-2 font-semibold text-nite-text-primary xl:hidden">
-                      Categoria:
-                    </span>
-                    {categoryLabel(revision?.category ?? "")}
-                  </p>
-                  <div>
-                    <StatusBadge
-                      status={
-                        article.status === "published" ? "done" : article.status
-                      }
-                      tone={article.status === "archived" ? "quiet" : undefined}
-                      variant="outline"
-                      label={statusLabel}
-                    />
+
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-nite-text-secondary min-[860px]:contents">
+                    <div className="flex flex-wrap items-center gap-2 min-[860px]:contents">
+                      <p className="text-xs text-nite-text-secondary">
+                        <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
+                          Categoria:
+                        </span>
+                        {categoryLabel(revision?.category ?? "")}
+                      </p>
+                      <span className="text-nite-border-strong min-[860px]:hidden">
+                        ·
+                      </span>
+                      <div>
+                        <StatusBadge
+                          status={
+                            article.status === "published"
+                              ? "done"
+                              : article.status
+                          }
+                          tone={
+                            article.status === "archived" ? "quiet" : undefined
+                          }
+                          variant="outline"
+                          label={statusLabel}
+                        />
+                      </div>
+                      <span className="text-nite-border-strong min-[860px]:hidden">
+                        ·
+                      </span>
+                      <p className="font-mono text-xs text-nite-text-secondary">
+                        <span className="mr-1.5 font-sans font-semibold text-nite-text-primary min-[860px]:hidden">
+                          Revisão:
+                        </span>
+                        {revision ? `v${revision.version}` : "—"}
+                      </p>
+                      <span className="text-nite-border-strong min-[860px]:hidden">
+                        ·
+                      </span>
+                      <p className="text-xs text-nite-text-secondary">
+                        <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
+                          Atualização:
+                        </span>
+                        {formatUpdatedAt(article.updatedAt)}
+                      </p>
+                    </div>
+
+                    <div className="min-[860px]:flex min-[860px]:justify-end">
+                      <Link
+                        href={`/articles/${article.id}/edit`}
+                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-nite-border-subtle px-2.5 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section hover:border-nite-border-hover"
+                      >
+                        Editar
+                      </Link>
+                    </div>
                   </div>
-                  <p className="font-mono text-xs text-nite-text-secondary">
-                    <span className="mr-2 font-sans font-semibold text-nite-text-primary xl:hidden">
-                      Revisão:
-                    </span>
-                    {revision ? `v${revision.version}` : "—"}
-                  </p>
-                  <p className="text-xs text-nite-text-secondary">
-                    <span className="mr-2 font-semibold text-nite-text-primary xl:hidden">
-                      Atualização:
-                    </span>
-                    {formatUpdatedAt(article.updatedAt)}
-                  </p>
-                  <Link
-                    href={`/articles/${article.id}/edit`}
-                    className="inline-flex min-h-8 items-center justify-center rounded-md border border-nite-border-subtle px-2.5 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section hover:border-nite-border-hover xl:min-h-7"
-                  >
-                    Editar
-                  </Link>
                 </article>
               );
             })

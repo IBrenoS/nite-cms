@@ -24,7 +24,7 @@ vi.mock("@nite/editorial", async (importOriginal) => {
     ...actual,
     submitEditorialRevision: mocks.submit,
     getEditorialRevisionPreview: mocks.getPreview,
-    validateEditorialRevisionForPublication: mocks.validatePreview,
+    validateEditorialRevisionForPreview: mocks.validatePreview,
     createEditorialPreviewSnapshot: mocks.createSnapshot,
     deleteEditorialArticle: mocks.deleteArticle,
     getEditorialArticleDeletionImpact: mocks.deletionImpact,

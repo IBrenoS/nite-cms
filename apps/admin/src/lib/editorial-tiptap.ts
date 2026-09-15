@@ -1,6 +1,9 @@
 import { Node } from "@tiptap/core";
 import Blockquote from "@tiptap/extension-blockquote";
 import StarterKit from "@tiptap/starter-kit";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { ImageNodeView } from "@/components/editor/image-node-view";
+import { VideoNodeView } from "@/components/editor/video-node-view";
 
 const EditorialBlockquote = Blockquote.extend({
   addAttributes() {
@@ -38,6 +41,10 @@ const EditorialImage = Node.create({
 
   parseHTML() {
     return [{ tag: "img[data-media-id]" }];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView);
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -79,6 +86,10 @@ const EditorialVideo = Node.create({
 
   parseHTML() {
     return [{ tag: "figure[data-editorial-video]" }];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(VideoNodeView);
   },
 
   renderHTML({ HTMLAttributes }) {

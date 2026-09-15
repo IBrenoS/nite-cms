@@ -1,16 +1,16 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { Editor } from "@tiptap/react";
 import { EditorContent } from "@tiptap/react";
 import { Textarea } from "@nite/cms-ui";
 import { EditorToolbar } from "./editor-toolbar";
 import { EditorInlineImagePanel } from "./editor-inline-image-panel";
-import { EditorSelectedImagePanel } from "./editor-selected-image-panel";
 import {
   EditorInlineVideoPanel,
   type VideoUploadState,
 } from "./editor-inline-video-panel";
-import { EditorSelectedVideoPanel } from "./editor-selected-video-panel";
+import { NodeViewContextProvider } from "./node-view-context";
 import type { EditorialFieldErrors } from "@/lib/editorial-form";
 
 type EditorCanvasProps = {
@@ -126,28 +126,44 @@ export function EditorCanvas({
   onReplaceSelectedVideo,
   onReplaceSelectedCaptions,
 }: EditorCanvasProps) {
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = "auto";
+      titleRef.current.style.height = `${Math.max(38, titleRef.current.scrollHeight)}px`;
+    }
+  }, [title]);
+
+  const isEditorEmpty = !editor || editor.isEmpty;
+
   return (
     <div className="space-y-4">
-      {/* Title & Summary Section */}
-      <section className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
+      {/* Integrated Editorial Surface: Title, Summary, Toolbar & Body */}
+      <section
+        className="editor-surface overflow-hidden rounded-xl border border-nite-border-subtle bg-nite-surface shadow-xs"
+        aria-labelledby="body-title"
+      >
+        {/* Title & Summary Section */}
         <div className="border-b border-nite-border-subtle p-4 sm:p-5">
           <label htmlFor="title" className="sr-only">
             Título
           </label>
           <Textarea
+            ref={titleRef}
             id="title"
             name="title"
-            rows={2}
+            rows={1}
             maxLength={100}
             data-editorial-field="title"
             aria-invalid={Boolean(fieldErrors.title)}
             aria-describedby={fieldErrors.title ? "title-error" : undefined}
             value={title}
             placeholder="Título da matéria"
-            className="min-h-14 resize-none rounded-none border-0 bg-transparent p-0 font-editorial text-[clamp(1.75rem,4vw,2.375rem)] leading-tight font-semibold tracking-tight shadow-none placeholder:text-nite-text-secondary/50 focus-visible:ring-0"
+            className="min-h-[2.5rem] resize-none overflow-hidden rounded-none border-0 bg-transparent p-0 font-editorial text-[clamp(1.75rem,4vw,2.375rem)] leading-tight font-semibold tracking-tight shadow-none placeholder:text-nite-text-secondary/50 focus-visible:ring-0"
             onChange={(event) => onTitleChange(event.target.value)}
           />
-          <div className="mt-2 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
+          <div className="mt-1 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
             {fieldErrors.title ? (
               <p id="title-error" className="text-xs text-status-error">
                 {fieldErrors.title[0]}
@@ -161,51 +177,50 @@ export function EditorCanvas({
               {title.length}/100
             </span>
           </div>
-        </div>
 
-        <div className="p-4 sm:p-5">
-          <label
-            htmlFor="summary"
-            className="mb-1.5 block text-xs font-semibold text-nite-text-primary"
-          >
-            Resumo
-          </label>
-          <Textarea
-            id="summary"
-            name="summary"
-            rows={2}
-            maxLength={220}
-            data-editorial-field="summary"
-            aria-invalid={Boolean(fieldErrors.summary)}
-            aria-describedby={fieldErrors.summary ? "summary-error" : undefined}
-            value={summary}
-            placeholder="Linha fina ou resumo que introduz a matéria para o leitor."
-            className="min-h-16 resize-none rounded-md px-3 py-2 text-xs leading-5"
-            onChange={(event) => onSummaryChange(event.target.value)}
-          />
-          <div className="mt-1.5 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
-            {fieldErrors.summary ? (
-              <span id="summary-error" className="text-xs text-status-error">
-                {fieldErrors.summary[0]}
+          <div className="my-3 border-t border-nite-border-subtle/60" />
+
+          <div>
+            <label
+              htmlFor="summary"
+              className="mb-1 block text-xs font-semibold text-nite-text-primary"
+            >
+              Resumo
+            </label>
+            <Textarea
+              id="summary"
+              name="summary"
+              rows={2}
+              maxLength={220}
+              data-editorial-field="summary"
+              aria-invalid={Boolean(fieldErrors.summary)}
+              aria-describedby={
+                fieldErrors.summary ? "summary-error" : undefined
+              }
+              value={summary}
+              placeholder="Linha fina ou resumo que introduz a matéria para o leitor."
+              className="min-h-16 resize-none rounded-md px-3 py-2 text-xs leading-5"
+              onChange={(event) => onSummaryChange(event.target.value)}
+            />
+            <div className="mt-1 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
+              {fieldErrors.summary ? (
+                <span id="summary-error" className="text-xs text-status-error">
+                  {fieldErrors.summary[0]}
+                </span>
+              ) : (
+                <span className="text-[11px] text-nite-text-muted">
+                  Utilizado na listagem e cards do Portal.
+                </span>
+              )}
+              <span className="font-mono text-[11px] text-nite-text-muted">
+                {summary.length}/220
               </span>
-            ) : (
-              <span className="text-[11px] text-nite-text-muted">
-                Utilizado na listagem e cards do Portal.
-              </span>
-            )}
-            <span className="font-mono text-[11px] text-nite-text-muted">
-              {summary.length}/220
-            </span>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Editor Surface */}
-      <section
-        className="editor-surface overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface"
-        aria-labelledby="body-title"
-      >
-        <div className="flex items-center justify-between border-b border-nite-border-subtle px-4 py-2.5">
+        {/* Header bar of the editor content */}
+        <div className="flex items-center justify-between border-b border-nite-border-subtle px-4 py-2">
           <h2
             id="body-title"
             className="text-xs font-semibold text-nite-text-primary"
@@ -273,75 +288,34 @@ export function EditorCanvas({
           />
         ) : null}
 
-        {editor?.isActive("image") ? (
-          <EditorSelectedImagePanel
-            editor={editor}
-            image={{
-              alt:
-                typeof editor.getAttributes("image").alt === "string"
-                  ? editor.getAttributes("image").alt
-                  : "",
-              caption:
-                typeof editor.getAttributes("image").caption === "string"
-                  ? editor.getAttributes("image").caption
-                  : "",
-              credit:
-                typeof editor.getAttributes("image").credit === "string"
-                  ? editor.getAttributes("image").credit
-                  : "",
-              layout: ["normal", "wide", "full"].includes(
-                editor.getAttributes("image").layout,
-              )
-                ? editor.getAttributes("image").layout
-                : "normal",
-            }}
-          />
-        ) : null}
-
-        {editor?.isActive("video") ? (
-          <EditorSelectedVideoPanel
-            editor={editor}
-            video={{
-              playbackMode:
-                editor.getAttributes("video").playbackMode === "autoplay"
-                  ? "autoplay"
-                  : "manual",
-              layout: ["normal", "wide", "full"].includes(
-                editor.getAttributes("video").layout,
-              )
-                ? editor.getAttributes("video").layout
-                : "normal",
-              description:
-                typeof editor.getAttributes("video").description === "string"
-                  ? editor.getAttributes("video").description
-                  : "",
-              caption:
-                typeof editor.getAttributes("video").caption === "string"
-                  ? editor.getAttributes("video").caption
-                  : "",
-              credit:
-                typeof editor.getAttributes("video").credit === "string"
-                  ? editor.getAttributes("video").credit
-                  : "",
-            }}
-            replacementPending={videoReplacementPending}
-            replacementMessage={videoReplacementMessage}
-            onReplaceVideo={onReplaceSelectedVideo}
-            onReplaceCaptions={onReplaceSelectedCaptions}
-          />
-        ) : null}
-
-        <div
-          data-editorial-field="body"
-          tabIndex={fieldErrors.body ? -1 : undefined}
-          aria-invalid={Boolean(fieldErrors.body)}
-          aria-describedby={fieldErrors.body ? "body-error" : undefined}
+        {/* Content Body with in-place NodeViews and contextual media context */}
+        <NodeViewContextProvider
+          value={{
+            onReplaceVideo: onReplaceSelectedVideo,
+            onReplaceCaptions: onReplaceSelectedCaptions,
+            videoReplacementPending,
+            videoReplacementMessage,
+          }}
         >
-          <EditorContent
-            editor={editor}
-            className="px-5 py-5 sm:px-7 sm:py-6"
-          />
-        </div>
+          <div
+            data-editorial-field="body"
+            tabIndex={fieldErrors.body ? -1 : undefined}
+            aria-invalid={Boolean(fieldErrors.body)}
+            aria-describedby={fieldErrors.body ? "body-error" : undefined}
+            className="relative min-h-[clamp(15rem,28vh,18rem)]"
+          >
+            {isEditorEmpty ? (
+              <p className="pointer-events-none absolute left-5 top-5 sm:left-7 sm:top-6 font-editorial text-lg text-nite-text-muted/60 select-none">
+                Comece a escrever a matéria…
+              </p>
+            ) : null}
+
+            <EditorContent
+              editor={editor}
+              className="px-5 py-5 sm:px-7 sm:py-6"
+            />
+          </div>
+        </NodeViewContextProvider>
 
         {fieldErrors.body ? (
           <p
