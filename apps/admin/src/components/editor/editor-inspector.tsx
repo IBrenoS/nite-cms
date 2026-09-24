@@ -184,7 +184,7 @@ export function EditorInspector({
             <h2 className="text-sm font-semibold text-nite-text-primary">
               Configurações da matéria
             </h2>
-            <p className="text-[11px] text-nite-text-secondary">
+            <p className="text-xs text-nite-text-secondary">
               Preparação {preparationCount}/6
             </p>
           </div>
@@ -192,7 +192,7 @@ export function EditorInspector({
             type="button"
             onClick={onClose}
             aria-label="Fechar painel"
-            className="flex size-8 items-center justify-center rounded-md border border-nite-border-subtle text-nite-text-secondary hover:bg-nite-section hover:text-nite-text-primary"
+            className="flex size-10 items-center justify-center rounded-md border border-nite-border-subtle text-nite-text-secondary hover:bg-nite-section hover:text-nite-text-primary"
           >
             ✕
           </button>
@@ -233,7 +233,7 @@ export function EditorInspector({
             <h2 className="text-xs font-semibold text-nite-text-primary">
               Histórico de revisões
             </h2>
-            <p className="mt-0.5 text-[11px] text-nite-text-secondary">
+            <p className="mt-0.5 text-xs text-nite-text-secondary">
               Cada salvamento gera um snapshot imutável.
             </p>
           </div>
@@ -255,10 +255,10 @@ export function EditorInspector({
                       <StatusBadge status="done" label="Publicada" size="sm" />
                     ) : null}
                   </div>
-                  <p className="mt-0.5 truncate text-[11px] text-nite-text-secondary">
+                  <p className="mt-0.5 truncate text-xs text-nite-text-secondary">
                     {rev.title || "Sem título"}
                   </p>
-                  <p className="font-mono text-[10px] text-nite-text-muted">
+                  <p className="font-mono text-xs text-nite-text-muted">
                     {revisionDateFormatter.format(new Date(rev.createdAt))}
                   </p>
                 </div>
@@ -267,7 +267,7 @@ export function EditorInspector({
                     type="button"
                     onClick={() => onViewRevision(rev.id)}
                     disabled={operationPending}
-                    className="inline-flex items-center gap-1 rounded border border-nite-border-subtle px-2.5 py-1 text-[11px] font-medium text-nite-brand-primary hover:bg-nite-section shrink-0"
+                    className="inline-flex items-center gap-1 rounded border border-nite-border-subtle px-2.5 py-1 text-xs font-medium text-nite-brand-primary hover:bg-nite-section shrink-0"
                   >
                     <EyeIcon className="size-3" aria-hidden="true" />
                     <span>Visualizar versão</span>
@@ -315,7 +315,7 @@ export function EditorInspector({
                         : "Antes de publicar"}
                   </h2>
                   {fieldErrorEntries.length > 0 ? (
-                    <ul className="mt-1.5 grid gap-1 text-[11px] text-status-error">
+                    <ul className="mt-1.5 grid gap-1 text-xs text-status-error">
                       {fieldErrorEntries.map(([field, messages]) => (
                         <li key={field}>
                           <a
@@ -328,7 +328,7 @@ export function EditorInspector({
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-0.5 text-[11px] text-nite-text-secondary">
+                    <p className="mt-0.5 text-xs text-nite-text-secondary">
                       {readyForFinalReview
                         ? "Os requisitos editoriais foram preenchidos."
                         : "As pendências são acompanhadas na preparação e levam você ao campo que precisa de atenção."}
@@ -344,7 +344,7 @@ export function EditorInspector({
                 <h2 className="text-xs font-semibold text-nite-text-primary">
                   Preparação
                 </h2>
-                <span className="font-mono text-[11px] font-semibold text-nite-text-secondary">
+                <span className="font-mono text-xs font-semibold text-nite-text-secondary">
                   {preparationCount} de 6
                 </span>
               </div>
@@ -354,7 +354,7 @@ export function EditorInspector({
                   style={{ width: `${(preparationCount / 6) * 100}%` }}
                 />
               </div>
-              <ul className="mt-2 space-y-1.5 text-[11px]">
+              <ul className="mt-2 space-y-1.5 text-xs">
                 {completePreparationItems.map((item) => (
                   <li
                     key={item.label}
@@ -404,7 +404,7 @@ export function EditorInspector({
                 aria-describedby={
                   fieldErrors.category ? "category-error" : undefined
                 }
-                className="nite-form-field min-h-8 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2.5 py-1 text-xs outline-none focus:border-nite-brand-primary"
+                className="nite-form-field min-h-10 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2.5 py-1 text-xs outline-none focus:border-nite-brand-primary"
                 onChange={(event) =>
                   onCategoryChange(
                     event.target.value as EditorialDraftInput["category"],
@@ -418,13 +418,13 @@ export function EditorInspector({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+              <p className="mt-1 text-xs leading-4 text-nite-text-secondary">
                 Organiza a matéria nas listagens e filtros do Portal.
               </p>
               {fieldErrors.category ? (
                 <p
                   id="category-error"
-                  className="mt-1 text-[11px] text-status-error"
+                  className="mt-1 text-xs text-status-error"
                 >
                   {fieldErrors.category[0]}
                 </p>
@@ -447,17 +447,14 @@ export function EditorInspector({
                 aria-describedby={
                   fieldErrors.byline ? "byline-error" : undefined
                 }
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) => onBylineChange(event.target.value)}
               />
-              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+              <p className="mt-1 text-xs leading-4 text-nite-text-secondary">
                 Nome da pessoa, equipe ou redação responsável pela matéria.
               </p>
               {fieldErrors.byline ? (
-                <p
-                  id="byline-error"
-                  className="mt-1 text-[11px] text-status-error"
-                >
+                <p id="byline-error" className="mt-1 text-xs text-status-error">
                   {fieldErrors.byline[0]}
                 </p>
               ) : null}
@@ -470,11 +467,11 @@ export function EditorInspector({
               <h2 className="text-xs font-semibold text-nite-text-primary">
                 Capa da matéria
               </h2>
-              <span className="text-[11px] font-medium text-status-error">
+              <span className="text-xs font-medium text-status-error">
                 Obrigatória
               </span>
             </div>
-            <p className="text-[11px] leading-4 text-nite-text-secondary">
+            <p className="text-xs leading-4 text-nite-text-secondary">
               Aparece nos cards e como imagem principal no topo da matéria.
             </p>
 
@@ -497,7 +494,7 @@ export function EditorInspector({
                   <span className="mt-1.5 text-xs font-semibold text-nite-text-primary">
                     Selecionar imagem
                   </span>
-                  <span className="text-[10px] text-nite-text-secondary">
+                  <span className="text-xs text-nite-text-secondary">
                     JPEG, PNG ou WebP · até 10 MB
                   </span>
                 </div>
@@ -529,17 +526,14 @@ export function EditorInspector({
                 />
               </label>
               {coverPreviewUrl ? (
-                <span className="absolute right-1.5 bottom-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                <span className="absolute right-1.5 bottom-1.5 rounded bg-black/70 px-1.5 py-0.5 text-xs font-semibold text-white">
                   Substituir
                 </span>
               ) : null}
             </div>
 
             {fieldErrors.coverMedia ? (
-              <p
-                id="cover-media-error"
-                className="text-[11px] text-status-error"
-              >
+              <p id="cover-media-error" className="text-xs text-status-error">
                 {fieldErrors.coverMedia[0]}
               </p>
             ) : null}
@@ -565,13 +559,13 @@ export function EditorInspector({
                 className="min-h-14 resize-none rounded-md text-xs"
                 onChange={(event) => onCoverAltChange(event.target.value)}
               />
-              <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+              <p className="mt-1 text-xs leading-4 text-nite-text-secondary">
                 Descreva o que é relevante na imagem para leitores de tela.
               </p>
               {fieldErrors.coverAlt ? (
                 <p
                   id="cover-alt-error"
-                  className="mt-1 text-[11px] text-status-error"
+                  className="mt-1 text-xs text-status-error"
                 >
                   {fieldErrors.coverAlt[0]}
                 </p>
@@ -597,10 +591,10 @@ export function EditorInspector({
                 aria-invalid={Boolean(fieldErrors.coverCaption)}
                 onChange={(event) => onCoverCaptionChange(event.target.value)}
                 placeholder="Contexto visível abaixo da capa"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
               />
               {fieldErrors.coverCaption ? (
-                <p className="mt-1 text-[11px] text-status-error">
+                <p className="mt-1 text-xs text-status-error">
                   {fieldErrors.coverCaption[0]}
                 </p>
               ) : null}
@@ -625,10 +619,10 @@ export function EditorInspector({
                 aria-invalid={Boolean(fieldErrors.coverCredit)}
                 onChange={(event) => onCoverCreditChange(event.target.value)}
                 placeholder="Foto: nome ou instituição"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
               />
               {fieldErrors.coverCredit ? (
-                <p className="mt-1 text-[11px] text-status-error">
+                <p className="mt-1 text-xs text-status-error">
                   {fieldErrors.coverCredit[0]}
                 </p>
               ) : null}
@@ -637,7 +631,7 @@ export function EditorInspector({
             {mediaState !== "idle" ? (
               <p
                 role={mediaState === "error" ? "alert" : "status"}
-                className={`text-[11px] ${mediaState === "error" ? "text-status-error" : "text-nite-text-secondary"}`}
+                className={`text-xs ${mediaState === "error" ? "text-status-error" : "text-nite-text-secondary"}`}
               >
                 {mediaMessage ??
                   (mediaState === "uploading"
@@ -689,15 +683,15 @@ export function EditorInspector({
                       fieldErrors.eventDate ? "event-date-error" : undefined
                     }
                     defaultValue={eventDate}
-                    className="min-h-8 rounded-md text-xs"
+                    className="min-h-10 rounded-md text-xs"
                   />
-                  <p className="mt-1 text-[11px] leading-4 text-nite-text-secondary">
+                  <p className="mt-1 text-xs leading-4 text-nite-text-secondary">
                     Mostrada quando a matéria se refere a um evento específico.
                   </p>
                   {fieldErrors.eventDate ? (
                     <p
                       id="event-date-error"
-                      className="mt-1 text-[11px] text-status-error"
+                      className="mt-1 text-xs text-status-error"
                     >
                       {fieldErrors.eventDate[0]}
                     </p>
@@ -715,7 +709,7 @@ export function EditorInspector({
                     <span className="block font-semibold text-nite-text-primary">
                       Destacar no Nite News
                     </span>
-                    <span className="block text-[11px] text-nite-text-secondary">
+                    <span className="block text-xs text-nite-text-secondary">
                       Dá maior evidência à matéria no portal.
                     </span>
                   </span>
@@ -751,21 +745,21 @@ export function EditorInspector({
                             ? "slug-lock-help"
                             : "slug-help"
                       }
-                      className="min-h-8 rounded-md font-mono text-[11px]"
+                      className="min-h-10 rounded-md font-mono text-xs"
                       onChange={(event) => onSlugChange(event.target.value)}
                     />
                   </label>
                   {fieldErrors.slug ? (
                     <p
                       id="slug-error"
-                      className="mt-1 text-[11px] text-status-error"
+                      className="mt-1 text-xs text-status-error"
                     >
                       {fieldErrors.slug[0]}
                     </p>
                   ) : slugLocked ? (
                     <p
                       id="slug-lock-help"
-                      className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
+                      className="mt-1 text-xs leading-4 text-nite-text-secondary"
                     >
                       O slug foi bloqueado permanentemente na primeira
                       publicação.
@@ -773,7 +767,7 @@ export function EditorInspector({
                   ) : (
                     <p
                       id="slug-help"
-                      className="mt-1 text-[11px] leading-4 text-nite-text-secondary"
+                      className="mt-1 text-xs leading-4 text-nite-text-secondary"
                     >
                       Gerado pelo título e bloqueado na primeira publicação.
                     </p>
@@ -800,7 +794,7 @@ export function EditorInspector({
                   aria-hidden="true"
                 />
               </summary>
-              <p className="mt-1.5 text-[11px] text-nite-text-secondary">
+              <p className="mt-1.5 text-xs text-nite-text-secondary">
                 Se os campos ficarem vazios, o título e o resumo da matéria
                 serão usados automaticamente.
               </p>
@@ -812,14 +806,14 @@ export function EditorInspector({
                   <p className="truncate text-sm font-semibold text-nite-brand-primary">
                     {seoTitle.trim() || title.trim() || "Título da matéria"}
                   </p>
-                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-nite-text-secondary">
+                  <p className="mt-1 line-clamp-2 text-xs leading-4 text-nite-text-secondary">
                     {seoDescription.trim() ||
                       summary.trim() ||
                       "O resumo da matéria aparecerá aqui."}
                   </p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
+                  <label className="mb-1 block text-xs font-semibold text-nite-text-primary">
                     Título SEO
                   </label>
                   <Input
@@ -832,10 +826,10 @@ export function EditorInspector({
                     aria-describedby={
                       fieldErrors.seoTitle ? "seo-title-error" : undefined
                     }
-                    className="min-h-8 rounded-md text-xs"
+                    className="min-h-10 rounded-md text-xs"
                     onChange={(event) => onSeoTitleChange(event.target.value)}
                   />
-                  <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
+                  <div className="mt-0.5 flex justify-between text-xs text-nite-text-secondary">
                     {fieldErrors.seoTitle ? (
                       <span id="seo-title-error" className="text-status-error">
                         {fieldErrors.seoTitle[0]}
@@ -848,7 +842,7 @@ export function EditorInspector({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold text-nite-text-primary">
+                  <label className="mb-1 block text-xs font-semibold text-nite-text-primary">
                     Descrição SEO
                   </label>
                   <Textarea
@@ -868,7 +862,7 @@ export function EditorInspector({
                       onSeoDescriptionChange(event.target.value)
                     }
                   />
-                  <div className="mt-0.5 flex justify-between text-[10px] text-nite-text-secondary">
+                  <div className="mt-0.5 flex justify-between text-xs text-nite-text-secondary">
                     {fieldErrors.seoDescription ? (
                       <span
                         id="seo-description-error"

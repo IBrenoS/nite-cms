@@ -121,7 +121,22 @@ describe("MembershipsPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("E-mail institucional")).toBeRequired();
+    expect(
+      screen.queryByLabelText("E-mail institucional"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Convidar pessoa" }));
+    const invitationDialog = screen.getByRole("dialog", {
+      name: "Convidar pessoa para o CMS",
+    });
+    expect(
+      within(invitationDialog).getByLabelText("E-mail institucional"),
+    ).toBeRequired();
+    fireEvent.click(
+      within(invitationDialog).getByRole("button", { name: "Fechar convite" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Convidar pessoa para o CMS" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("convidada@unijorge.com")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Corrigir" }),

@@ -922,7 +922,7 @@ export function ArticleEditor({
         const field = editorialFieldByInputName[target.name];
         if (field) clearFieldError(field);
       }}
-      className="flex flex-col min-h-[calc(100vh-60px)]"
+      className="flex min-h-[calc(100dvh-56px)] flex-col"
     >
       <EditorHeader
         isExisting={isExisting}
@@ -1015,7 +1015,7 @@ export function ArticleEditor({
         </div>
       ) : null}
 
-      <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-56px)] xl:overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col xl:grid xl:h-[calc(100dvh-56px)] xl:grid-cols-[minmax(0,1fr)_336px] xl:overflow-hidden">
         {/* Hidden Form Inputs */}
         <input
           type="hidden"
@@ -1039,9 +1039,9 @@ export function ArticleEditor({
           value={JSON.stringify(bodyDocument)}
         />
 
-        {/* Central Writing Canvas: focused on ~760px, scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-[760px]">
+        {/* Continuous editorial surface; only the reading measure is constrained. */}
+        <div className="min-w-0 flex-1 overflow-y-auto bg-nite-surface xl:border-r xl:border-nite-border-subtle">
+          <div className="min-h-full">
             <EditorCanvas
               title={title}
               summary={summary}
@@ -1123,41 +1123,77 @@ export function ArticleEditor({
           </div>
         </div>
 
-        {/* Right Inspector Rail: ~350px, independent scroll, border-l */}
-        <div className="hidden xl:block xl:w-[350px] xl:shrink-0 xl:border-l border-nite-border-subtle bg-nite-surface xl:overflow-y-auto p-4 sm:p-5">
+        {/* Adjacent inspector rail with independent scroll. */}
+        <div className="hidden bg-nite-surface p-5 xl:block xl:overflow-y-auto">
           <EditorInspector mode="rail" {...commonInspectorProps} />
         </div>
       </div>
 
       {/* Sticky Bottom Bar for screens < 1280px */}
-      <div className="sticky bottom-0 z-30 flex items-center justify-between border-t border-nite-border-subtle bg-nite-surface/95 px-4 py-2.5 shadow-md backdrop-blur xl:hidden">
-        <div className="flex items-center gap-2 text-xs">
+      <div className="sticky bottom-0 z-30 flex items-center justify-between gap-1.5 border-t border-nite-border-subtle bg-nite-surface/95 px-2 py-2 shadow-md backdrop-blur xl:hidden">
+        <div className="hidden items-center gap-2 text-sm sm:flex">
           <span className="font-semibold text-nite-text-primary">
             Preparação {preparationCount}/6
           </span>
           {Object.keys(fieldErrors).length > 0 ? (
-            <span className="rounded bg-status-error/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-error">
+            <span className="rounded bg-status-error/15 px-2 py-0.5 text-xs font-semibold text-status-error">
               {Object.keys(fieldErrors).length}{" "}
               {Object.keys(fieldErrors).length === 1
                 ? "pendência"
                 : "pendências"}
             </span>
           ) : readyForFinalReview ? (
-            <span className="rounded bg-status-done/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-done">
+            <span className="rounded bg-status-done/15 px-2 py-0.5 text-xs font-semibold text-status-done">
               Pronta
             </span>
           ) : null}
         </div>
-        <button
-          ref={inspectorTriggerRef}
-          type="button"
-          onClick={() => setIsInspectorOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={isInspectorOpen}
-          className="inline-flex items-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 py-1.5 text-xs font-semibold text-nite-text-primary shadow-xs hover:bg-nite-section"
-        >
-          <span>Configurações</span>
-        </button>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none">
+          <button
+            type="submit"
+            name="intent"
+            value="save"
+            aria-label="Salvar pelo dock móvel"
+            disabled={operationPending}
+            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-nite-border-subtle px-2 text-sm font-semibold text-nite-text-primary disabled:opacity-55 sm:hidden"
+          >
+            {pending ? "Salvando…" : "Salvar"}
+          </button>
+          {isExisting ? (
+            <button
+              type="button"
+              disabled={operationPending}
+              onClick={() => void openLivePreview("cms")}
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-nite-border-subtle px-2 text-sm font-semibold text-nite-text-primary disabled:opacity-55 sm:hidden"
+            >
+              Preview
+            </button>
+          ) : null}
+          <button
+            ref={inspectorTriggerRef}
+            type="button"
+            onClick={() => setIsInspectorOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isInspectorOpen}
+            aria-label="Configurações"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-sm font-semibold text-nite-text-primary hover:bg-nite-section sm:min-h-10 sm:px-3"
+          >
+            <span className="sm:hidden">Ajustes</span>
+            <span className="hidden sm:inline">Configurações</span>
+          </button>
+          {canPublish ? (
+            <button
+              type="submit"
+              name="intent"
+              value="publish"
+              aria-label="Publicar pelo dock móvel"
+              disabled={operationPending || currentStatus === "archived"}
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-nite-brand-primary px-2 text-sm font-semibold text-white disabled:opacity-55 sm:hidden"
+            >
+              Publicar
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Responsive Inspector Overlay: Drawer (tablet) or Sheet (mobile) */}
@@ -1179,8 +1215,8 @@ export function ArticleEditor({
           <div
             className={`fixed z-50 bg-nite-surface shadow-2xl overflow-y-auto p-4 sm:p-5 transition-transform ${
               inspectorMode === "sheet"
-                ? "inset-x-0 bottom-0 top-12 rounded-t-xl border-t border-nite-border-subtle"
-                : "inset-y-0 right-0 w-full max-w-[380px] border-l border-nite-border-subtle"
+                ? "inset-x-0 bottom-0 top-14 rounded-t-xl border-t border-nite-border-subtle"
+                : "inset-y-0 right-0 w-full max-w-[400px] border-l border-nite-border-subtle"
             }`}
           >
             <EditorInspector

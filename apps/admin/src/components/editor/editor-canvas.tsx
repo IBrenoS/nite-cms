@@ -129,23 +129,28 @@ export function EditorCanvas({
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (titleRef.current) {
+    const resizeTitle = () => {
+      if (!titleRef.current) return;
       titleRef.current.style.height = "auto";
-      titleRef.current.style.height = `${Math.max(38, titleRef.current.scrollHeight)}px`;
-    }
+      titleRef.current.style.height = `${Math.max(44, titleRef.current.scrollHeight + 4)}px`;
+    };
+
+    resizeTitle();
+    window.addEventListener("resize", resizeTitle);
+    return () => window.removeEventListener("resize", resizeTitle);
   }, [title]);
 
   const isEditorEmpty = !editor || editor.isEmpty;
 
   return (
-    <div className="space-y-4">
+    <div className="min-h-full">
       {/* Integrated Editorial Surface: Title, Summary, Toolbar & Body */}
       <section
-        className="editor-surface overflow-hidden rounded-xl border border-nite-border-subtle bg-nite-surface shadow-xs"
+        className="editor-surface min-h-full overflow-hidden bg-nite-surface"
         aria-labelledby="body-title"
       >
         {/* Title & Summary Section */}
-        <div className="border-b border-nite-border-subtle p-4 sm:p-5">
+        <div className="max-w-[880px] border-b border-nite-border-subtle px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
           <label htmlFor="title" className="sr-only">
             Título
           </label>
@@ -160,7 +165,7 @@ export function EditorCanvas({
             aria-describedby={fieldErrors.title ? "title-error" : undefined}
             value={title}
             placeholder="Título da matéria"
-            className="min-h-[2.5rem] resize-none overflow-hidden rounded-none border-0 bg-transparent p-0 font-editorial text-[clamp(1.75rem,4vw,2.375rem)] leading-tight font-semibold tracking-tight shadow-none placeholder:text-nite-text-secondary/50 focus-visible:ring-0"
+            className="min-h-[2.75rem] resize-none overflow-hidden rounded-none border-0 bg-transparent p-0 font-editorial text-[clamp(2rem,4vw,2.75rem)] leading-[1.08] font-semibold tracking-tight shadow-none placeholder:text-nite-text-secondary/50 focus-visible:ring-0"
             onChange={(event) => onTitleChange(event.target.value)}
           />
           <div className="mt-1 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
@@ -173,7 +178,7 @@ export function EditorCanvas({
                 Título editorial principal.
               </span>
             )}
-            <span className="ml-auto font-mono text-[11px] text-nite-text-muted">
+            <span className="ml-auto font-mono text-xs text-nite-text-muted">
               {title.length}/100
             </span>
           </div>
@@ -183,7 +188,7 @@ export function EditorCanvas({
           <div>
             <label
               htmlFor="summary"
-              className="mb-1 block text-xs font-semibold text-nite-text-primary"
+              className="mb-1.5 block text-sm font-semibold text-nite-text-primary"
             >
               Resumo
             </label>
@@ -199,7 +204,7 @@ export function EditorCanvas({
               }
               value={summary}
               placeholder="Linha fina ou resumo que introduz a matéria para o leitor."
-              className="min-h-16 resize-none rounded-md px-3 py-2 text-xs leading-5"
+              className="min-h-20 max-h-40 resize-none rounded-md px-3 py-2.5 text-sm leading-6 [field-sizing:content]"
               onChange={(event) => onSummaryChange(event.target.value)}
             />
             <div className="mt-1 flex items-start justify-between gap-4 text-xs text-nite-text-secondary">
@@ -208,11 +213,11 @@ export function EditorCanvas({
                   {fieldErrors.summary[0]}
                 </span>
               ) : (
-                <span className="text-[11px] text-nite-text-muted">
+                <span className="text-xs text-nite-text-muted">
                   Utilizado na listagem e cards do Portal.
                 </span>
               )}
-              <span className="font-mono text-[11px] text-nite-text-muted">
+              <span className="font-mono text-xs text-nite-text-muted">
                 {summary.length}/220
               </span>
             </div>
@@ -220,14 +225,14 @@ export function EditorCanvas({
         </div>
 
         {/* Header bar of the editor content */}
-        <div className="flex items-center justify-between border-b border-nite-border-subtle px-4 py-2">
+        <div className="flex max-w-[880px] items-center justify-between border-b border-nite-border-subtle px-5 py-2.5 sm:px-8 lg:px-10">
           <h2
             id="body-title"
-            className="text-xs font-semibold text-nite-text-primary"
+            className="text-sm font-semibold text-nite-text-primary"
           >
             Conteúdo
           </h2>
-          <span className="text-[11px] text-nite-text-secondary">
+          <span className="hidden text-xs text-nite-text-secondary sm:inline">
             Tempo de leitura calculado ao salvar
           </span>
         </div>
@@ -302,17 +307,17 @@ export function EditorCanvas({
             tabIndex={fieldErrors.body ? -1 : undefined}
             aria-invalid={Boolean(fieldErrors.body)}
             aria-describedby={fieldErrors.body ? "body-error" : undefined}
-            className="relative min-h-[clamp(15rem,28vh,18rem)]"
+            className="relative min-h-[clamp(22rem,48vh,40rem)] max-w-[880px]"
           >
             {isEditorEmpty ? (
-              <p className="pointer-events-none absolute left-5 top-5 sm:left-7 sm:top-6 font-editorial text-lg text-nite-text-muted/60 select-none">
+              <p className="pointer-events-none absolute top-6 left-5 font-editorial text-lg text-nite-text-muted/60 select-none sm:left-8 lg:left-10">
                 Comece a escrever a matéria…
               </p>
             ) : null}
 
             <EditorContent
               editor={editor}
-              className="px-5 py-5 sm:px-7 sm:py-6"
+              className="max-w-[72ch] px-5 py-6 sm:px-8 lg:px-10"
             />
           </div>
         </NodeViewContextProvider>
@@ -326,7 +331,7 @@ export function EditorCanvas({
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between border-t border-nite-border-subtle bg-nite-section/20 px-4 py-2 text-[11px] text-nite-text-secondary">
+        <div className="flex max-w-[880px] items-center justify-between border-t border-nite-border-subtle bg-nite-section/20 px-5 py-2.5 text-xs text-nite-text-secondary sm:px-8 lg:px-10">
           <span className="font-mono">
             {wordCount} {wordCount === 1 ? "palavra" : "palavras"}
           </span>

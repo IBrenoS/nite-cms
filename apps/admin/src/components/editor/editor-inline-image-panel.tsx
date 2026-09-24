@@ -79,7 +79,7 @@ export function EditorInlineImagePanel({
           onChange={(event) =>
             onLayoutChange(event.target.value as "normal" | "wide" | "full")
           }
-          className="nite-form-field mt-1 min-h-9 w-full rounded-md border px-2 text-xs"
+          className="nite-form-field mt-1 min-h-10 w-full rounded-md border px-3 text-sm"
         >
           <option value="normal">Normal · coluna do texto</option>
           <option value="wide">Ampla · largura editorial</option>

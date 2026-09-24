@@ -62,7 +62,7 @@ export function EditorToolbar({
   return (
     <div className="border-b border-nite-border-subtle bg-nite-section/50">
       <div
-        className="flex flex-wrap items-center gap-1 px-3 py-2"
+        className="flex max-w-[880px] flex-nowrap items-center gap-1 overflow-x-auto px-4 py-2 sm:px-7 lg:px-9 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="toolbar"
         aria-label="Formatação do texto"
       >
@@ -72,7 +72,7 @@ export function EditorToolbar({
           title="Desfazer · Ctrl+Z"
           disabled={!editor}
           onClick={() => editor?.chain().focus().undo().run()}
-          className="inline-flex size-8 items-center justify-center rounded text-xs text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40 max-sm:size-11"
         >
           ↶
         </button>
@@ -82,7 +82,7 @@ export function EditorToolbar({
           title="Refazer · Ctrl+Shift+Z"
           disabled={!editor}
           onClick={() => editor?.chain().focus().redo().run()}
-          className="inline-flex size-8 items-center justify-center rounded text-xs text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40 max-sm:size-11"
         >
           ↷
         </button>
@@ -91,7 +91,7 @@ export function EditorToolbar({
           aria-label="Parágrafo"
           aria-pressed={editor?.isActive("paragraph") ?? false}
           onClick={() => editor?.chain().focus().setParagraph().run()}
-          className={`inline-flex min-h-8 items-center justify-center rounded px-2.5 text-xs font-semibold transition-colors ${
+          className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors max-sm:min-h-11 ${
             editor?.isActive("paragraph")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -107,7 +107,7 @@ export function EditorToolbar({
           onClick={() =>
             editor?.chain().focus().toggleHeading({ level: 2 }).run()
           }
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("heading", { level: 2 })
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -123,7 +123,7 @@ export function EditorToolbar({
           onClick={() =>
             editor?.chain().focus().toggleHeading({ level: 3 }).run()
           }
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("heading", { level: 3 })
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -142,7 +142,7 @@ export function EditorToolbar({
           aria-label="Negrito"
           aria-pressed={editor?.isActive("bold") ?? false}
           onClick={() => editor?.chain().focus().toggleBold().run()}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("bold")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -156,7 +156,7 @@ export function EditorToolbar({
           aria-label="Itálico"
           aria-pressed={editor?.isActive("italic") ?? false}
           onClick={() => editor?.chain().focus().toggleItalic().run()}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("italic")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -171,7 +171,7 @@ export function EditorToolbar({
           aria-pressed={editor?.isActive("link") ?? false}
           aria-expanded={linkPanelOpen}
           onClick={openLinkPanel}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("link")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -190,7 +190,7 @@ export function EditorToolbar({
           aria-label="Lista"
           aria-pressed={editor?.isActive("bulletList") ?? false}
           onClick={() => editor?.chain().focus().toggleBulletList().run()}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("bulletList")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -204,7 +204,7 @@ export function EditorToolbar({
           aria-label="Lista numerada"
           aria-pressed={editor?.isActive("orderedList") ?? false}
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("orderedList")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -218,7 +218,7 @@ export function EditorToolbar({
           aria-label="Citação"
           aria-pressed={editor?.isActive("blockquote") ?? false}
           onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-          className={`inline-flex size-8 items-center justify-center rounded transition-colors ${
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
             editor?.isActive("blockquote")
               ? "bg-nite-surface text-nite-brand-primary shadow-xs"
               : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
@@ -228,11 +228,11 @@ export function EditorToolbar({
         </button>
 
         <div
-          className="ml-auto flex items-center gap-1 border-l border-nite-border-subtle pl-2.5"
+          className="ml-auto flex shrink-0 items-center gap-1 border-l border-nite-border-subtle pl-2.5"
           role="toolbar"
           aria-label="Adicionar ao conteúdo"
         >
-          <span className="hidden text-[11px] font-semibold text-nite-text-muted xl:inline">
+          <span className="hidden text-xs font-semibold text-nite-text-muted xl:inline">
             Adicionar:
           </span>
           <Button
@@ -241,7 +241,7 @@ export function EditorToolbar({
             variant="ghost"
             aria-label="Inserir imagem no conteúdo"
             aria-expanded={inlinePanelOpen}
-            className="text-xs text-nite-brand-primary hover:bg-nite-surface"
+            className="min-h-10 text-sm text-nite-brand-primary hover:bg-nite-surface max-sm:min-h-11"
             onClick={onToggleInlinePanel}
           >
             <ImagePlusIcon aria-hidden="true" />
@@ -253,7 +253,7 @@ export function EditorToolbar({
             variant="ghost"
             aria-label="Inserir vídeo no conteúdo"
             aria-expanded={videoPanelOpen}
-            className="text-xs text-nite-brand-primary hover:bg-nite-surface"
+            className="min-h-10 text-sm text-nite-brand-primary hover:bg-nite-surface max-sm:min-h-11"
             onClick={onToggleVideoPanel}
           >
             <span aria-hidden="true">▶</span>
@@ -263,7 +263,7 @@ export function EditorToolbar({
       </div>
       {linkPanelOpen ? (
         <div className="flex flex-wrap items-end gap-2 border-t border-nite-border-subtle p-3">
-          <label className="min-w-56 flex-1 text-xs font-semibold text-nite-text-primary">
+          <label className="min-w-56 flex-1 text-sm font-semibold text-nite-text-primary">
             URL do link
             <input
               value={linkHref}
@@ -274,20 +274,20 @@ export function EditorToolbar({
                 setLinkError(undefined);
               }}
               placeholder="https://… ou /caminho"
-              className="nite-form-field mt-1 min-h-8 w-full rounded-md border px-2 text-xs"
+              className="nite-form-field mt-1 min-h-10 w-full rounded-md border px-3 text-sm"
             />
           </label>
           <button
             type="button"
             onClick={applyLink}
-            className="min-h-8 rounded-md bg-nite-brand-primary px-3 text-xs font-semibold text-white"
+            className="min-h-10 rounded-md bg-nite-brand-primary px-3 text-sm font-semibold text-white"
           >
             Aplicar link
           </button>
           <button
             type="button"
             onClick={removeLink}
-            className="min-h-8 rounded-md px-3 text-xs font-semibold text-status-error hover:bg-status-error/10"
+            className="min-h-10 rounded-md px-3 text-sm font-semibold text-status-error hover:bg-status-error/10"
           >
             Remover link
           </button>

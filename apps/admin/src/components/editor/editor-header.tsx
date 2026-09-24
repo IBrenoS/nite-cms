@@ -40,17 +40,17 @@ export function EditorHeader({
       : "Publicar matéria";
 
   return (
-    <header className="sticky top-14 z-30 flex min-h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur sm:px-6 lg:top-0 lg:px-8">
+    <header className="sticky top-14 z-30 flex h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur md:top-0 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/"
-          className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-nite-text-secondary transition-colors hover:text-nite-text-primary"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm font-semibold text-nite-text-secondary transition-colors hover:text-nite-text-primary"
         >
-          <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
+          <ArrowLeftIcon className="size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Matérias</span>
         </Link>
         <span className="h-4 w-px bg-nite-border-subtle" aria-hidden="true" />
-        <h1 className="truncate text-sm font-semibold tracking-tight text-nite-text-primary">
+        <h1 className="truncate text-[15px] font-semibold tracking-tight text-nite-text-primary">
           {isExisting ? "Editar matéria" : "Nova matéria"}
         </h1>
         <StatusBadge
@@ -61,16 +61,16 @@ export function EditorHeader({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="hidden items-center gap-2 sm:flex">
         <button
           type="submit"
           form="article-editor-form"
           name="intent"
           value="save"
           disabled={operationPending}
-          className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section disabled:cursor-not-allowed disabled:opacity-55"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-3.5 text-sm font-semibold text-nite-text-primary transition-colors hover:bg-nite-section disabled:cursor-not-allowed disabled:opacity-55"
         >
-          <SaveIcon className="size-3.5" aria-hidden="true" />
+          <SaveIcon className="size-4" aria-hidden="true" />
           <span>
             {pending
               ? "Salvando…"
@@ -82,8 +82,8 @@ export function EditorHeader({
 
         {isExisting && articleId ? (
           <details className="group relative">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section">
-              <EyeIcon className="size-3.5" aria-hidden="true" />
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-3.5 text-sm font-semibold text-nite-text-primary transition-colors hover:bg-nite-section">
+              <EyeIcon className="size-4" aria-hidden="true" />
               <span>Visualizar</span>
               <ChevronDownIcon
                 className="size-3 text-nite-text-secondary transition-transform group-open:rotate-180"
@@ -96,11 +96,11 @@ export function EditorHeader({
                 aria-label="Preview no CMS"
                 disabled={operationPending}
                 onClick={() => openLivePreview("cms")}
-                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
+                className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
               >
                 <span>
                   <span className="block font-semibold">Preview no CMS</span>
-                  <span className="block text-[11px] text-nite-text-secondary">
+                  <span className="block text-xs text-nite-text-secondary">
                     Alterações atuais · expira em 10 min.
                   </span>
                 </span>
@@ -114,11 +114,11 @@ export function EditorHeader({
                 aria-label="Preview no Portal"
                 disabled={operationPending}
                 onClick={() => openLivePreview("portal")}
-                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
+                className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
               >
                 <span>
                   <span className="block font-semibold">Preview no Portal</span>
-                  <span className="block text-[11px] text-nite-text-secondary">
+                  <span className="block text-xs text-nite-text-secondary">
                     Alterações atuais · expira em 10 min.
                   </span>
                 </span>
@@ -127,7 +127,7 @@ export function EditorHeader({
                   aria-hidden="true"
                 />
               </button>
-              <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-1.5 text-[11px] leading-4 text-nite-text-secondary">
+              <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-2 text-xs leading-5 text-nite-text-secondary">
                 O preview não salva uma nova revisão.
               </p>
             </div>
@@ -138,7 +138,7 @@ export function EditorHeader({
               type="button"
               disabled
               aria-describedby="new-preview-help"
-              className="inline-flex min-h-8 cursor-not-allowed items-center justify-center gap-1.5 rounded-md border border-nite-border-subtle bg-nite-section px-3 text-xs font-semibold text-nite-text-secondary opacity-60"
+              className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-section px-3.5 text-sm font-semibold text-nite-text-secondary opacity-60"
             >
               <EyeIcon className="size-3.5" aria-hidden="true" />
               <span>Visualizar</span>
@@ -157,7 +157,7 @@ export function EditorHeader({
             value="publish"
             aria-label={publishLabel}
             disabled={operationPending || currentStatus === "archived"}
-            className="inline-flex min-h-8 items-center justify-center rounded-md bg-nite-brand-primary px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
+            className="inline-flex min-h-10 items-center justify-center rounded-md bg-nite-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
           >
             {pending ? "Publicando…" : publishLabel}
           </button>

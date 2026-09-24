@@ -1,5 +1,5 @@
 import type { Membership, MembershipInvitation } from "./memberships.types";
-import { MembershipCreateForm } from "./membership-create-form";
+import { MembershipInviteDialog } from "./membership-invite-dialog";
 import { MembershipInvitations } from "./membership-invitations";
 import { MembershipsTable } from "./memberships-table";
 
@@ -21,31 +21,34 @@ export function MembershipsPanel({
 
   return (
     <div className="grid gap-5">
-      {/* Metrics strip */}
-      {total > 0 ? (
-        <dl className="flex flex-wrap gap-4">
-          {[
-            { label: "Membros", value: total },
-            { label: "Acesso administrativo", value: admins },
-            { label: "Acesso editorial", value: publishers },
-            { label: "Inativos", value: inactive },
-            { label: "Convites pendentes", value: invitations.length },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-3 py-1.5"
-            >
-              <dt className="text-xs text-nite-text-secondary">{label}</dt>
-              <dd className="font-mono text-sm font-semibold text-nite-text-primary">
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      {/* Create form */}
-      <MembershipCreateForm />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        {total > 0 ? (
+          <dl className="grid flex-1 grid-cols-2 gap-px overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-border-subtle sm:grid-cols-3 xl:grid-cols-5">
+            {[
+              { label: "Membros", value: total },
+              { label: "Acesso administrativo", value: admins },
+              { label: "Acesso editorial", value: publishers },
+              { label: "Inativos", value: inactive },
+              { label: "Convites pendentes", value: invitations.length },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="grid min-h-16 content-center gap-1 bg-nite-surface px-4 py-3"
+              >
+                <dt className="text-xs font-medium text-nite-text-secondary">
+                  {label}
+                </dt>
+                <dd className="font-mono text-base font-semibold text-nite-text-primary">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <div />
+        )}
+        <MembershipInviteDialog />
+      </div>
       <MembershipInvitations invitations={invitations} />
 
       {/* Members table */}

@@ -104,7 +104,7 @@ export default async function DashboardPage({
   const resultLabel = `${records.length} ${records.length === 1 ? "matéria encontrada" : "matérias encontradas"}`;
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 space-y-4">
+    <main className="w-full space-y-5 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
       {deletedMedia && /^\d+$/u.test(deletedMedia) ? (
         <p
           role="status"
@@ -113,20 +113,18 @@ export default async function DashboardPage({
           Matéria excluída. Limpeza de {deletedMedia} mídias agendada.
         </p>
       ) : null}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-nite-border-subtle pb-4">
+      <header className="flex flex-col gap-4 border-b border-nite-border-subtle pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-nite-text-primary">
+          <h1 className="text-[1.75rem] font-semibold tracking-tight text-nite-text-primary">
             Matérias
           </h1>
-          <p className="mt-0.5 text-xs text-nite-text-secondary">
-            {resultLabel}
-          </p>
+          <p className="mt-1 text-sm text-nite-text-secondary">{resultLabel}</p>
         </div>
         <Link
-          className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-md bg-nite-brand-primary px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-nite-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-800 max-sm:min-h-11"
           href="/articles/new"
         >
-          <PlusIcon className="size-3.5" aria-hidden="true" />
+          <PlusIcon className="size-4" aria-hidden="true" />
           <span>Nova matéria</span>
         </Link>
       </header>
@@ -134,42 +132,42 @@ export default async function DashboardPage({
       <section
         role="region"
         aria-label="Resumo das matérias"
-        className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+        className="grid gap-4 min-[1480px]:grid-cols-[minmax(0,1fr)_auto] min-[1480px]:items-center"
       >
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="grid grid-cols-2 gap-1 min-[560px]:flex min-[560px]:flex-nowrap min-[560px]:items-center">
           <Link
             href="/"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${!status ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${!status ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
           >
             <span>Todas</span>
-            <span className="font-mono text-[11px] text-nite-text-muted">
+            <span className="font-mono text-xs text-nite-text-muted">
               {counts.draft + counts.published + counts.archived}
             </span>
           </Link>
           <Link
             href="/?status=draft"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${status === "draft" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "draft" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
           >
             <span>Rascunhos</span>
-            <span className="font-mono text-[11px] text-nite-text-muted">
+            <span className="font-mono text-xs text-nite-text-muted">
               {counts.draft}
             </span>
           </Link>
           <Link
             href="/?status=published"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${status === "published" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "published" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
           >
             <span>Publicadas</span>
-            <span className="font-mono text-[11px] text-nite-text-muted">
+            <span className="font-mono text-xs text-nite-text-muted">
               {counts.published}
             </span>
           </Link>
           <Link
             href="/?status=archived"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${status === "archived" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "archived" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
           >
             <span>Arquivadas</span>
-            <span className="font-mono text-[11px] text-nite-text-muted">
+            <span className="font-mono text-xs text-nite-text-muted">
               {counts.archived}
             </span>
           </Link>
@@ -192,7 +190,7 @@ export default async function DashboardPage({
         </h2>
 
         <div className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-          <div className="hidden min-[860px]:grid grid-cols-[minmax(260px,1fr)_120px_110px_70px_130px_72px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2 text-[11px] font-semibold tracking-wider text-nite-text-secondary uppercase">
+          <div className="hidden min-[860px]:grid grid-cols-[minmax(280px,1fr)_120px_116px_76px_140px_80px] items-center gap-4 border-b border-nite-border-subtle bg-nite-section/60 px-5 py-2.5 text-xs font-semibold tracking-wide text-nite-text-secondary uppercase">
             <span>Matéria</span>
             <span>Categoria</span>
             <span>Estado</span>
@@ -206,7 +204,7 @@ export default async function DashboardPage({
               <p className="text-sm font-semibold text-nite-text-primary">
                 Nenhuma matéria encontrada
               </p>
-              <p className="mt-1 text-xs text-nite-text-secondary">
+              <p className="mt-1 text-sm text-nite-text-secondary">
                 Ajuste a busca ou os filtros para consultar outra parte da fila.
               </p>
             </div>
@@ -228,14 +226,14 @@ export default async function DashboardPage({
                 <article
                   key={article.id}
                   aria-labelledby={titleId}
-                  className={`p-3.5 min-[860px]:grid min-[860px]:grid-cols-[minmax(260px,1fr)_120px_110px_70px_130px_72px] min-[860px]:items-center min-[860px]:gap-3 min-[860px]:px-4 min-[860px]:py-2.5 transition-colors hover:bg-nite-section/30 ${
+                  className={`p-4 min-[860px]:grid min-[860px]:min-h-16 min-[860px]:grid-cols-[minmax(280px,1fr)_120px_116px_76px_140px_80px] min-[860px]:items-center min-[860px]:gap-4 min-[860px]:px-5 min-[860px]:py-2.5 transition-colors hover:bg-nite-section/30 ${
                     index < records.length - 1
                       ? "border-b border-nite-border-subtle"
                       : ""
                   }`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="relative flex h-8 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-nite-border-subtle bg-nite-section text-nite-text-secondary">
+                    <div className="relative flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-nite-border-subtle bg-nite-section text-nite-text-secondary">
                       {coverUrl ? (
                         <Image
                           src={coverUrl}
@@ -243,6 +241,7 @@ export default async function DashboardPage({
                           width={44}
                           height={32}
                           unoptimized
+                          priority={index === 0}
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -252,19 +251,19 @@ export default async function DashboardPage({
                     <div className="min-w-0 flex-1">
                       <h3
                         id={titleId}
-                        className="truncate text-sm font-semibold text-nite-text-primary"
+                        className="truncate text-[15px] font-semibold leading-5 text-nite-text-primary"
                       >
                         {title}
                       </h3>
-                      <p className="truncate text-xs text-nite-text-secondary">
+                      <p className="mt-0.5 truncate text-[13px] text-nite-text-secondary">
                         {revision?.summary || "Resumo ainda não informado."}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-nite-text-secondary min-[860px]:contents">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[13px] text-nite-text-secondary min-[860px]:contents">
                     <div className="flex flex-wrap items-center gap-2 min-[860px]:contents">
-                      <p className="text-xs text-nite-text-secondary">
+                      <p className="text-[13px] text-nite-text-secondary">
                         <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
                           Categoria:
                         </span>
@@ -290,7 +289,7 @@ export default async function DashboardPage({
                       <span className="text-nite-border-strong min-[860px]:hidden">
                         ·
                       </span>
-                      <p className="font-mono text-xs text-nite-text-secondary">
+                      <p className="font-mono text-[13px] text-nite-text-secondary">
                         <span className="mr-1.5 font-sans font-semibold text-nite-text-primary min-[860px]:hidden">
                           Revisão:
                         </span>
@@ -299,7 +298,7 @@ export default async function DashboardPage({
                       <span className="text-nite-border-strong min-[860px]:hidden">
                         ·
                       </span>
-                      <p className="text-xs text-nite-text-secondary">
+                      <p className="text-[13px] text-nite-text-secondary">
                         <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
                           Atualização:
                         </span>
@@ -310,7 +309,7 @@ export default async function DashboardPage({
                     <div className="min-[860px]:flex min-[860px]:justify-end">
                       <Link
                         href={`/articles/${article.id}/edit`}
-                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-nite-border-subtle px-2.5 text-xs font-semibold text-nite-text-primary transition-colors hover:bg-nite-section hover:border-nite-border-hover"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-nite-border-subtle px-3 text-sm font-semibold text-nite-text-primary transition-colors hover:border-nite-border-hover hover:bg-nite-section max-[859px]:min-h-11"
                       >
                         Editar
                       </Link>

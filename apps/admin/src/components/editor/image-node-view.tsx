@@ -49,7 +49,7 @@ export function ImageNodeView({
             <span className="text-xs font-semibold text-nite-text-primary">
               Imagem inserida
             </span>
-            <span className="rounded bg-nite-section px-2 py-0.5 text-[11px] font-medium text-nite-text-secondary">
+            <span className="rounded bg-nite-section px-2 py-0.5 text-xs font-medium text-nite-text-secondary">
               {layout === "wide"
                 ? "Largura ampla"
                 : layout === "full"
@@ -57,7 +57,7 @@ export function ImageNodeView({
                   : "Largura normal"}
             </span>
             <span
-              className={`rounded px-2 py-0.5 text-[11px] font-medium ${
+              className={`rounded px-2 py-0.5 text-xs font-medium ${
                 hasAlt
                   ? "bg-status-done/10 text-status-done"
                   : "bg-status-warning/15 text-status-warning"
@@ -99,7 +99,7 @@ export function ImageNodeView({
               {alt}
             </p>
           ) : (
-            <p className="text-[11px] italic text-status-warning">
+            <p className="text-xs italic text-status-warning">
               Sem texto alternativo. Adicione um texto descritivo para leitores
               de tela.
             </p>
@@ -124,7 +124,7 @@ export function ImageNodeView({
           ) : null}
 
           {attrs.mediaId ? (
-            <div className="pt-1 text-[10px] font-mono text-nite-text-muted">
+            <div className="pt-1 text-xs font-mono text-nite-text-muted">
               ID: {attrs.mediaId.slice(0, 8)}…
             </div>
           ) : null}
@@ -145,7 +145,7 @@ export function ImageNodeView({
                 <label htmlFor={`image-alt-${attrs.mediaId || "node"}`}>
                   Texto alternativo
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {alt.length} caracteres
                 </span>
               </div>
@@ -154,12 +154,12 @@ export function ImageNodeView({
                 aria-label="Alt da imagem selecionada"
                 value={alt}
                 placeholder="Descreva visualmente o conteúdo da imagem para acessibilidade"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ alt: event.target.value })
                 }
               />
-              <p className="mt-1 text-[11px] text-nite-text-secondary">
+              <p className="mt-1 text-xs text-nite-text-secondary">
                 Essencial para leitores de tela e acessibilidade.
               </p>
             </div>
@@ -172,7 +172,7 @@ export function ImageNodeView({
                     (opcional)
                   </span>
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {caption.length}/280
                 </span>
               </div>
@@ -182,7 +182,7 @@ export function ImageNodeView({
                 value={caption}
                 maxLength={280}
                 placeholder="Texto explicativo visível abaixo da imagem"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ caption: event.target.value })
                 }
@@ -197,7 +197,7 @@ export function ImageNodeView({
                     (opcional)
                   </span>
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {credit.length}/160
                 </span>
               </div>
@@ -207,7 +207,7 @@ export function ImageNodeView({
                 value={credit}
                 maxLength={160}
                 placeholder="Foto: autor ou instituição"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ credit: event.target.value })
                 }
@@ -230,7 +230,7 @@ export function ImageNodeView({
                     layout: event.target.value as "normal" | "wide" | "full",
                   })
                 }
-                className="nite-form-field min-h-8 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
+                className="nite-form-field min-h-10 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
               >
                 <option value="normal">Normal · coluna do texto</option>
                 <option value="wide">Ampla · largura editorial</option>

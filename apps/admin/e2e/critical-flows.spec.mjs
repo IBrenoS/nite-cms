@@ -96,7 +96,7 @@ test.describe("CMS Admin — fluxos críticos em staging", () => {
         page.getByLabel("Texto alternativo da imagem inline"),
       ).not.toHaveAttribute("required", "");
 
-      await page.getByRole("button", { name: "Publicar revisão" }).click();
+      await page.getByRole("button", { name: "Publicar matéria" }).click();
 
       await expect(page.getByRole("alert").first()).toContainText(
         "Revise os campos destacados.",
@@ -111,13 +111,12 @@ test.describe("CMS Admin — fluxos críticos em staging", () => {
       await expect(
         page.getByRole("button", { name: "Arquivar" }),
       ).toBeVisible();
-      const [dialog] = await Promise.all([
-        page.waitForEvent("dialog"),
-        page.getByRole("button", { name: "Arquivar" }).click(),
-      ]);
-      expect(dialog.type()).toBe("confirm");
-      expect(dialog.message()).toMatch(/arquiv|ciclo de vida/i);
-      await dialog.dismiss();
+      await page.getByRole("button", { name: "Arquivar" }).click();
+      const dialog = page.getByRole("dialog", { name: "Arquivar matéria?" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText(/arquiv|ciclo de vida/i);
+      await dialog.getByRole("button", { name: "Cancelar" }).click();
+      await expect(dialog).toHaveCount(0);
     });
   });
 });

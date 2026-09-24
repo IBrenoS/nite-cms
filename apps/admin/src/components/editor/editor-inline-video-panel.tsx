@@ -124,7 +124,7 @@ export function EditorInlineVideoPanel(props: Props) {
               event.target.value as "autoplay" | "manual",
             )
           }
-          className="nite-form-field mt-1 min-h-9 w-full rounded-md border px-2 text-xs"
+          className="nite-form-field mt-1 min-h-10 w-full rounded-md border px-3 text-sm"
         >
           <option value="manual">Manual · controles e áudio</option>
           <option value="autoplay">Automática · sem som, em loop</option>
@@ -162,7 +162,7 @@ export function EditorInlineVideoPanel(props: Props) {
               event.target.value as "normal" | "wide" | "full",
             )
           }
-          className="nite-form-field mt-1 min-h-9 w-full rounded-md border px-2 text-xs"
+          className="nite-form-field mt-1 min-h-10 w-full rounded-md border px-3 text-sm"
         >
           <option value="normal">Normal · até 806 px</option>
           <option value="wide">Ampla · largura editorial</option>
@@ -236,7 +236,7 @@ export function EditorInlineVideoPanel(props: Props) {
           este arquivo.
         </p>
       ) : null}
-      <p className="text-[11px] text-nite-text-muted sm:col-span-2">
+      <p className="text-xs text-nite-text-muted sm:col-span-2">
         Autoplay é sempre silencioso, sem controles e em loop. O navegador pode
         bloquear a reprodução ou respeitar movimento reduzido.
       </p>

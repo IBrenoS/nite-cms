@@ -44,7 +44,7 @@ export function MembershipRow({
   return (
     <>
       <tr
-        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-nite-section/30 md:grid-cols-[1fr_130px_90px_90px] ${!isLast ? "border-b border-nite-border-subtle" : ""} ${isPending ? "opacity-60" : ""}`}
+        className={`grid grid-cols-1 items-center gap-3 px-4 py-4 transition-colors hover:bg-nite-section/30 sm:grid-cols-[minmax(0,1fr)_auto] md:min-h-16 md:grid-cols-[minmax(180px,1fr)_150px_90px_90px] md:py-2.5 xl:grid-cols-[minmax(240px,1fr)_180px_100px_100px] xl:gap-4 xl:px-5 ${!isLast ? "border-b border-nite-border-subtle" : ""} ${isPending ? "opacity-60" : ""}`}
       >
         {/* Member */}
         <td className="flex min-w-0 items-center gap-2.5">
@@ -53,21 +53,24 @@ export function MembershipRow({
             <p className="truncate text-sm font-semibold text-nite-text-primary">
               {membership.displayName}
               {isCurrent ? (
-                <span className="ml-2 text-[11px] font-medium text-nite-brand-accent">
+                <span className="ml-2 text-xs font-medium text-nite-brand-accent">
                   Você
                 </span>
               ) : null}
             </p>
-            <p className="truncate font-mono text-[11px] text-nite-text-muted">
+            <p className="truncate font-mono text-xs text-nite-text-muted">
               {membership.email ?? membership.objectId}
             </p>
           </div>
         </td>
 
         {/* Role */}
-        <td>
+        <td className="grid grid-cols-[88px_1fr] items-center gap-2 text-sm md:block">
+          <span className="text-xs font-semibold text-nite-text-secondary md:sr-only">
+            Nível
+          </span>
           {isCurrent ? (
-            <span className="text-xs font-medium text-nite-text-primary">
+            <span className="text-sm font-medium text-nite-text-primary">
               {membership.role === "admin"
                 ? "Acesso administrativo"
                 : "Acesso editorial"}
@@ -87,7 +90,7 @@ export function MembershipRow({
                   ),
                 )
               }
-              className="nite-form-field h-8 rounded-md border border-nite-border-subtle bg-transparent px-2 text-xs font-medium text-nite-text-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="nite-form-field h-10 rounded-md border border-nite-border-subtle bg-transparent px-3 text-sm font-medium text-nite-text-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="publisher">Acesso editorial</option>
               <option value="admin">Acesso administrativo</option>
@@ -96,12 +99,18 @@ export function MembershipRow({
         </td>
 
         {/* Status */}
-        <td>
+        <td className="grid grid-cols-[88px_1fr] items-center gap-2 md:block">
+          <span className="text-xs font-semibold text-nite-text-secondary md:sr-only">
+            Estado
+          </span>
           <MembershipRowStatus active={membership.active} />
         </td>
 
         {/* Actions */}
-        <td className="flex justify-end">
+        <td className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-semibold text-nite-text-secondary md:sr-only">
+            Ação
+          </span>
           {isCurrent ? (
             <span className="text-xs text-nite-text-secondary">
               Conta atual

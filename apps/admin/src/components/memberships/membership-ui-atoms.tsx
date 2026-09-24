@@ -19,7 +19,7 @@ function MembershipAvatar({ displayName }: MembershipAvatarProps) {
   return (
     <span
       aria-hidden="true"
-      className="inline-flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-full bg-nite-section border border-nite-border-subtle font-mono text-[11px] font-semibold text-nite-text-secondary uppercase"
+      className="inline-flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-nite-section border border-nite-border-subtle font-mono text-xs font-semibold text-nite-text-secondary uppercase"
     >
       {memberInitials(displayName)}
     </span>

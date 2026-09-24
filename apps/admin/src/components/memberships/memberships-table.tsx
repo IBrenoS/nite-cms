@@ -24,7 +24,7 @@ export function MembershipsTable({
   return (
     <div className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
       {/* Table header */}
-      <div className="hidden grid-cols-[1fr_130px_90px_90px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-nite-text-secondary md:grid">
+      <div className="hidden grid-cols-[minmax(180px,1fr)_150px_90px_90px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-nite-text-secondary md:grid xl:grid-cols-[minmax(240px,1fr)_180px_100px_100px] xl:gap-4 xl:px-5">
         <span>Membro</span>
         <span>Nível de acesso</span>
         <span>Estado</span>

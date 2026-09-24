@@ -49,7 +49,7 @@ export function MembershipInvitations({
                   <p className="text-sm font-semibold text-nite-text-primary">
                     {invitation.email}
                   </p>
-                  <p className="text-xs text-nite-text-secondary">
+                  <p className="mt-0.5 text-[13px] text-nite-text-secondary">
                     {invitation.role === "admin"
                       ? "Acesso administrativo"
                       : "Acesso editorial"}
@@ -104,7 +104,7 @@ export function MembershipInvitations({
                     );
                   }}
                 >
-                  <label className="grid gap-1 text-xs text-nite-text-secondary">
+                  <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
                     E-mail institucional
                     <Input
                       name="email"
@@ -113,12 +113,12 @@ export function MembershipInvitations({
                       defaultValue={invitation.email}
                     />
                   </label>
-                  <label className="grid gap-1 text-xs text-nite-text-secondary">
+                  <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
                     Nível de acesso
                     <select
                       name="role"
                       defaultValue={invitation.role}
-                      className="nite-form-field h-9 rounded-md border border-nite-border-subtle bg-transparent px-2 text-sm"
+                      className="nite-form-field h-10 rounded-md border border-nite-border-subtle bg-transparent px-3 text-sm"
                     >
                       <option value="publisher">Acesso editorial</option>
                       <option value="admin">Acesso administrativo</option>

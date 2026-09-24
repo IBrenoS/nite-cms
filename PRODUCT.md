@@ -16,13 +16,22 @@ A **Redação Digital NITE** é a ferramenta editorial interna responsável pela
    - Visão panorâmica da fila editorial.
    - Navegação por status (Todas, Rascunhos, Publicadas, Arquivadas) e busca por título/slug/categoria.
    - Apresentação em grade tabular compacta em larguras úteis a partir de 860 px, e card editorial de duas linhas em larguras menores.
+   - Busca em largura integral no mobile; em até 559 px, os quatro status ficam visíveis em uma grade 2×2 e, acima disso, retomam a faixa horizontal. Filtros de estado/categoria abrem em sheet acessível.
 
 2. **Nova Matéria e Edição de Matéria**:
    - Header com ações hierarquizadas: Salvar (secundário), Visualizar (intermediário), Publicar (primário com distinção clara entre primeira publicação e atualização de conteúdo já publicado).
-   - Canvas de escrita limpo e focado, com título autoexpansível e resumo integrados ao documento editorial.
+   - Superfície editorial contínua entre navegação e inspector, com medida de leitura de 65–72 caracteres, título autoexpansível e resumo integrados ao documento editorial.
    - Orientação visual no canvas vazio ("Comece a escrever a matéria…") sem reduzir o canvas a uma caixa de formulário.
    - Mídias contextuais (vídeo e imagem) com controles inline e in-place (`NodeView`), eliminando saltos de foco e permitindo edição e remoção imediatas.
    - Inspector lateral (`rail`, `drawer`, `sheet`) contínuo e ordenado: Preparação e pendências, Publicação essencial, Capa, Opções complementares, SEO e Estado editorial.
+   - No mobile, um único dock inferior reúne salvar, visualizar, configurações/progresso e publicar sem competir com o contexto superior.
+
+3. **Equipe e Acessos**:
+   - Métricas em faixa uniforme, tabela operacional no desktop e cartões com rótulos permanentes no mobile.
+   - Criação de convite em dialog no desktop e sheet no mobile, mantendo os contratos atuais de papel e ativação.
+
+4. **Preview Autenticado**:
+   - Barra sticky própria, conteúdo editorial com medida controlada e ausência de overflow horizontal de 320 px a ultrawide.
 
 ## 4. Diretrizes de Qualidade e Conformidade
 

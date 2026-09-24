@@ -7,7 +7,7 @@ export default async function MembershipsPage() {
   const context = await requireCmsPageContext();
   if (context.membership.role !== "admin") {
     return (
-      <main>
+      <main className="px-4 py-6 sm:px-6 lg:px-8">
         <h1 className="font-heading text-2xl font-semibold">Acesso negado</h1>
         <p className="mt-3 text-nite-text-secondary">
           A gestão da equipe é restrita a pessoas com acesso administrativo.
@@ -31,15 +31,12 @@ export default async function MembershipsPage() {
       .orderBy(asc(cmsMembershipInvitations.email)),
   ]);
   return (
-    <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 grid gap-5">
-      <header className="flex flex-col gap-1">
-        <p className="font-mono text-xs uppercase tracking-[0.12em] text-nite-brand-accent">
-          Administração
-        </p>
-        <h1 className="font-heading text-3xl font-semibold">
+    <main className="grid w-full gap-6 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+      <header className="flex max-w-3xl flex-col gap-1.5 border-b border-nite-border-subtle pb-5">
+        <h1 className="text-[1.75rem] font-semibold tracking-tight">
           Equipe e acessos
         </h1>
-        <p className="text-sm text-nite-text-secondary">
+        <p className="text-[15px] leading-6 text-nite-text-secondary">
           Gerencie a equipe da redação, atribua permissões e controle os acessos
           ativos.
         </p>

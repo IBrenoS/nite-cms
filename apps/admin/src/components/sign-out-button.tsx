@@ -14,7 +14,7 @@ export function SignOutButton({ sidebar = false }: { sidebar?: boolean }) {
       variant="quiet"
       className={
         sidebar
-          ? "min-h-9 w-full justify-start border-transparent px-2.5 text-xs text-nite-text-secondary hover:border-transparent hover:bg-nite-section hover:text-nite-text-primary focus-visible:border-transparent"
+          ? "min-h-10 w-full justify-start border-transparent px-2.5 text-sm text-nite-text-secondary hover:border-transparent hover:bg-nite-section hover:text-nite-text-primary focus-visible:border-transparent"
           : undefined
       }
       onClick={() =>

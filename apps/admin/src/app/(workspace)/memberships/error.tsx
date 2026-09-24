@@ -4,7 +4,7 @@ import { Button } from "@nite/cms-ui";
 
 export default function MembershipsError({ reset }: { reset: () => void }) {
   return (
-    <main className="grid max-w-xl gap-4 rounded-xl border border-status-error/35 p-6">
+    <main className="m-4 grid max-w-xl gap-4 rounded-lg border border-status-error/35 bg-nite-surface p-6 sm:m-6 lg:m-8">
       <h1 className="font-heading text-2xl font-semibold">
         Não foi possível carregar a equipe e os acessos
       </h1>

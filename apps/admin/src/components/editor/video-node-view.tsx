@@ -94,12 +94,12 @@ export function VideoNodeView({
             <span className="text-xs font-semibold text-nite-text-primary">
               Vídeo inserido
             </span>
-            <span className="rounded bg-nite-section px-2 py-0.5 text-[11px] font-medium text-nite-text-secondary">
+            <span className="rounded bg-nite-section px-2 py-0.5 text-xs font-medium text-nite-text-secondary">
               {playbackMode === "autoplay"
                 ? "Automático (loop)"
                 : "Reprodução manual"}
             </span>
-            <span className="rounded bg-nite-section px-2 py-0.5 text-[11px] font-medium text-nite-text-secondary">
+            <span className="rounded bg-nite-section px-2 py-0.5 text-xs font-medium text-nite-text-secondary">
               {layout === "wide"
                 ? "Largura ampla"
                 : layout === "full"
@@ -107,7 +107,7 @@ export function VideoNodeView({
                   : "Largura normal"}
             </span>
             <span
-              className={`rounded px-2 py-0.5 text-[11px] font-medium ${
+              className={`rounded px-2 py-0.5 text-xs font-medium ${
                 hasCaptions
                   ? "bg-status-done/10 text-status-done"
                   : "bg-nite-section text-nite-text-muted"
@@ -149,7 +149,7 @@ export function VideoNodeView({
               {description}
             </p>
           ) : (
-            <p className="text-[11px] italic text-status-warning">
+            <p className="text-xs italic text-status-warning">
               Sem descrição acessível informada. Adicione uma descrição para
               atender às diretrizes de acessibilidade.
             </p>
@@ -173,7 +173,7 @@ export function VideoNodeView({
             </p>
           ) : null}
 
-          <div className="flex items-center justify-between pt-1 text-[11px] text-nite-text-muted">
+          <div className="flex items-center justify-between pt-1 text-xs text-nite-text-muted">
             <span>
               Player de vídeo disponível em{" "}
               <strong className="font-semibold text-nite-text-secondary">
@@ -182,7 +182,7 @@ export function VideoNodeView({
               .
             </span>
             {attrs.mediaId ? (
-              <span className="font-mono text-[10px]">
+              <span className="font-mono text-xs">
                 ID: {attrs.mediaId.slice(0, 8)}…
               </span>
             ) : null}
@@ -212,7 +212,7 @@ export function VideoNodeView({
                     playbackMode: event.target.value as "autoplay" | "manual",
                   })
                 }
-                className="nite-form-field min-h-8 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
+                className="nite-form-field min-h-10 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
               >
                 <option value="manual">Manual</option>
                 <option value="autoplay">
@@ -237,7 +237,7 @@ export function VideoNodeView({
                     layout: event.target.value as "normal" | "wide" | "full",
                   })
                 }
-                className="nite-form-field min-h-8 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
+                className="nite-form-field min-h-10 w-full rounded-md border border-nite-border-subtle bg-nite-surface px-2 text-xs"
               >
                 <option value="normal">Normal · até 806 px</option>
                 <option value="wide">Ampla · largura editorial</option>
@@ -250,7 +250,7 @@ export function VideoNodeView({
                 <label htmlFor={`video-desc-${attrs.mediaId || "node"}`}>
                   Descrição acessível
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {description.length}/500
                 </span>
               </div>
@@ -260,12 +260,12 @@ export function VideoNodeView({
                 value={description}
                 maxLength={500}
                 placeholder="Descreva visualmente o conteúdo do vídeo para acessibilidade"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ description: event.target.value })
                 }
               />
-              <p className="mt-1 text-[11px] text-nite-text-secondary">
+              <p className="mt-1 text-xs text-nite-text-secondary">
                 Lida por leitores de tela em conformidade com as diretrizes de
                 acessibilidade.
               </p>
@@ -279,7 +279,7 @@ export function VideoNodeView({
                     (opcional)
                   </span>
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {caption.length}/280
                 </span>
               </div>
@@ -289,7 +289,7 @@ export function VideoNodeView({
                 value={caption}
                 maxLength={280}
                 placeholder="Texto explicativo exibido abaixo do vídeo"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ caption: event.target.value })
                 }
@@ -304,7 +304,7 @@ export function VideoNodeView({
                     (opcional)
                   </span>
                 </label>
-                <span className="font-mono text-[10px] text-nite-text-muted">
+                <span className="font-mono text-xs text-nite-text-muted">
                   {credit.length}/160
                 </span>
               </div>
@@ -314,7 +314,7 @@ export function VideoNodeView({
                 value={credit}
                 maxLength={160}
                 placeholder="Vídeo: autor ou instituição"
-                className="min-h-8 rounded-md text-xs"
+                className="min-h-10 rounded-md text-xs"
                 onChange={(event) =>
                   updateAttributes({ credit: event.target.value })
                 }
@@ -334,7 +334,7 @@ export function VideoNodeView({
                 type="file"
                 accept="video/mp4"
                 disabled={videoReplacementPending}
-                className="min-h-8 text-xs"
+                className="min-h-10 text-xs"
                 onChange={handleVideoFile}
               />
             </div>
@@ -352,7 +352,7 @@ export function VideoNodeView({
                 type="file"
                 accept="text/vtt,.vtt"
                 disabled={videoReplacementPending}
-                className="min-h-8 text-xs"
+                className="min-h-10 text-xs"
                 onChange={handleCaptionsFile}
               />
             </div>

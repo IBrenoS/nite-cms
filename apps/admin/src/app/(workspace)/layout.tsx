@@ -4,7 +4,7 @@ import { Chip } from "@nite/cms-ui";
 
 import { getCmsContext } from "@/lib/auth";
 import { SignOutButton } from "@/components/sign-out-button";
-import { WorkspaceNavigation } from "@/components/workspace-navigation";
+import { WorkspaceShell } from "@/components/workspace-shell";
 
 export default async function WorkspaceLayout({
   children,
@@ -34,12 +34,11 @@ export default async function WorkspaceLayout({
   }
 
   return (
-    <div className="min-h-screen bg-nite-background">
-      <WorkspaceNavigation
-        displayName={context.membership.displayName}
-        role={context.membership.role}
-      />
-      <div className="min-w-0 flex-1 lg:pl-[220px]">{children}</div>
-    </div>
+    <WorkspaceShell
+      displayName={context.membership.displayName}
+      role={context.membership.role}
+    >
+      {children}
+    </WorkspaceShell>
   );
 }
