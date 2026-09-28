@@ -44,8 +44,36 @@ Não execute migrations de produção a partir de builds do Admin ou da API.
 
 ## Deploy
 
-O repositório privado `IBrenoS/nite-cms` usa a integração Git nativa da Vercel
-com dois projetos independentes na branch `main`:
+O deploy em VM Linux mantém Neon, Cloudflare R2 e Microsoft Entra externos. A
+VM executa somente Caddy, Admin, API pública e scheduler do outbox por Docker
+Compose. Admin e API usam imagens Next.js standalone e não publicam portas no
+host; apenas Caddy publica `80/443`.
+
+```bash
+cp deploy/vm/stack.env.example deploy/vm/stack.env
+cp deploy/vm/admin.env.example deploy/vm/admin.env
+cp deploy/vm/api.env.example deploy/vm/api.env
+cp deploy/vm/scheduler.env.example deploy/vm/scheduler.env
+cp deploy/vm/migration.env.example deploy/vm/migration.env
+```
+
+Depois de preencher os arquivos locais, valide a configuração antes de
+construir ou iniciar os serviços:
+
+```bash
+docker compose --env-file deploy/vm/stack.env -f compose.production.yml config --quiet
+docker compose --env-file deploy/vm/stack.env -f compose.production.yml build admin api outbox-scheduler migration
+docker compose --env-file deploy/vm/stack.env -f compose.production.yml --profile operations run --rm migration
+docker compose --env-file deploy/vm/stack.env -f compose.production.yml up -d
+```
+
+A migration é uma operação manual separada. Ela não é executada em `build`,
+`up`, restart nem health check. Consulte
+[`docs/runbooks/cms-vm-deployment.md`](docs/runbooks/cms-vm-deployment.md) para
+preparação da VM, DNS, Entra, secrets, smoke tests, observabilidade e rollback.
+
+A topologia anterior por integração Git da Vercel continua documentada como
+alternativa com dois projetos independentes:
 
 - `nite-cms-admin`, com Root Directory `apps/admin`;
 - `nite-cms-api`, com Root Directory `apps/api`.
@@ -53,6 +81,6 @@ com dois projetos independentes na branch `main`:
 Cada projeto mantém somente as variáveis exigidas pela sua responsabilidade.
 Migrations não fazem parte do build ou do deploy.
 
-Consulte `docs/runbooks/cms-rollout.md` para as variáveis separadas do Admin,
-API, Portal e migration. O runbook não contém valores de credenciais e não
-autoriza deploy ou migration.
+Consulte `docs/runbooks/cms-rollout.md` para o corte coordenado de Admin, API e
+Portal. Os runbooks não contêm credenciais nem autorizam, por si só, uma
+migration ou publicação em produção.
