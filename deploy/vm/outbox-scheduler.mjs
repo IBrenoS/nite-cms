@@ -48,10 +48,7 @@ export function readSchedulerConfiguration(environment = process.env) {
     DEFAULT_INTERVAL_MS,
   );
 
-  if (
-    intervalMs < MINIMUM_INTERVAL_MS ||
-    intervalMs > MAXIMUM_INTERVAL_MS
-  ) {
+  if (intervalMs < MINIMUM_INTERVAL_MS || intervalMs > MAXIMUM_INTERVAL_MS) {
     throw new Error(
       `OUTBOX_INTERVAL_MS deve estar entre ${MINIMUM_INTERVAL_MS} e ${MAXIMUM_INTERVAL_MS}.`,
     );

@@ -91,9 +91,13 @@ describe("outbox scheduler", () => {
   it("cancela requisições que excedem o timeout", async () => {
     const fetcher = (_url, init) =>
       new Promise((_resolve, reject) => {
-        init.signal.addEventListener("abort", () => reject(init.signal.reason), {
-          once: true,
-        });
+        init.signal.addEventListener(
+          "abort",
+          () => reject(init.signal.reason),
+          {
+            once: true,
+          },
+        );
       });
 
     await assert.rejects(

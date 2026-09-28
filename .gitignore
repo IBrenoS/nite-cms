@@ -32,6 +32,8 @@ pnpm-debug.log*
 
 # local environment
 .env*
+deploy/vm/*.env
+!deploy/vm/*.env.example
 !**/.env.example
 !**/.env.test.example
 !**/.env.e2e.example

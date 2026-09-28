@@ -25,6 +25,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:preview-proxy": "node --test scripts/preview-tunnel-proxy.test.mjs",
+    "test:vm-deployment": "node --test deploy/vm/outbox-scheduler.test.mjs scripts/vm-deployment.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:deadcode": "knip",

@@ -1,0 +1,159 @@
+name: nite-cms
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-runtime: &runtime
+  restart: unless-stopped
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  logging: *default-logging
+
+services:
+  caddy:
+    <<: *runtime
+    image: caddy:2-alpine
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      CMS_ADMIN_DOMAIN: ${CMS_ADMIN_DOMAIN:?CMS_ADMIN_DOMAIN is required}
+      CMS_API_DOMAIN: ${CMS_API_DOMAIN:?CMS_API_DOMAIN is required}
+    ports:
+      - target: 80
+        published: "80"
+        protocol: tcp
+      - target: 443
+        published: "443"
+        protocol: tcp
+      - target: 443
+        published: "443"
+        protocol: udp
+    volumes:
+      - ./deploy/vm/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    tmpfs:
+      - /tmp
+    depends_on:
+      admin:
+        condition: service_started
+      api:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - caddy
+        - validate
+        - --config
+        - /etc/caddy/Caddyfile
+        - --adapter
+        - caddyfile
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: ${CADDY_MEMORY_LIMIT:-256m}
+    cpus: ${CADDY_CPU_LIMIT:-0.50}
+
+  admin:
+    <<: *runtime
+    image: ${CMS_ADMIN_IMAGE:-nite-cms-admin}:${CMS_IMAGE_TAG:-local}
+    build:
+      context: .
+      target: admin
+    env_file:
+      - ${CMS_ADMIN_ENV_FILE:-./deploy/vm/admin.env}
+      - ${CMS_SCHEDULER_ENV_FILE:-./deploy/vm/scheduler.env}
+    environment:
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+      PORT: "3001"
+    volumes:
+      - admin_next_cache:/app/apps/admin/.next/cache
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: ${ADMIN_MEMORY_LIMIT:-1536m}
+    cpus: ${ADMIN_CPU_LIMIT:-1.50}
+
+  api:
+    <<: *runtime
+    image: ${CMS_API_IMAGE:-nite-cms-api}:${CMS_IMAGE_TAG:-local}
+    build:
+      context: .
+      target: api
+    env_file:
+      - ${CMS_API_ENV_FILE:-./deploy/vm/api.env}
+    environment:
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+      PORT: "3002"
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3002/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: ${API_MEMORY_LIMIT:-512m}
+    cpus: ${API_CPU_LIMIT:-0.75}
+
+  outbox-scheduler:
+    <<: *runtime
+    image: ${CMS_SCHEDULER_IMAGE:-nite-cms-scheduler}:${CMS_IMAGE_TAG:-local}
+    build:
+      context: .
+      target: scheduler
+    env_file:
+      - ${CMS_SCHEDULER_ENV_FILE:-./deploy/vm/scheduler.env}
+    environment:
+      CMS_OUTBOX_URL: http://admin:3001/api/cron/outbox
+      OUTBOX_INTERVAL_MS: ${OUTBOX_INTERVAL_MS:-900000}
+    depends_on:
+      admin:
+        condition: service_healthy
+    tmpfs:
+      - /tmp
+    mem_limit: ${SCHEDULER_MEMORY_LIMIT:-128m}
+    cpus: ${SCHEDULER_CPU_LIMIT:-0.25}
+
+  migration:
+    image: ${CMS_MIGRATION_IMAGE:-nite-cms-migration}:${CMS_IMAGE_TAG:-local}
+    build:
+      context: .
+      target: migration
+    profiles:
+      - operations
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    env_file:
+      - ${CMS_MIGRATION_ENV_FILE:-./deploy/vm/migration.env}
+    tmpfs:
+      - /tmp
+    mem_limit: ${MIGRATION_MEMORY_LIMIT:-512m}
+    cpus: ${MIGRATION_CPU_LIMIT:-0.50}
+
+volumes:
+  admin_next_cache:
+  caddy_config:
+  caddy_data:
