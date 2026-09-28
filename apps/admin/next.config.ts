@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 import { readPublicMediaConfiguration } from "./src/lib/public-media-config";
 
 const publicMedia = readPublicMediaConfiguration(process.env);
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
   poweredByHeader: false,
   transpilePackages: ["@nite/cms-db", "@nite/cms-ui", "@nite/editorial"],
   typedRoutes: true,

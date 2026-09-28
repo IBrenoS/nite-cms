@@ -1,3 +1,4 @@
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
@@ -21,5 +22,13 @@ describe("configuração de imagens do Admin", () => {
         search: "",
       },
     ]);
+  });
+
+  it("gera um artefato standalone traçado desde a raiz do monorepo", async () => {
+    const { default: configuration } = await import("./next.config");
+    const repositoryRoot = path.resolve(process.cwd(), "../..");
+
+    expect(configuration.output).toBe("standalone");
+    expect(configuration.outputFileTracingRoot).toBe(repositoryRoot);
   });
 });
