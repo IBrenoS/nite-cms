@@ -66,4 +66,3 @@ pelas imagens anteriores e não reverte migrations automaticamente.
   execução serial.
 - Migration só aparece com o profile `operations` e requer credencial própria.
 - Exemplos e diff não contêm secrets reais.
-
