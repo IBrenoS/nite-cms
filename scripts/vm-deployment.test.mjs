@@ -40,7 +40,9 @@ function readComposeConfiguration() {
     );
     writeFileSync(
       fixtures.CMS_SCHEDULER_ENV_FILE,
-      `CRON_SECRET=${"s".repeat(32)}\n`,
+      [`CRON_SECRET=${"s".repeat(32)}`, "OUTBOX_INTERVAL_MS=1200000"].join(
+        "\n",
+      ),
     );
     writeFileSync(
       fixtures.CMS_MIGRATION_ENV_FILE,
@@ -104,6 +106,10 @@ describe("deploy de produção em VM", () => {
     assert.equal(services.api.ports, undefined);
     assert.deepEqual(services.migration.profiles, ["operations"]);
     assert.equal(services.migration.restart, "no");
+    assert.equal(
+      services["outbox-scheduler"].environment.OUTBOX_INTERVAL_MS,
+      "1200000",
+    );
     assert.equal(
       services.admin.healthcheck.test.at(-1).includes("/api/health"),
       true,

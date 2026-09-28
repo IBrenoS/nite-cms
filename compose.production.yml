@@ -125,7 +125,6 @@ services:
       - ${CMS_SCHEDULER_ENV_FILE:-./deploy/vm/scheduler.env}
     environment:
       CMS_OUTBOX_URL: http://admin:3001/api/cron/outbox
-      OUTBOX_INTERVAL_MS: ${OUTBOX_INTERVAL_MS:-900000}
     depends_on:
       admin:
         condition: service_healthy
