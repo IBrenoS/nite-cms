@@ -11,6 +11,7 @@ import {
   setCmsMembershipActive,
 } from "@nite/editorial";
 import { requireCmsContext } from "@/lib/auth";
+import { processCmsOutbox } from "@/lib/outbox";
 import { membershipActionError } from "./membership-errors";
 
 const invitationInputSchema = z.object({
@@ -53,6 +54,7 @@ export async function createMembershipInvitation(
       actor: context.membership,
       ...input,
     });
+    await processCmsOutbox().catch(() => undefined);
     revalidatePath("/memberships");
     return { status: "success", message: "Convite criado por 7 dias." };
   } catch (error) {
@@ -70,6 +72,7 @@ export async function replaceMembershipInvitation(input: unknown) {
       actor: context.membership,
       ...parsed,
     });
+    await processCmsOutbox().catch(() => undefined);
     revalidatePath("/memberships");
     return { status: "success" as const };
   } catch (error) {
