@@ -9,4 +9,5 @@ export * from "./outbox";
 export * from "./public-news";
 export * from "./preview-snapshot";
 export * from "./article-deletion";
+export * from "./email-delivery";
 export * from "./webvtt";
