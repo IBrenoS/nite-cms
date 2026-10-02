@@ -48,6 +48,9 @@ describe("convites de acesso editorial", () => {
     expect(normalize("  Pessoa.Teste+nite@UniJorge.com ")).toBe(
       "pessoa.teste+nite@unijorge.com",
     );
+    expect(normalize("  Matricula@UniJorge.com.br ")).toBe(
+      "matricula@unijorge.com.br",
+    );
     expect(() => normalize("pessoa@outro.example")).toThrow();
     expect(() => normalize("pessoa@@unijorge.com")).toThrow();
   });
@@ -79,13 +82,13 @@ describe("convites de acesso editorial", () => {
       database,
       {
         actor: admin,
-        email: "  NOVA@UniJorge.com ",
+        email: "  NOVA@UniJorge.com.br ",
         role: "publisher",
       },
     ]);
     expect(invitation).toMatchObject({
       tenantId,
-      email: "nova@unijorge.com",
+      email: "nova@unijorge.com.br",
       role: "publisher",
       status: "pending",
       expiresAt: new Date("2026-09-14T12:00:00.000Z"),
@@ -96,7 +99,7 @@ describe("convites de acesso editorial", () => {
         database,
         {
           actor: admin,
-          email: "nova@unijorge.com",
+          email: "nova@unijorge.com.br",
           role: "admin",
         },
       ]),

@@ -54,7 +54,7 @@ export function MembershipCreateForm({
             type="email"
             required
             maxLength={320}
-            placeholder="matricula@unijorge.com"
+            placeholder="matricula@unijorge.com.br"
             className="h-10 text-sm"
           />
         </label>

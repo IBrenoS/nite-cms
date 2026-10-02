@@ -16,9 +16,13 @@ const institutionalEmailSchema = z
   .trim()
   .toLowerCase()
   .pipe(z.email().max(320))
-  .refine((email) => email.endsWith("@unijorge.com"), {
-    message: "Use um e-mail institucional @unijorge.com.",
-  });
+  .refine(
+    (email) =>
+      email.endsWith("@unijorge.com") || email.endsWith("@unijorge.com.br"),
+    {
+      message: "Use um e-mail institucional @unijorge.com ou @unijorge.com.br.",
+    },
+  );
 
 const entraIdentitySchema = z.object({
   tenantId: z.string().min(1).max(64),

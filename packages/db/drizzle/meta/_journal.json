@@ -99,6 +99,13 @@
       "when": 1789063275084,
       "tag": "0013_editorial_video",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790910588047,
+      "tag": "0014_sturdy_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

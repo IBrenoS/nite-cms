@@ -201,7 +201,7 @@ export const cmsMembershipInvitations = pgTable(
     check(
       "cms_membership_invitations_email_check",
       sql`${table.email} = lower(btrim(${table.email}))
-        and ${table.email} ~ '^[a-z0-9.!#$%&''*+/=?^_{|}~-]+@unijorge[.]com$'
+        and ${table.email} ~ '^[a-z0-9.!#$%&''*+/=?^_{|}~-]+@unijorge[.]com([.]br)?$'
         and split_part(${table.email}, '@', 1) not like '.%'
         and split_part(${table.email}, '@', 1) not like '%.'
         and split_part(${table.email}, '@', 1) not like '%..%'`,
