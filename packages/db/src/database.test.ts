@@ -357,7 +357,10 @@ describe("persistencia editorial", () => {
   it("migra os papéis legados para publisher sem ativar antigos authors", async () => {
     await client.exec(`
       DROP VIEW IF EXISTS "published_articles";
+      DROP TABLE "email_delivery_events";
+      DROP TABLE "email_deliveries";
       DROP TABLE "cms_membership_invitations";
+      DROP TYPE "email_delivery_status";
       DROP TYPE "cms_membership_invitation_status";
       ALTER TABLE "article_revisions"
       DROP CONSTRAINT "article_revisions_body_root_check";
@@ -529,6 +532,138 @@ describe("persistencia editorial", () => {
     await expect(
       client.query("delete from cms_membership_invitations"),
     ).rejects.toThrow(/permission denied/i);
+  });
+
+  it("rastreia uma unica entrega e eventos idempotentes por convite", async () => {
+    const adminId = "10000000-0000-4000-8000-000000000092";
+    const outboxId = "20000000-0000-4000-8000-000000000092";
+    await client.query(
+      `insert into cms_memberships
+        (id, tenant_id, object_id, display_name, email, role)
+       values ($1, 'tenant-entregas', 'admin-entregas', 'Admin Entregas',
+        'admin.entregas@unijorge.com.br', 'admin')`,
+      [adminId],
+    );
+    const invitation = await client.query<{
+      id: string;
+      link_nonce: string;
+    }>(
+      `insert into cms_membership_invitations
+        (tenant_id, email, role, expires_at, invited_by_membership_id)
+       values ('tenant-entregas', 'pessoa.entregas@unijorge.com.br',
+        'publisher', now() + interval '7 days', $1)
+       returning id, link_nonce`,
+      [adminId],
+    );
+    expect(invitation.rows[0]?.link_nonce).toEqual(expect.any(String));
+    const secondInvitation = await client.query<{ id: string }>(
+      `insert into cms_membership_invitations
+        (tenant_id, email, role, expires_at, invited_by_membership_id)
+       values ('tenant-entregas', 'outra.pessoa@unijorge.com.br',
+        'publisher', now() + interval '7 days', $1)
+       returning id`,
+      [adminId],
+    );
+
+    await client.query(
+      `insert into outbox_events (id, topic, aggregate_id, payload)
+       values ($1, 'membership.invitation.email.requested', $2::uuid,
+        jsonb_build_object('invitationId', $2::uuid::text))`,
+      [outboxId, invitation.rows[0]?.id],
+    );
+    const delivery = await client.query<{ id: string; status: string }>(
+      `insert into email_deliveries
+        (outbox_event_id, invitation_id, recipient_email)
+       values ($1, $2, 'pessoa.entregas@unijorge.com.br')
+       returning id, status`,
+      [outboxId, invitation.rows[0]?.id],
+    );
+    expect(delivery.rows[0]?.status).toBe("pending");
+
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, recipient_email)
+         values ($1, $2, 'pessoa.entregas@unijorge.com.br')`,
+        [outboxId, invitation.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, recipient_email)
+         values ($1, '40000000-0000-4000-8000-000000000092',
+          'pessoa.inexistente@unijorge.com.br')`,
+        [outboxId],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
+
+    const secondOutboxId = "20000000-0000-4000-8000-000000000093";
+    await client.query(
+      `insert into outbox_events (id, topic, aggregate_id, payload)
+       values ($1, 'membership.invitation.email.requested', $2::uuid,
+        jsonb_build_object('invitationId', $2::uuid::text))`,
+      [secondOutboxId, secondInvitation.rows[0]?.id],
+    );
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, recipient_email)
+         values ($1, $2, 'pessoa.entregas@unijorge.com.br')`,
+        [secondOutboxId, invitation.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, recipient_email, status)
+         values ($1, $2, 'outra.pessoa@unijorge.com.br', 'unknown')`,
+        [secondOutboxId, secondInvitation.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/email_delivery_status|invalid input value/i);
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, recipient_email)
+         values ('30000000-0000-4000-8000-000000000092', $1,
+          'pessoa.entregas@unijorge.com.br')`,
+        [secondInvitation.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/foreign key/i);
+
+    await client.query(
+      `insert into email_delivery_events
+        (provider_event_id, delivery_id, provider_event_type,
+         provider_created_at)
+       values ('evt_resend_1', $1, 'email.sent', now())`,
+      [delivery.rows[0]?.id],
+    );
+    await expect(
+      client.query(
+        `insert into email_delivery_events
+          (provider_event_id, delivery_id, provider_event_type,
+           provider_created_at)
+         values ('evt_resend_1', $1, 'email.delivered', now())`,
+        [delivery.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
+
+    await client.query(
+      `update email_deliveries
+       set provider_message_id = 'provider-message-1', status = 'sent'
+       where id = $1`,
+      [delivery.rows[0]?.id],
+    );
+    await expect(
+      client.query(
+        `insert into email_deliveries
+          (outbox_event_id, invitation_id, provider_message_id,
+           recipient_email)
+         values ($1, $2, 'provider-message-1',
+          'outra.pessoa@unijorge.com.br')`,
+        [secondOutboxId, secondInvitation.rows[0]?.id],
+      ),
+    ).rejects.toThrow(/unique|duplicate/i);
   });
 
   it("impede alteracao de uma revisao criada", async () => {

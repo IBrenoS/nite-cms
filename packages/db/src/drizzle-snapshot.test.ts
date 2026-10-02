@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 const snapshotPath = fileURLToPath(
   new URL("../drizzle/meta/0013_snapshot.json", import.meta.url),
 );
+const invitationDeliverySnapshotPath = fileURLToPath(
+  new URL("../drizzle/meta/0015_snapshot.json", import.meta.url),
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -99,6 +102,61 @@ describe("Drizzle migration metadata", () => {
       expect.stringContaining(
         'checksum_sha256" is not null and "media_assets"."duration_ms" is not null',
       ),
+    );
+  });
+
+  it("records invitation delivery persistence in the 0015 snapshot", async () => {
+    const snapshot: unknown = JSON.parse(
+      await readFile(invitationDeliverySnapshotPath, "utf8"),
+    );
+    const root = requireRecord(snapshot, "snapshot");
+    const enums = requireRecord(root.enums, "snapshot.enums");
+    expect(enums["public.email_delivery_status"]).toMatchObject({
+      values: [
+        "pending",
+        "sent",
+        "delivered",
+        "bounced",
+        "complained",
+        "failed",
+      ],
+    });
+
+    const tables = requireRecord(root.tables, "snapshot.tables");
+    const invitations = requireRecord(
+      tables["public.cms_membership_invitations"],
+      "snapshot.tables.public.cms_membership_invitations",
+    );
+    expect(requireRecord(invitations.columns, "invitations.columns")).toHaveProperty(
+      "link_nonce",
+    );
+
+    const deliveries = requireRecord(
+      tables["public.email_deliveries"],
+      "snapshot.tables.public.email_deliveries",
+    );
+    const deliveryIndexes = requireRecord(
+      deliveries.indexes,
+      "email_deliveries.indexes",
+    );
+    expect(Object.keys(deliveryIndexes)).toEqual(
+      expect.arrayContaining([
+        "email_deliveries_outbox_event_unique",
+        "email_deliveries_invitation_unique",
+        "email_deliveries_provider_message_unique",
+      ]),
+    );
+
+    const deliveryEvents = requireRecord(
+      tables["public.email_delivery_events"],
+      "snapshot.tables.public.email_delivery_events",
+    );
+    const eventIndexes = requireRecord(
+      deliveryEvents.indexes,
+      "email_delivery_events.indexes",
+    );
+    expect(Object.keys(eventIndexes)).toContain(
+      "email_delivery_events_provider_event_unique",
     );
   });
 });

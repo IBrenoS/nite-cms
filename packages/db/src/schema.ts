@@ -47,6 +47,14 @@ export const outboxStatusEnum = pgEnum("outbox_status", [
   "succeeded",
   "failed",
 ]);
+export const emailDeliveryStatusEnum = pgEnum("email_delivery_status", [
+  "pending",
+  "sent",
+  "delivered",
+  "bounced",
+  "complained",
+  "failed",
+]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -182,6 +190,7 @@ export const cmsMembershipInvitations = pgTable(
       (): AnyPgColumn => cmsMembershipInvitations.id,
       { onDelete: "restrict" },
     ),
+    linkNonce: uuid("link_nonce").defaultRandom().notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     ...timestamps,
@@ -484,6 +493,75 @@ export const outboxEvents = pgTable(
   ],
 );
 
+export const emailDeliveries = pgTable(
+  "email_deliveries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    outboxEventId: uuid("outbox_event_id")
+      .notNull()
+      .references(() => outboxEvents.id, { onDelete: "restrict" }),
+    invitationId: uuid("invitation_id")
+      .notNull()
+      .references(() => cmsMembershipInvitations.id, {
+        onDelete: "restrict",
+      }),
+    provider: varchar("provider", { length: 32 }).default("resend").notNull(),
+    providerMessageId: varchar("provider_message_id", { length: 255 }),
+    recipientEmail: varchar("recipient_email", { length: 320 }).notNull(),
+    status: emailDeliveryStatusEnum("status").default("pending").notNull(),
+    lastProviderEventAt: timestamp("last_provider_event_at", {
+      withTimezone: true,
+    }),
+    failureReason: text("failure_reason"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("email_deliveries_outbox_event_unique").on(
+      table.outboxEventId,
+    ),
+    uniqueIndex("email_deliveries_invitation_unique").on(table.invitationId),
+    uniqueIndex("email_deliveries_provider_message_unique")
+      .on(table.providerMessageId)
+      .where(sql`${table.providerMessageId} is not null`),
+    index("email_deliveries_status_idx").on(table.status, table.createdAt),
+    check("email_deliveries_provider_check", sql`${table.provider} = 'resend'`),
+    check(
+      "email_deliveries_recipient_email_check",
+      sql`${table.recipientEmail} = lower(btrim(${table.recipientEmail}))`,
+    ),
+  ],
+);
+
+export const emailDeliveryEvents = pgTable(
+  "email_delivery_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    providerEventId: varchar("provider_event_id", { length: 255 }).notNull(),
+    deliveryId: uuid("delivery_id")
+      .notNull()
+      .references(() => emailDeliveries.id, { onDelete: "cascade" }),
+    providerEventType: varchar("provider_event_type", {
+      length: 80,
+    }).notNull(),
+    providerCreatedAt: timestamp("provider_created_at", {
+      withTimezone: true,
+    }).notNull(),
+    failureReason: text("failure_reason"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("email_delivery_events_provider_event_unique").on(
+      table.providerEventId,
+    ),
+    index("email_delivery_events_delivery_created_idx").on(
+      table.deliveryId,
+      table.providerCreatedAt,
+    ),
+  ],
+);
+
 export const publishedArticles = pgView("published_articles", {
   articleId: uuid("article_id").notNull(),
   revisionId: uuid("revision_id").notNull(),
@@ -541,4 +619,8 @@ export type MediaAsset = typeof mediaAssets.$inferSelect;
 export type NewMediaAsset = typeof mediaAssets.$inferInsert;
 export type AuditEvent = typeof auditEvents.$inferSelect;
 export type OutboxEvent = typeof outboxEvents.$inferSelect;
+export type EmailDelivery = typeof emailDeliveries.$inferSelect;
+export type NewEmailDelivery = typeof emailDeliveries.$inferInsert;
+export type EmailDeliveryEvent = typeof emailDeliveryEvents.$inferSelect;
+export type NewEmailDeliveryEvent = typeof emailDeliveryEvents.$inferInsert;
 export type PublishedArticleRow = typeof publishedArticles.$inferSelect;
