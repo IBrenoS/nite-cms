@@ -14,4 +14,12 @@ export type MembershipInvitation = {
   status: "pending" | "accepted" | "revoked";
   expiresAt: string;
   expired: boolean;
+  deliveryStatus?:
+    | "pending"
+    | "sent"
+    | "delivered"
+    | "bounced"
+    | "complained"
+    | "failed"
+    | null;
 };

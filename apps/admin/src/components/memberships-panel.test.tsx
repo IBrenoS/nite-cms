@@ -115,6 +115,7 @@ describe("MembershipsPanel", () => {
             status: "pending",
             expiresAt: "2099-09-14T12:00:00.000Z",
             expired: false,
+            deliveryStatus: "pending",
           },
         ]}
         currentMembershipId="10000000-0000-4000-8000-000000000001"
@@ -175,5 +176,35 @@ describe("MembershipsPanel", () => {
         invitationId: "30000000-0000-4000-8000-000000000001",
       }),
     );
+  });
+
+  it.each([
+    [undefined, "Aguardando envio"],
+    ["pending", "Aguardando envio"],
+    ["sent", "Enviado"],
+    ["delivered", "Entregue"],
+    ["bounced", "Devolvido"],
+    ["complained", "Marcado como spam"],
+    ["failed", "Falha no envio"],
+  ] as const)("exibe entrega %s como %s", (deliveryStatus, label) => {
+    render(
+      <MembershipsPanel
+        memberships={[]}
+        invitations={[
+          {
+            id: "30000000-0000-4000-8000-000000000010",
+            email: "entrega@unijorge.com.br",
+            role: "publisher",
+            status: "pending",
+            expiresAt: "2099-09-14T12:00:00.000Z",
+            expired: false,
+            deliveryStatus,
+          },
+        ]}
+        currentMembershipId="10000000-0000-4000-8000-000000000001"
+      />,
+    );
+
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 });

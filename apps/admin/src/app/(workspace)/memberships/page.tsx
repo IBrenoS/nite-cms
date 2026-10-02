@@ -1,5 +1,9 @@
 import { asc, eq, getTableColumns, sql } from "drizzle-orm";
-import { cmsMembershipInvitations, cmsMemberships } from "@nite/cms-db";
+import {
+  cmsMembershipInvitations,
+  cmsMemberships,
+  emailDeliveries,
+} from "@nite/cms-db";
 import { MembershipsPanel } from "@/components/memberships-panel";
 import { requireCmsPageContext } from "@/lib/auth";
 
@@ -25,8 +29,13 @@ export default async function MembershipsPage() {
       .select({
         ...getTableColumns(cmsMembershipInvitations),
         expired: sql<boolean>`${cmsMembershipInvitations.expiresAt} <= now()`,
+        deliveryStatus: emailDeliveries.status,
       })
       .from(cmsMembershipInvitations)
+      .leftJoin(
+        emailDeliveries,
+        eq(emailDeliveries.invitationId, cmsMembershipInvitations.id),
+      )
       .where(eq(cmsMembershipInvitations.tenantId, context.membership.tenantId))
       .orderBy(asc(cmsMembershipInvitations.email)),
   ]);

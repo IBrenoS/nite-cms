@@ -10,6 +10,18 @@ import {
 } from "@/app/(workspace)/memberships/actions";
 import type { MembershipInvitation } from "./memberships.types";
 
+const deliveryStatusLabels = {
+  pending: "Aguardando envio",
+  sent: "Enviado",
+  delivered: "Entregue",
+  bounced: "Devolvido",
+  complained: "Marcado como spam",
+  failed: "Falha no envio",
+} satisfies Record<
+  NonNullable<MembershipInvitation["deliveryStatus"]>,
+  string
+>;
+
 export function MembershipInvitations({
   invitations,
 }: {
@@ -42,6 +54,9 @@ export function MembershipInvitations({
       <ul className="divide-y divide-nite-border-subtle">
         {invitations.map((invitation) => {
           const expiration = new Date(invitation.expiresAt);
+          const deliveryLabel = invitation.deliveryStatus
+            ? deliveryStatusLabels[invitation.deliveryStatus]
+            : deliveryStatusLabels.pending;
           return (
             <li key={invitation.id} className="grid gap-3 px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -56,6 +71,9 @@ export function MembershipInvitations({
                     {" · "}
                     {invitation.expired ? "Expirado" : "Expira em"}{" "}
                     {new Intl.DateTimeFormat("pt-BR").format(expiration)}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-nite-text-secondary">
+                    Entrega: <span>{deliveryLabel}</span>
                   </p>
                 </div>
                 <div className="flex gap-2">
