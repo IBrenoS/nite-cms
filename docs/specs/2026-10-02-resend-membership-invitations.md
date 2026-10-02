@@ -123,7 +123,7 @@ Uma linha por comando lógico de envio:
 
 - `id` UUID;
 - `outbox_event_id` UUID único e referenciado;
-- `invitation_id` UUID referenciado;
+- `invitation_id` UUID único e referenciado;
 - `provider` com valor `resend`;
 - `provider_message_id` único e opcional até a resposta de aceite do Resend;
 - `recipient_email` normalizado;
