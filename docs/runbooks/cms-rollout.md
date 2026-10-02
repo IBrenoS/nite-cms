@@ -6,6 +6,10 @@ Este documento descreve a homologação coordenada de três aplicações
 independentes: CMS Admin, CMS API e Portal. Ele não autoriza migration, deploy,
 alteração de secrets ou publicação de conteúdo em produção.
 
+O provisionamento, a homologação e o rollback do envio de convites estão em
+[`resend-membership-invitations.md`](resend-membership-invitations.md). Esse
+runbook complementar também exige autorização operacional separada.
+
 ## Pré-requisitos
 
 - projetos separados para `apps/admin`, `apps/api` e o Portal;

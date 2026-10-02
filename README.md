@@ -84,3 +84,6 @@ Migrations não fazem parte do build ou do deploy.
 Consulte `docs/runbooks/cms-rollout.md` para o corte coordenado de Admin, API e
 Portal. Os runbooks não contêm credenciais nem autorizam, por si só, uma
 migration ou publicação em produção.
+
+Para provisionar e homologar o envio transacional de convites, consulte
+[`docs/runbooks/resend-membership-invitations.md`](docs/runbooks/resend-membership-invitations.md).
