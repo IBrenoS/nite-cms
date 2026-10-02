@@ -86,8 +86,9 @@ export function MembershipCreateForm({
             : "px-4 pb-3 text-xs text-nite-text-secondary"
         }
       >
-        Nenhum e-mail é enviado automaticamente. Avise a pessoa para acessar o
-        CMS com a conta institucional em até 7 dias.
+        Um e-mail de convite será enviado automaticamente. A pessoa deverá
+        aceitar o convite e acessar o CMS com a mesma conta institucional em
+        até 7 dias.
       </p>
 
       {state.status !== "idle" ? (
