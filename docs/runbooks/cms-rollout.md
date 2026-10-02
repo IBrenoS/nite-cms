@@ -87,8 +87,8 @@ headers do Admin e CORS `GET/HEAD` no público somente para `nite.tec.br`.
 
 Em desenvolvimento local, `PORTAL_PREVIEW_URL` vazio é um estado válido e
 significa que o Preview no Portal ainda não foi integrado. O Admin permanece
-operacional, o Preview no CMS continua disponível e tentativas de usar o Preview
-no Portal recebem uma indisponibilidade explícita, sem emitir token.
+operacional, mas tentativas de abrir o preview recebem uma indisponibilidade
+explícita, sem emitir token.
 
 Para integrar o Admin ao Portal dinâmico, defina:
 
@@ -192,8 +192,8 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
     cues, promoção pública, purge do staging e CORS `GET/HEAD` no Portal.
 11. Crie e salve uma matéria; confirme revisão imutável e conflito por
     `expectedRevisionId` desatualizado.
-12. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra Preview no
-    CMS e Preview no Portal e confirme os valores atuais, a versão/revisão
+12. Altere título, resumo, slug, corpo, SEO e mídia sem salvar. Abra o Preview
+    no Portal e confirme os valores atuais, a versão/revisão
     corrente inalterada e ausência de nova `article_revision`. Confirme Draft
     Mode, faixa “Prévia — ainda não publicada”, isolamento por slug/snapshot,
     `noindex,nofollow`, ausência de canonical/JSON-LD, `no-referrer`, no-store e

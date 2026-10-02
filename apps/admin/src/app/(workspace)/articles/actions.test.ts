@@ -257,19 +257,25 @@ describe("ações do editor", () => {
     expect(mocks.after).toHaveBeenCalledOnce();
   });
 
-  it("cria preview interno das alterações atuais sem salvar revisão", async () => {
+  it("emite preview do Portal para um rascunho persistido sem exigir publicação", async () => {
     mocks.createSnapshot.mockResolvedValue({
       id: "40000000-0000-4000-8000-000000000001",
     });
+    vi.stubEnv("PREVIEW_HMAC_SECRET", "x".repeat(32));
+    vi.stubEnv("PORTAL_PREVIEW_URL", "https://portal.nite.test/api/preview");
 
-    const result = await createLivePreviewLink("cms", publishablePreviewForm());
+    const draft = draftForm();
+    draft.set("articleId", "10000000-0000-4000-8000-000000000001");
+    draft.set("expectedRevisionId", "20000000-0000-4000-8000-000000000003");
 
-    expect(result).toEqual({
-      status: "success",
-      data: {
-        url: "/preview/articles/10000000-0000-4000-8000-000000000001?snapshot=40000000-0000-4000-8000-000000000001",
-      },
-    });
+    const result = await createLivePreviewLink(draft);
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("Preview não emitido.");
+    const url = new URL(result.data.url);
+    expect(url.origin).toBe("https://portal.nite.test");
+    expect(url.pathname).toBe("/api/preview");
+    expect(url.searchParams.get("token")).toMatch(/^v2\.[^.]+\.[^.]+$/u);
     expect(mocks.submit).not.toHaveBeenCalled();
   });
 
@@ -280,10 +286,7 @@ describe("ações do editor", () => {
     vi.stubEnv("PREVIEW_HMAC_SECRET", "x".repeat(32));
     vi.stubEnv("PORTAL_PREVIEW_URL", "https://portal.nite.test/api/preview");
 
-    const result = await createLivePreviewLink(
-      "portal",
-      publishablePreviewForm(),
-    );
+    const result = await createLivePreviewLink(publishablePreviewForm());
 
     expect(result.status).toBe("success");
     if (result.status !== "success") throw new Error("Preview não emitido.");
@@ -432,8 +435,7 @@ describe("ações do editor", () => {
     expect(result).toEqual({
       status: "operation_error",
       code: "preview_unavailable",
-      message:
-        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+      message: "O Preview no Portal não está configurado neste ambiente.",
       retryable: false,
     });
     expect(log).not.toHaveBeenCalled();

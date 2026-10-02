@@ -224,13 +224,10 @@ const previewLinkSchema = z.object({
   revisionId: z.uuid(),
 });
 
-export async function createLivePreviewLink(
-  target: "cms" | "portal",
-  formData: FormData,
-) {
+export async function createLivePreviewLink(formData: FormData) {
   try {
     const context = await requireCmsContext();
-    formData.set("intent", "publish");
+    formData.set("intent", "save");
     const { fields, input } = parseEditorialFormData(formData);
     if (!fields.articleId || !fields.expectedRevisionId) {
       return {
@@ -241,7 +238,7 @@ export async function createLivePreviewLink(
       };
     }
     const preview = readPreviewConfiguration(process.env);
-    if (target === "portal" && !preview.configured) {
+    if (!preview.configured) {
       return {
         status: "operation_error" as const,
         code: "preview_unavailable" as const,
@@ -255,15 +252,6 @@ export async function createLivePreviewLink(
       baseRevisionId: fields.expectedRevisionId,
       input,
     });
-    if (target === "cms") {
-      return {
-        status: "success" as const,
-        data: {
-          url: `/preview/articles/${fields.articleId}?snapshot=${snapshot.id}`,
-        },
-      };
-    }
-    if (!preview.configured) throw new Error("Preview indisponível.");
     const url = new URL(preview.configuration.portalPreviewUrl);
     url.searchParams.set(
       "token",
@@ -305,8 +293,7 @@ export async function createPrivatePreviewLink(input: unknown) {
       return {
         status: "operation_error" as const,
         code: "preview_unavailable" as const,
-        message:
-          "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+        message: "O Preview no Portal não está configurado neste ambiente.",
         retryable: false,
       };
     }

@@ -20,7 +20,7 @@ type EditorHeaderProps = {
   canPublish: boolean;
   currentStatus?: "draft" | "published" | "archived";
   hasUnpublishedChanges?: boolean;
-  openLivePreview: (target: "cms" | "portal") => void;
+  openLivePreview: () => void;
 };
 
 export function EditorHeader({
@@ -93,27 +93,9 @@ export function EditorHeader({
             <div className="absolute top-full right-0 z-50 mt-1.5 w-64 rounded-lg border border-nite-border-subtle bg-nite-surface p-1.5 shadow-lg">
               <button
                 type="button"
-                aria-label="Preview no CMS"
-                disabled={operationPending}
-                onClick={() => openLivePreview("cms")}
-                className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
-              >
-                <span>
-                  <span className="block font-semibold">Preview no CMS</span>
-                  <span className="block text-xs text-nite-text-secondary">
-                    Alterações atuais · expira em 10 min.
-                  </span>
-                </span>
-                <ExternalLinkIcon
-                  className="size-3 text-nite-text-secondary"
-                  aria-hidden="true"
-                />
-              </button>
-              <button
-                type="button"
                 aria-label="Preview no Portal"
                 disabled={operationPending}
-                onClick={() => openLivePreview("portal")}
+                onClick={openLivePreview}
                 className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
               >
                 <span>

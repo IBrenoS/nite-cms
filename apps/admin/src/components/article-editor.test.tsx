@@ -395,14 +395,11 @@ describe("ArticleEditor", () => {
       screen.queryByRole("button", { name: "Arquivar" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Preview no CMS" }),
-    ).not.toBeInTheDocument();
-    expect(
       screen.queryByRole("button", { name: "Preview no Portal" }),
     ).not.toBeInTheDocument();
   });
 
-  it("oferece preview ao vivo no CMS e no Portal em matéria persistida", () => {
+  it("oferece somente o preview ao vivo no Portal em matéria persistida", () => {
     render(
       <ArticleEditor
         canPublish
@@ -415,15 +412,12 @@ describe("ArticleEditor", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Preview no CMS" }),
-    ).toBeEnabled();
-    expect(
       screen.getByRole("button", { name: "Preview no Portal" }),
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Arquivar" })).toBeEnabled();
     expect(
       screen.getAllByText("Alterações atuais · expira em 10 min."),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(
       screen.getByText("O preview não salva uma nova revisão."),
     ).toBeInTheDocument();
@@ -432,15 +426,13 @@ describe("ArticleEditor", () => {
     ).toBeInTheDocument();
   });
 
-  it("abre os dois previews com os valores atuais sem salvar a revisão", async () => {
-    mocks.preview.mockImplementation(
-      async (target: "cms" | "portal", data: FormData) => ({
-        status: "success",
-        data: {
-          url: `${target === "cms" ? "/preview/local" : "https://portal.nite.test/preview"}?title=${encodeURIComponent(String(data.get("title")))}`,
-        },
-      }),
-    );
+  it("abre o preview do Portal com os valores atuais sem salvar a revisão", async () => {
+    mocks.preview.mockImplementation(async (data: FormData) => ({
+      status: "success",
+      data: {
+        url: `https://portal.nite.test/preview?title=${encodeURIComponent(String(data.get("title")))}`,
+      },
+    }));
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     render(
       <ArticleEditor
@@ -456,17 +448,9 @@ describe("ArticleEditor", () => {
       target: { value: "Título atual ainda não salvo" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview no CMS" }));
-    await waitFor(() =>
-      expect(open).toHaveBeenCalledWith(
-        "/preview/local?title=T%C3%ADtulo%20atual%20ainda%20n%C3%A3o%20salvo",
-        "_blank",
-        "noopener,noreferrer",
-      ),
-    );
     fireEvent.click(screen.getByRole("button", { name: "Preview no Portal" }));
     await waitFor(() =>
-      expect(open).toHaveBeenLastCalledWith(
+      expect(open).toHaveBeenCalledWith(
         "https://portal.nite.test/preview?title=T%C3%ADtulo%20atual%20ainda%20n%C3%A3o%20salvo",
         "_blank",
         "noopener,noreferrer",
@@ -600,7 +584,7 @@ describe("ArticleEditor", () => {
       screen.getByText("Alterações não publicadas · v2"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Preview no CMS" }),
+      screen.getByRole("button", { name: "Preview no Portal" }),
     ).toBeEnabled();
   });
 
@@ -879,8 +863,7 @@ describe("ArticleEditor", () => {
     mocks.preview.mockResolvedValue({
       status: "operation_error",
       code: "preview_unavailable",
-      message:
-        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+      message: "O Preview no Portal não está configurado neste ambiente.",
       retryable: false,
     });
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
@@ -903,7 +886,7 @@ describe("ArticleEditor", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "O Preview no Portal não está configurado neste ambiente. A revisão permanece disponível no Preview do CMS.",
+        "O Preview no Portal não está configurado neste ambiente.",
       ),
     );
     expect(screen.getByLabelText("Título")).toHaveValue(

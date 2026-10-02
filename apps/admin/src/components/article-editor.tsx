@@ -732,7 +732,7 @@ export function ArticleEditor({
     });
   }
 
-  async function openLivePreview(target: "cms" | "portal") {
+  async function openLivePreview() {
     if (!initial) return;
     const form = document.getElementById("article-editor-form");
     if (!(form instanceof HTMLFormElement)) return;
@@ -740,8 +740,8 @@ export function ArticleEditor({
     setPreviewMessage(undefined);
     try {
       const data = new FormData(form);
-      data.set("intent", "publish");
-      const result = await createLivePreviewLink(target, data);
+      data.set("intent", "save");
+      const result = await createLivePreviewLink(data);
       if (result.status === "success") {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       } else {
@@ -933,7 +933,7 @@ export function ArticleEditor({
         canPublish={canPublish}
         currentStatus={currentStatus}
         hasUnpublishedChanges={hasUnpublishedChanges}
-        openLivePreview={(target) => void openLivePreview(target)}
+        openLivePreview={() => void openLivePreview()}
       />
 
       {/* Faixa de Notificações / Status Banner com aria-live="polite" */}
@@ -1163,7 +1163,7 @@ export function ArticleEditor({
             <button
               type="button"
               disabled={operationPending}
-              onClick={() => void openLivePreview("cms")}
+              onClick={() => void openLivePreview()}
               className="inline-flex min-h-11 items-center justify-center rounded-md border border-nite-border-subtle px-2 text-sm font-semibold text-nite-text-primary disabled:opacity-55 sm:hidden"
             >
               Preview
