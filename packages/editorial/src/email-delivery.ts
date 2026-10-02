@@ -184,7 +184,8 @@ export async function recordEmailDeliveryEvent<
       !delivery.lastProviderEventAt ||
       event.providerCreatedAt >= delivery.lastProviderEventAt;
     const applyState =
-      eventIsCurrent && canTransitionDeliveryStatus(delivery.status, nextStatus);
+      eventIsCurrent &&
+      canTransitionDeliveryStatus(delivery.status, nextStatus);
     await transaction
       .update(emailDeliveries)
       .set({

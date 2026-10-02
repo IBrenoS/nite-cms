@@ -20,7 +20,7 @@ import {
 import { buildInvitationAcceptUrl } from "./invitation-link";
 import { buildMembershipInvitationEmail } from "./membership-invitation-email";
 
-export type InvitationEmailRequest = {
+type InvitationEmailRequest = {
   from: string;
   to: string;
   subject: string;
@@ -109,10 +109,7 @@ export async function dispatchMembershipInvitationEmail<
     .from(cmsMembershipInvitations)
     .innerJoin(
       cmsMemberships,
-      eq(
-        cmsMemberships.id,
-        cmsMembershipInvitations.invitedByMembershipId,
-      ),
+      eq(cmsMemberships.id, cmsMembershipInvitations.invitedByMembershipId),
     )
     .where(
       and(
@@ -168,10 +165,7 @@ export async function dispatchMembershipInvitationEmail<
     );
     return { status: sent.status };
   } catch (error) {
-    if (
-      error instanceof InvitationEmailProviderError &&
-      !error.transient
-    ) {
+    if (error instanceof InvitationEmailProviderError && !error.transient) {
       const failed = await markInvitationEmailDeliveryFailed(
         options.database,
         delivery.id,

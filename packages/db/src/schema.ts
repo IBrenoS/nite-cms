@@ -516,9 +516,7 @@ export const emailDeliveries = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("email_deliveries_outbox_event_unique").on(
-      table.outboxEventId,
-    ),
+    uniqueIndex("email_deliveries_outbox_event_unique").on(table.outboxEventId),
     uniqueIndex("email_deliveries_invitation_unique").on(table.invitationId),
     uniqueIndex("email_deliveries_provider_message_unique")
       .on(table.providerMessageId)

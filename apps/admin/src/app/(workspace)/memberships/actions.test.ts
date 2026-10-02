@@ -39,7 +39,9 @@ describe("ações de convite", () => {
       membership: { id: "membership-id" },
     });
     mocks.createCmsMembershipInvitation.mockResolvedValue({ id: "invite-id" });
-    mocks.replaceCmsMembershipInvitation.mockResolvedValue({ id: "invite-id-2" });
+    mocks.replaceCmsMembershipInvitation.mockResolvedValue({
+      id: "invite-id-2",
+    });
     mocks.processCmsOutbox.mockResolvedValue({ processed: 1 });
   });
 

@@ -138,12 +138,8 @@
           "name": "auth_accounts_user_id_auth_users_id_fk",
           "tableFrom": "auth_accounts",
           "tableTo": "auth_users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -193,12 +189,8 @@
           "name": "article_media_references_article_id_articles_id_fk",
           "tableFrom": "article_media_references",
           "tableTo": "articles",
-          "columnsFrom": [
-            "article_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["article_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -206,12 +198,8 @@
           "name": "article_media_references_media_id_media_assets_id_fk",
           "tableFrom": "article_media_references",
           "tableTo": "media_assets",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["media_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -219,10 +207,7 @@
       "compositePrimaryKeys": {
         "article_media_references_article_id_media_id_pk": {
           "name": "article_media_references_article_id_media_id_pk",
-          "columns": [
-            "article_id",
-            "media_id"
-          ]
+          "columns": ["article_id", "media_id"]
         }
       },
       "uniqueConstraints": {},
@@ -396,12 +381,8 @@
           "name": "article_revisions_article_id_articles_id_fk",
           "tableFrom": "article_revisions",
           "tableTo": "articles",
-          "columnsFrom": [
-            "article_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["article_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -409,12 +390,8 @@
           "name": "article_revisions_cover_media_id_media_assets_id_fk",
           "tableFrom": "article_revisions",
           "tableTo": "media_assets",
-          "columnsFrom": [
-            "cover_media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["cover_media_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -422,12 +399,8 @@
           "name": "article_revisions_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "article_revisions",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "created_by_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -569,12 +542,8 @@
           "name": "articles_current_revision_id_article_revisions_id_fk",
           "tableFrom": "articles",
           "tableTo": "article_revisions",
-          "columnsFrom": [
-            "current_revision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["current_revision_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -582,12 +551,8 @@
           "name": "articles_published_revision_id_article_revisions_id_fk",
           "tableFrom": "articles",
           "tableTo": "article_revisions",
-          "columnsFrom": [
-            "published_revision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["published_revision_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -595,12 +560,8 @@
           "name": "articles_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "articles",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "created_by_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -608,12 +569,8 @@
           "name": "articles_updated_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "articles",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "updated_by_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -623,9 +580,7 @@
         "articles_slug_unique": {
           "name": "articles_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -720,12 +675,8 @@
           "name": "audit_events_actor_membership_id_cms_memberships_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "actor_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -904,12 +855,8 @@
           "name": "cms_membership_invitations_invited_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "cms_membership_invitations",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "invited_by_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invited_by_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -917,12 +864,8 @@
           "name": "cms_membership_invitations_accepted_membership_id_cms_memberships_id_fk",
           "tableFrom": "cms_membership_invitations",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "accepted_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["accepted_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -930,12 +873,8 @@
           "name": "cms_membership_invitations_replaces_invitation_id_cms_membership_invitations_id_fk",
           "tableFrom": "cms_membership_invitations",
           "tableTo": "cms_membership_invitations",
-          "columnsFrom": [
-            "replaces_invitation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["replaces_invitation_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1219,12 +1158,8 @@
           "name": "email_deliveries_outbox_event_id_outbox_events_id_fk",
           "tableFrom": "email_deliveries",
           "tableTo": "outbox_events",
-          "columnsFrom": [
-            "outbox_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["outbox_event_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1232,12 +1167,8 @@
           "name": "email_deliveries_invitation_id_cms_membership_invitations_id_fk",
           "tableFrom": "email_deliveries",
           "tableTo": "cms_membership_invitations",
-          "columnsFrom": [
-            "invitation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invitation_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1349,12 +1280,8 @@
           "name": "email_delivery_events_delivery_id_email_deliveries_id_fk",
           "tableFrom": "email_delivery_events",
           "tableTo": "email_deliveries",
-          "columnsFrom": [
-            "delivery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["delivery_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1501,12 +1428,8 @@
           "name": "media_assets_created_by_membership_id_cms_memberships_id_fk",
           "tableFrom": "media_assets",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "created_by_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1516,16 +1439,12 @@
         "media_assets_staging_object_key_unique": {
           "name": "media_assets_staging_object_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "staging_object_key"
-          ]
+          "columns": ["staging_object_key"]
         },
         "media_assets_public_object_key_unique": {
           "name": "media_assets_public_object_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "public_object_key"
-          ]
+          "columns": ["public_object_key"]
         }
       },
       "policies": {},
@@ -1720,12 +1639,8 @@
           "name": "preview_media_references_snapshot_id_preview_snapshots_id_fk",
           "tableFrom": "preview_media_references",
           "tableTo": "preview_snapshots",
-          "columnsFrom": [
-            "snapshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["snapshot_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1733,12 +1648,8 @@
           "name": "preview_media_references_media_id_media_assets_id_fk",
           "tableFrom": "preview_media_references",
           "tableTo": "media_assets",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["media_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1746,10 +1657,7 @@
       "compositePrimaryKeys": {
         "preview_media_references_snapshot_id_media_id_pk": {
           "name": "preview_media_references_snapshot_id_media_id_pk",
-          "columns": [
-            "snapshot_id",
-            "media_id"
-          ]
+          "columns": ["snapshot_id", "media_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1849,12 +1757,8 @@
           "name": "preview_snapshots_article_id_articles_id_fk",
           "tableFrom": "preview_snapshots",
           "tableTo": "articles",
-          "columnsFrom": [
-            "article_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["article_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1862,12 +1766,8 @@
           "name": "preview_snapshots_base_revision_id_article_revisions_id_fk",
           "tableFrom": "preview_snapshots",
           "tableTo": "article_revisions",
-          "columnsFrom": [
-            "base_revision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["base_revision_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1875,12 +1775,8 @@
           "name": "preview_snapshots_actor_membership_id_cms_memberships_id_fk",
           "tableFrom": "preview_snapshots",
           "tableTo": "cms_memberships",
-          "columnsFrom": [
-            "actor_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_membership_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1973,12 +1869,8 @@
           "name": "auth_sessions_user_id_auth_users_id_fk",
           "tableFrom": "auth_sessions",
           "tableTo": "auth_users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1988,9 +1880,7 @@
         "auth_sessions_token_unique": {
           "name": "auth_sessions_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -2054,9 +1944,7 @@
         "auth_users_email_unique": {
           "name": "auth_users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -2135,28 +2023,17 @@
     "public.article_status": {
       "name": "article_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "published",
-        "archived"
-      ]
+      "values": ["draft", "published", "archived"]
     },
     "public.cms_membership_invitation_status": {
       "name": "cms_membership_invitation_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "accepted",
-        "revoked"
-      ]
+      "values": ["pending", "accepted", "revoked"]
     },
     "public.cms_role": {
       "name": "cms_role",
       "schema": "public",
-      "values": [
-        "admin",
-        "publisher"
-      ]
+      "values": ["admin", "publisher"]
     },
     "public.email_delivery_status": {
       "name": "email_delivery_status",
@@ -2173,11 +2050,7 @@
     "public.media_kind": {
       "name": "media_kind",
       "schema": "public",
-      "values": [
-        "image",
-        "video",
-        "captions"
-      ]
+      "values": ["image", "video", "captions"]
     },
     "public.media_status": {
       "name": "media_status",
@@ -2194,12 +2067,7 @@
     "public.outbox_status": {
       "name": "outbox_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "processing",
-        "succeeded",
-        "failed"
-      ]
+      "values": ["pending", "processing", "succeeded", "failed"]
     }
   },
   "schemas": {},

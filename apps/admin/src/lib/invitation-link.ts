@@ -43,7 +43,8 @@ function parsePublicOrigin(value: string): URL {
   const url = new URL(value);
   const localDevelopment = url.hostname === "localhost";
   if (
-    (url.protocol !== "https:" && !(localDevelopment && url.protocol === "http:")) ||
+    (url.protocol !== "https:" &&
+      !(localDevelopment && url.protocol === "http:")) ||
     url.username ||
     url.password ||
     url.pathname !== "/" ||
@@ -76,7 +77,9 @@ export function verifyInvitationSignature(
       "base64url",
     );
     const received = Buffer.from(signature, "base64url");
-    return received.length === expected.length && timingSafeEqual(received, expected);
+    return (
+      received.length === expected.length && timingSafeEqual(received, expected)
+    );
   } catch {
     return false;
   }

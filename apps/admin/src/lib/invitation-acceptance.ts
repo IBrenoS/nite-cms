@@ -1,22 +1,18 @@
 import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 
-import {
-  cmsMembershipInvitations,
-  cmsMemberships,
-} from "@nite/cms-db";
+import { cmsMembershipInvitations, cmsMemberships } from "@nite/cms-db";
 import type { CmsDatabase } from "@nite/editorial";
 import { verifyInvitationSignature } from "./invitation-link";
 
-export const INVITATION_ACCEPTANCE_COOKIE =
-  "nite-cms.invitation-acceptance";
+export const INVITATION_ACCEPTANCE_COOKIE = "nite-cms.invitation-acceptance";
 
 export type InvitationAcceptanceReference = {
   invitationId: string;
   signature: string;
 };
 
-export type ValidInvitationAcceptance = {
+type ValidInvitationAcceptance = {
   status: "valid";
   invitation: {
     id: string;
@@ -26,8 +22,7 @@ export type ValidInvitationAcceptance = {
 };
 
 export type InvitationAcceptanceResult =
-  | ValidInvitationAcceptance
-  | { status: "invalid" | "revoked" | "expired" };
+  ValidInvitationAcceptance | { status: "invalid" | "revoked" | "expired" };
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -95,10 +90,7 @@ export async function validateInvitationAcceptance<
     .from(cmsMembershipInvitations)
     .innerJoin(
       cmsMemberships,
-      eq(
-        cmsMemberships.id,
-        cmsMembershipInvitations.invitedByMembershipId,
-      ),
+      eq(cmsMemberships.id, cmsMembershipInvitations.invitedByMembershipId),
     )
     .where(eq(cmsMembershipInvitations.id, reference.invitationId))
     .limit(1);

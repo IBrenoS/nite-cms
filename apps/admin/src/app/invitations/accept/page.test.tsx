@@ -35,7 +35,9 @@ describe("página de aceite", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.cookies.mockResolvedValue({ get: vi.fn(() => ({ value: "cookie" })) });
+    mocks.cookies.mockResolvedValue({
+      get: vi.fn(() => ({ value: "cookie" })),
+    });
     mocks.decodeInvitationAcceptanceCookie.mockReturnValue({
       invitationId: "10000000-0000-4000-8000-000000000001",
       signature: "a".repeat(43),
@@ -65,7 +67,9 @@ describe("página de aceite", () => {
     expect(screen.getByText(/Breno NITE/)).toBeInTheDocument();
     expect(screen.getByText(/9 de outubro de 2026/)).toBeInTheDocument();
     expect(screen.getByText(/09:00/)).toBeInTheDocument();
-    expect(screen.queryByText(/publisher|admin|editorial/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/publisher|admin|editorial/i),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Aceitar convite" }),
     ).toBeInTheDocument();

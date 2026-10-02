@@ -18,8 +18,13 @@ vi.mock("@/lib/email-config", () => ({
 }));
 vi.mock("@/lib/invitation-acceptance", () => ({
   INVITATION_ACCEPTANCE_COOKIE: "nite-cms.invitation-acceptance",
-  encodeInvitationAcceptanceCookie: ({ invitationId, signature }: { invitationId: string; signature: string }) =>
-    `${invitationId}.${signature}`,
+  encodeInvitationAcceptanceCookie: ({
+    invitationId,
+    signature,
+  }: {
+    invitationId: string;
+    signature: string;
+  }) => `${invitationId}.${signature}`,
   validateInvitationAcceptance: mocks.validateInvitationAcceptance,
 }));
 

@@ -14,7 +14,7 @@ type EmailConfigurationIssue = {
   reason: "missing" | "invalid";
 };
 
-export type EmailConfiguration = {
+type EmailConfiguration = {
   apiKey: string;
   webhookSecret: string;
   fromEmail: string;
@@ -36,7 +36,8 @@ function normalizePublicUrl(value: string | undefined): string | undefined {
     const url = new URL(value.trim());
     const localDevelopment = url.hostname === "localhost";
     if (
-      (url.protocol !== "https:" && !(localDevelopment && url.protocol === "http:")) ||
+      (url.protocol !== "https:" &&
+        !(localDevelopment && url.protocol === "http:")) ||
       url.username ||
       url.password ||
       url.pathname !== "/" ||

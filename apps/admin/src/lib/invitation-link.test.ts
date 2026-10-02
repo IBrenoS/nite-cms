@@ -34,10 +34,22 @@ describe("links assinados de convite", () => {
   });
 
   it.each([
-    ["invitationId", { ...claims, invitationId: "10000000-0000-4000-8000-000000000002" }],
-    ["tenantId", { ...claims, tenantId: "20000000-0000-4000-8000-000000000002" }],
-    ["linkNonce", { ...claims, linkNonce: "30000000-0000-4000-8000-000000000002" }],
-    ["expiresAt", { ...claims, expiresAt: new Date("2026-10-09T12:00:01.000Z") }],
+    [
+      "invitationId",
+      { ...claims, invitationId: "10000000-0000-4000-8000-000000000002" },
+    ],
+    [
+      "tenantId",
+      { ...claims, tenantId: "20000000-0000-4000-8000-000000000002" },
+    ],
+    [
+      "linkNonce",
+      { ...claims, linkNonce: "30000000-0000-4000-8000-000000000002" },
+    ],
+    [
+      "expiresAt",
+      { ...claims, expiresAt: new Date("2026-10-09T12:00:01.000Z") },
+    ],
   ] as const)("rejeita assinatura quando %s muda", (_field, changedClaims) => {
     const signature = createInvitationSignature(claims, secret);
     expect(verifyInvitationSignature(changedClaims, signature, secret)).toBe(

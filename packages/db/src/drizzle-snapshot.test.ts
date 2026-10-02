@@ -127,9 +127,9 @@ describe("Drizzle migration metadata", () => {
       tables["public.cms_membership_invitations"],
       "snapshot.tables.public.cms_membership_invitations",
     );
-    expect(requireRecord(invitations.columns, "invitations.columns")).toHaveProperty(
-      "link_nonce",
-    );
+    expect(
+      requireRecord(invitations.columns, "invitations.columns"),
+    ).toHaveProperty("link_nonce");
 
     const deliveries = requireRecord(
       tables["public.email_deliveries"],

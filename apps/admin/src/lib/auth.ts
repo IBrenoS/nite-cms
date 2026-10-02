@@ -119,8 +119,7 @@ export async function getCmsContext() {
       identityContext.identity,
       {
         tenantId: identityContext.configuration.tenantId,
-        adminObjectId:
-          identityContext.configuration.bootstrapAdminObjectId,
+        adminObjectId: identityContext.configuration.bootstrapAdminObjectId,
       },
     );
     return {

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 
-import {
-  CmsAuthorizationError,
-  resolveCmsMembership,
-} from "@nite/editorial";
+import { CmsAuthorizationError, resolveCmsMembership } from "@nite/editorial";
 import { getAuthenticatedEntraContext } from "@/lib/auth";
 import { readEmailConfiguration } from "@/lib/email-config";
 import {
@@ -54,8 +51,7 @@ export async function GET(request: Request) {
       status: 503,
     });
   }
-  const { publicUrl, invitationLinkSecret } =
-    emailConfiguration.configuration;
+  const { publicUrl, invitationLinkSecret } = emailConfiguration.configuration;
   const reference = decodeInvitationAcceptanceCookie(
     readCookie(request, INVITATION_ACCEPTANCE_COOKIE),
   );
@@ -86,8 +82,7 @@ export async function GET(request: Request) {
       identityContext.identity,
       {
         tenantId: identityContext.configuration.tenantId,
-        adminObjectId:
-          identityContext.configuration.bootstrapAdminObjectId,
+        adminObjectId: identityContext.configuration.bootstrapAdminObjectId,
       },
       { invitationId: reference.invitationId },
     );

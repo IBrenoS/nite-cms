@@ -156,7 +156,9 @@ describe("persistência de entrega de convite", () => {
     await expect(recordEmailDeliveryEvent(database, event)).resolves.toBe(
       "duplicate",
     );
-    await expect(database.select().from(emailDeliveries)).resolves.toMatchObject([
+    await expect(
+      database.select().from(emailDeliveries),
+    ).resolves.toMatchObject([
       {
         id: delivery.id,
         status: "delivered",
@@ -193,7 +195,9 @@ describe("persistência de entrega de convite", () => {
       }),
     ).resolves.toBe("recorded");
 
-    await expect(database.select().from(emailDeliveries)).resolves.toMatchObject([
+    await expect(
+      database.select().from(emailDeliveries),
+    ).resolves.toMatchObject([
       {
         status: "delivered",
         lastProviderEventAt: new Date("2026-10-02T12:00:00.000Z"),

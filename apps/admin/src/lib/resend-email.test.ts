@@ -26,7 +26,10 @@ vi.mock("resend", () => ({
   },
 }));
 
-const migrationsFolder = path.resolve(process.cwd(), "../../packages/db/drizzle");
+const migrationsFolder = path.resolve(
+  process.cwd(),
+  "../../packages/db/drizzle",
+);
 const providerInput = {
   from: "CMS NITE <acesso@notify.unijorge.com.br>",
   to: "pessoa@unijorge.com.br",
@@ -56,17 +59,20 @@ describe("adaptador Resend", () => {
     expect(resendMocks.send.mock.calls[0]?.[0]).not.toHaveProperty("html");
   });
 
-  it.each([429, 500, 503])("classifica HTTP %s como transitório", async (statusCode) => {
-    resendMocks.send.mockResolvedValue({
-      data: null,
-      error: { statusCode, name: "rate_limit_exceeded", message: "detalhe" },
-    });
-    const provider = createResendInvitationEmailProvider("re_test_key");
+  it.each([429, 500, 503])(
+    "classifica HTTP %s como transitório",
+    async (statusCode) => {
+      resendMocks.send.mockResolvedValue({
+        data: null,
+        error: { statusCode, name: "rate_limit_exceeded", message: "detalhe" },
+      });
+      const provider = createResendInvitationEmailProvider("re_test_key");
 
-    await expect(
-      provider.send(providerInput, { idempotencyKey: "key" }),
-    ).rejects.toMatchObject({ transient: true });
-  });
+      await expect(
+        provider.send(providerInput, { idempotencyKey: "key" }),
+      ).rejects.toMatchObject({ transient: true });
+    },
+  );
 
   it("classifica timeout como transitório e 4xx como permanente", async () => {
     const provider = createResendInvitationEmailProvider("re_test_key");
@@ -172,7 +178,9 @@ describe("dispatcher de convite", () => {
     await expect(
       dispatchMembershipInvitationEmail(options(arranged, provider)),
     ).rejects.toThrow();
-    await client.exec(`drop trigger reject_provider_message_update_trigger on email_deliveries`);
+    await client.exec(
+      `drop trigger reject_provider_message_update_trigger on email_deliveries`,
+    );
     await expect(
       dispatchMembershipInvitationEmail(options(arranged, provider)),
     ).resolves.toMatchObject({ status: "sent" });
@@ -193,12 +201,14 @@ describe("dispatcher de convite", () => {
   it("encerra falha permanente sem solicitar retry da outbox", async () => {
     const permanent = await arrange();
     const permanentProvider: InvitationEmailProvider = {
-      send: vi.fn().mockRejectedValue(
-        new InvitationEmailProviderError(
-          false,
-          "Resend rejeitou o envio (HTTP 403).",
+      send: vi
+        .fn()
+        .mockRejectedValue(
+          new InvitationEmailProviderError(
+            false,
+            "Resend rejeitou o envio (HTTP 403).",
+          ),
         ),
-      ),
     };
     await expect(
       dispatchMembershipInvitationEmail(options(permanent, permanentProvider)),
@@ -216,12 +226,14 @@ describe("dispatcher de convite", () => {
   it("mantém entrega pendente e relança falha transitória", async () => {
     const arranged = await arrange();
     const provider: InvitationEmailProvider = {
-      send: vi.fn().mockRejectedValue(
-        new InvitationEmailProviderError(
-          true,
-          "Resend indisponível temporariamente.",
+      send: vi
+        .fn()
+        .mockRejectedValue(
+          new InvitationEmailProviderError(
+            true,
+            "Resend indisponível temporariamente.",
+          ),
         ),
-      ),
     };
 
     await expect(

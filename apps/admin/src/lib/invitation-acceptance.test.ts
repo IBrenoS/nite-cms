@@ -4,10 +4,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import path from "node:path";
 
-import {
-  cmsMembershipInvitations,
-  cmsMemberships,
-} from "@nite/cms-db";
+import { cmsMembershipInvitations, cmsMemberships } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
 import { createInvitationSignature } from "./invitation-link";
 import {
@@ -16,7 +13,10 @@ import {
   validateInvitationAcceptance,
 } from "./invitation-acceptance";
 
-const migrationsFolder = path.resolve(process.cwd(), "../../packages/db/drizzle");
+const migrationsFolder = path.resolve(
+  process.cwd(),
+  "../../packages/db/drizzle",
+);
 const secret = "convite-secreto-com-pelo-menos-32-bytes";
 
 describe("contexto de aceite do convite", () => {
@@ -41,7 +41,9 @@ describe("contexto de aceite do convite", () => {
         encodeInvitationAcceptanceCookie(reference),
       ),
     ).toEqual(reference);
-    expect(decodeInvitationAcceptanceCookie("conteudo-adulterado")).toBeUndefined();
+    expect(
+      decodeInvitationAcceptanceCookie("conteudo-adulterado"),
+    ).toBeUndefined();
   });
 
   it("valida assinatura, estado e expiração sem consumir o convite", async () => {

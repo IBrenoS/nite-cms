@@ -17,10 +17,7 @@ const deliveryStatusLabels = {
   bounced: "Devolvido",
   complained: "Marcado como spam",
   failed: "Falha no envio",
-} satisfies Record<
-  NonNullable<MembershipInvitation["deliveryStatus"]>,
-  string
->;
+} satisfies Record<NonNullable<MembershipInvitation["deliveryStatus"]>, string>;
 
 export function MembershipInvitations({
   invitations,

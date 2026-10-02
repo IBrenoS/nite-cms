@@ -44,9 +44,17 @@ describe("webhook Resend assinado", () => {
       data: {
         ...baseData,
         ...(type === "email.bounced"
-          ? { bounce: { message: failureReason, subType: "general", type: "Permanent" } }
+          ? {
+              bounce: {
+                message: failureReason,
+                subType: "general",
+                type: "Permanent",
+              },
+            }
           : {}),
-        ...(type === "email.failed" ? { failed: { reason: failureReason } } : {}),
+        ...(type === "email.failed"
+          ? { failed: { reason: failureReason } }
+          : {}),
         ...(type === "email.suppressed"
           ? { suppressed: { message: failureReason, type: "Manual" } }
           : {}),

@@ -46,7 +46,8 @@ describe("readiness do Admin", () => {
   it("falha genericamente quando somente a configuração de e-mail falta", async () => {
     const probeDatabase = vi.fn().mockResolvedValue(undefined);
     const environment = { ...configuredEnvironment };
-    delete (environment as Partial<typeof configuredEnvironment>).RESEND_API_KEY;
+    delete (environment as Partial<typeof configuredEnvironment>)
+      .RESEND_API_KEY;
 
     await expect(
       checkAdminDatabase({ environment, probeDatabase }),

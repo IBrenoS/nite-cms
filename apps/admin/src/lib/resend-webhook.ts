@@ -19,8 +19,7 @@ type ResendWebhookHeaders = {
 };
 
 type ParsedResendWebhook =
-  | { kind: "ignored" }
-  | { kind: "delivery"; event: EmailDeliveryProviderEvent };
+  { kind: "ignored" } | { kind: "delivery"; event: EmailDeliveryProviderEvent };
 
 const supportedTypes = new Set<EmailDeliveryProviderEventType>([
   "email.sent",
