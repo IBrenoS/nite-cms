@@ -23,8 +23,8 @@ workspaces.
 
 ## Global Constraints
 
-- Remetente: `CMS NITE <acesso@notify.unijorge.com.br>`.
-- Domínio transacional: `notify.unijorge.com.br`, região Resend `sa-east-1`.
+- Remetente: `CMS NITE <acesso@notify.nite.tec.br>`.
+- Domínio transacional: `notify.nite.tec.br`, região Resend `sa-east-1`.
 - Conteúdo exclusivamente plain text, assunto
   `Convite para integrar a equipe do CMS NITE`, sem papel ou nível de acesso.
 - O nome do responsável vem de `cms_memberships.display_name`; não hardcode.
@@ -626,7 +626,7 @@ Commit esperado: `feat(admin): exibir entrega dos convites`.
 
 - [ ] **Step 1: documentar preparação sem executar produção**
 
-Registrar criação do domínio `notify.unijorge.com.br` em `sa-east-1`, SPF/DKIM,
+Registrar criação do domínio `notify.nite.tec.br` em `sa-east-1`, SPF/DKIM,
 DMARC institucional, API key restrita ao domínio, webhook com eventos
 necessários, armazenamento imediato do signing secret e variáveis Vercel/VM.
 

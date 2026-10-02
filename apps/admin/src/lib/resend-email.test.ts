@@ -31,7 +31,7 @@ const migrationsFolder = path.resolve(
   "../../packages/db/drizzle",
 );
 const providerInput = {
-  from: "CMS NITE <acesso@notify.unijorge.com.br>",
+  from: "CMS NITE <acesso@notify.nite.tec.br>",
   to: "pessoa@unijorge.com.br",
   subject: "Convite para integrar a equipe do CMS NITE",
   text: "Mensagem em texto puro",
@@ -148,7 +148,7 @@ describe("dispatcher de convite", () => {
       invitationId: arranged.invitation.id,
       provider,
       configuration: {
-        fromEmail: "CMS NITE <acesso@notify.unijorge.com.br>",
+        fromEmail: "CMS NITE <acesso@notify.nite.tec.br>",
         publicUrl: "https://cms.nite.test",
         invitationLinkSecret: "convite-secreto-com-pelo-menos-32-bytes",
       },

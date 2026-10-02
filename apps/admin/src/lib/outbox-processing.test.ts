@@ -77,7 +77,7 @@ describe("processamento diário do outbox", () => {
       configured: true,
       configuration: {
         apiKey: "re_test_key",
-        fromEmail: "CMS NITE <acesso@notify.unijorge.com.br>",
+        fromEmail: "CMS NITE <acesso@notify.nite.tec.br>",
         publicUrl: "https://cms.nite.test",
         invitationLinkSecret: "s".repeat(32),
       },

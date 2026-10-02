@@ -21,7 +21,7 @@ const baseData = {
   created_at: "2026-10-02T12:00:00.000Z",
   email_id: "provider-message-id",
   message_id: "smtp-message-id",
-  from: "CMS NITE <acesso@notify.unijorge.com.br>",
+  from: "CMS NITE <acesso@notify.nite.tec.br>",
   to: ["pessoa@unijorge.com.br"],
   subject: "Convite para integrar a equipe do CMS NITE",
   tags: { delivery_id: "10000000-0000-4000-8000-000000000001" },

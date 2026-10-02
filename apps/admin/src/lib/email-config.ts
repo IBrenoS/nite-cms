@@ -1,6 +1,6 @@
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 
-const APPROVED_FROM_EMAIL = "CMS NITE <acesso@notify.unijorge.com.br>";
+const APPROVED_FROM_EMAIL = "CMS NITE <acesso@notify.nite.tec.br>";
 
 type EmailConfigurationField =
   | "RESEND_API_KEY"

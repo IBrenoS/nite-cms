@@ -20,7 +20,7 @@ Antes de alterar qualquer ambiente:
 
 1. Liste convites `pending` legados. Defina se cada pessoa ainda deve receber o
    convite; não dispare retroativamente sem revisão administrativa.
-2. No Resend, crie `notify.unijorge.com.br` na região de São Paulo
+2. No Resend, crie `notify.nite.tec.br` na região de São Paulo
    (`sa-east-1`). Não use o domínio raiz para esse fluxo.
 3. Publique no DNS institucional exatamente os registros SPF e DKIM fornecidos
    pelo Resend. Alinhe a política DMARC com a equipe responsável pelo domínio e
@@ -28,7 +28,7 @@ Antes de alterar qualquer ambiente:
 4. Aguarde o domínio aparecer como verificado. Mantenha open tracking e click
    tracking desabilitados; o fluxo não depende desses eventos.
 5. Crie uma API key com permissão somente de envio e restrita ao domínio
-   `notify.unijorge.com.br`. Armazene o valor uma única vez no gerenciador de
+   `notify.nite.tec.br`. Armazene o valor uma única vez no gerenciador de
    secrets do ambiente; nunca em arquivo versionado ou log.
 6. Crie um webhook para
    `https://<origem-do-admin>/api/webhooks/resend`, selecionando somente
@@ -46,7 +46,7 @@ Configure somente no runtime do Admin:
 ```text
 RESEND_API_KEY=<secret de envio restrito ao domínio>
 RESEND_WEBHOOK_SECRET=<signing secret do webhook>
-RESEND_FROM_EMAIL=CMS NITE <acesso@notify.unijorge.com.br>
+RESEND_FROM_EMAIL=CMS NITE <acesso@notify.nite.tec.br>
 CMS_PUBLIC_URL=https://<origem-canônica-do-admin>
 INVITATION_LINK_SECRET=<secret aleatório exclusivo>
 ```

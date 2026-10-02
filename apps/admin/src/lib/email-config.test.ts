@@ -5,7 +5,7 @@ import { readEmailConfiguration } from "./email-config";
 const configuredEnvironment = {
   RESEND_API_KEY: "re_test_key",
   RESEND_WEBHOOK_SECRET: "whsec_test_secret",
-  RESEND_FROM_EMAIL: "CMS NITE <acesso@notify.unijorge.com.br>",
+  RESEND_FROM_EMAIL: "CMS NITE <acesso@notify.nite.tec.br>",
   CMS_PUBLIC_URL: "https://cms.nite.test",
   INVITATION_LINK_SECRET: "convite-secreto-com-pelo-menos-32-bytes",
 };

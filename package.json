@@ -36,5 +36,8 @@
     "prettier": "^3.8.3",
     "turbo": "2.10.9",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3"
   }
 }

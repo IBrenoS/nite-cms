@@ -10,8 +10,8 @@ administrador criar ou substituir um convite de acesso ao CMS. O envio deve ser
 assíncrono, idempotente e observável, sem tornar a disponibilidade do Resend uma
 pré-condição para registrar o convite.
 
-O remetente será `CMS NITE <acesso@notify.unijorge.com.br>`. O subdomínio
-`notify.unijorge.com.br` será autenticado no Resend por DNS. O e-mail informará
+O remetente será `CMS NITE <acesso@notify.nite.tec.br>`. O subdomínio
+`notify.nite.tec.br` será autenticado no Resend por DNS. O e-mail informará
 quem fez o convite, sua expiração e como aceitá-lo, sem revelar o nível de
 acesso. O convite somente será consumido após uma aceitação explícita seguida de
 autenticação pelo Entra com o mesmo endereço institucional convidado.
@@ -221,7 +221,7 @@ O runtime do Admin receberá, por secret store e nunca pelo repositório:
 
 - `RESEND_API_KEY`;
 - `RESEND_WEBHOOK_SECRET`;
-- `RESEND_FROM_EMAIL=CMS NITE <acesso@notify.unijorge.com.br>`;
+- `RESEND_FROM_EMAIL=CMS NITE <acesso@notify.nite.tec.br>`;
 - `CMS_PUBLIC_URL` com a origem HTTPS pública do CMS.
 - `INVITATION_LINK_SECRET` com pelo menos 32 bytes aleatórios.
 
