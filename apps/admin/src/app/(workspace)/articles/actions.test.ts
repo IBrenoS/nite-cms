@@ -339,7 +339,7 @@ describe("ações do editor", () => {
     expect(mocks.after).not.toHaveBeenCalled();
   });
 
-  it("agenda a outbox somente depois de uma publicação concluída", async () => {
+  it("publica sem agendar revalidação do Portal", async () => {
     mocks.submit.mockResolvedValue({
       article: {
         id: "10000000-0000-4000-8000-000000000001",
@@ -378,7 +378,7 @@ describe("ações do editor", () => {
     const result = await submitEditorialArticle({ status: "idle" }, data);
 
     expect(result.status).toBe("success");
-    expect(mocks.after).toHaveBeenCalledOnce();
+    expect(mocks.after).not.toHaveBeenCalled();
   });
 
   it("não emite preview do Portal para uma revisão incompleta", async () => {

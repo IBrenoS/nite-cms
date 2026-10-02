@@ -407,7 +407,7 @@ describe("comandos editoriais", () => {
     });
   });
 
-  it("publica e registra auditoria e outbox para publisher", async () => {
+  it("publica e registra auditoria sem revalidação para publisher", async () => {
     const database = drizzle(client, { schema: cmsSchema });
     const [publisher] = await database
       .insert(cmsMemberships)
@@ -449,13 +449,7 @@ describe("comandos editoriais", () => {
       "Estudantes reunidos em um laboratório de inovação universitário.",
     );
     await expect(database.select().from(auditEvents)).resolves.toHaveLength(2);
-    await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
-      {
-        topic: "news.article.published",
-        aggregateId: created.article.id,
-        status: "pending",
-      },
-    ]);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
     await expect(
       database
         .select({ status: articles.status })
@@ -772,7 +766,7 @@ describe("comandos editoriais", () => {
       publishedRevisionId: result.revision.id,
     });
     await expect(database.select().from(auditEvents)).resolves.toHaveLength(2);
-    await expect(database.select().from(outboxEvents)).resolves.toHaveLength(1);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
   });
 
   it("traduz colisão de slug para um erro editorial tipado", async () => {

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { NewsArticle } from "@nite/editorial";
-import {
-  createArticleResponse,
-  createListResponse,
-  PUBLIC_NEWS_CACHE_CONTROL,
-} from "./responses";
+import { createArticleResponse, createListResponse } from "./responses";
 
 const article = {
   slug: "materia-publicada",
@@ -41,16 +37,14 @@ const article = {
 } satisfies NewsArticle;
 
 describe("respostas HTTP públicas de News", () => {
-  it("versiona, cacheia e assina a coleção com ETag", async () => {
+  it("versiona e impede cache da coleção publicada", async () => {
     const response = createListResponse([article]);
 
     await expect(response.json()).resolves.toEqual({
       version: 2,
       articles: [article],
     });
-    expect(response.headers.get("cache-control")).toBe(
-      PUBLIC_NEWS_CACHE_CONTROL,
-    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("etag")).toMatch(/^"[a-f0-9]{64}"$/);
   });
 
@@ -68,6 +62,7 @@ describe("respostas HTTP públicas de News", () => {
   it("distingue artigo ausente", async () => {
     const missing = createArticleResponse(undefined);
     expect(missing.status).toBe(404);
+    expect(missing.headers.get("cache-control")).toBe("no-store");
     await expect(missing.json()).resolves.toEqual({ error: "not_found" });
   });
 

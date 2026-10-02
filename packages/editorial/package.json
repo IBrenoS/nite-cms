@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./revalidation": "./src/revalidation.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

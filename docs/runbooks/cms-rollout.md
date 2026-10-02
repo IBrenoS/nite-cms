@@ -76,27 +76,23 @@ separada.
 - `PREVIEW_HMAC_SECRET`: secret exclusivo de preview, com pelo menos 32
   caracteres; deve ser idêntico entre emissores e verificadores do CMS Admin,
   mas nunca é compartilhado com o Portal.
-- `WEB_REVALIDATION_URL`: URL HTTPS exata de `/api/revalidate/news` no Portal.
-- `REVALIDATION_SECRET`: pelo menos 32 caracteres, igual no Admin e Portal.
 - `CRON_SECRET`: pelo menos 32 caracteres, exclusivo do cron.
 
 O usuário/role R2 do Admin precisa das operações usadas para upload no staging,
 leitura do staging, escrita no bucket público e `DeleteObject` em ambos os
 buckets. Restrinja a permissão aos buckets `R2_STAGING_BUCKET` e
 `R2_PUBLIC_BUCKET`. Configure CORS do staging somente para origem, métodos e
-headers do Admin e CORS `GET/HEAD` no público somente para o domínio Vercel do
-Portal.
+headers do Admin e CORS `GET/HEAD` no público somente para `nite.tec.br`.
 
 Em desenvolvimento local, `PORTAL_PREVIEW_URL` vazio é um estado válido e
 significa que o Preview no Portal ainda não foi integrado. O Admin permanece
 operacional, o Preview no CMS continua disponível e tentativas de usar o Preview
 no Portal recebem uma indisponibilidade explícita, sem emitir token.
 
-Para integrar temporariamente o Admin local ao Portal publicado em
-`https://portal-nite.vercel.app`, defina:
+Para integrar o Admin ao Portal dinâmico, defina:
 
 ```text
-PORTAL_PREVIEW_URL=https://portal-nite.vercel.app/api/preview
+PORTAL_PREVIEW_URL=https://nite.tec.br/api/preview
 ```
 
 Reinicie o Admin depois de alterar `.env.local`. `BETTER_AUTH_URL` e o redirect
@@ -104,7 +100,7 @@ URI do Microsoft Entra permanecem locais; o túnel descrito abaixo não publica
 rotas de autenticação ou do workspace.
 
 O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
-tentativa em `after()` reduz a latência; o cron é a recuperação durável. No
+tentativa em `after()` acelera a limpeza de mídia; o cron é a recuperação durável. No
 plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
 indisponibilidade prolongada pode aguardar o próximo ciclo.
 Antes de processar o outbox, o mesmo cron remove `preview_snapshots` expirados
@@ -117,17 +113,14 @@ e resolução também fazem a limpeza oportunística dos snapshots.
 - `R2_PUBLIC_BASE_URL`: a mesma base HTTPS pública usada pelo Admin.
 
 A API não recebe Better Auth, Entra, `DATABASE_ADMIN_URL`, credenciais R2 de
-escrita, `PREVIEW_HMAC_SECRET`, `REVALIDATION_SECRET` ou `CRON_SECRET`.
+escrita, `PREVIEW_HMAC_SECRET` ou `CRON_SECRET`.
 
 ### Portal
 
 - `CMS_PUBLIC_API_URL`: origem HTTPS da CMS API; o client consome `/v2/news`.
-- `NITE_NEWS_SOURCE=api`: fonte pública real. `static` é somente teste,
-  desenvolvimento e rollback explícito.
 - `NITE_NEWS_MEDIA_URL`: base HTTPS pública autorizada no Next Image.
 - `CMS_PREVIEW_RESOLVE_URL`: URL HTTPS exata de
   `POST /api/preview/resolve` no CMS Admin.
-- `REVALIDATION_SECRET`: o mesmo valor do CMS Admin.
 
 O Portal não recebe `PREVIEW_HMAC_SECRET`, credenciais de banco do CMS ou
 credenciais R2. Não há fallback automático se API ou configuração falharem.
@@ -135,47 +128,9 @@ credenciais R2. Não há fallback automático se API ou configuração falharem.
 Quando a integração privada for habilitada, configure os dois endpoints HTTPS
 em conjunto: `PORTAL_PREVIEW_URL=https://<portal>/api/preview` no Admin e
 `CMS_PREVIEW_RESOLVE_URL=https://<admin>/api/preview/resolve` no Portal. O Admin
-precisa estar acessível ao servidor do Portal por deploy ou túnel HTTPS. Reinicie
+precisa estar acessível ao servidor do Portal por deploy HTTPS. Reinicie
 o processo local depois de alterar `.env.local` e faça novo deploy quando a
 variável for alterada no provedor do Portal.
-
-### Quick Tunnel para desenvolvimento do preview
-
-Enquanto o CMS Admin não tiver deploy próprio, exponha somente o resolver por
-um proxy local restritivo. Inicie, em terminais separados e nesta ordem:
-
-```text
-npm run dev
-npm run dev:preview-proxy
-cloudflared tunnel --url http://127.0.0.1:3011
-```
-
-O proxy escuta apenas em `127.0.0.1:3011`, aceita exclusivamente
-`POST /api/preview/resolve` e encaminha para o Admin em `127.0.0.1:3001`.
-Qualquer outra rota recebe `404`; indisponibilidade ou timeout do Admin recebe
-`502 preview_proxy_unavailable`, sempre com cache privado e sem registrar token
-ou conteúdo editorial.
-
-Copie a origem HTTPS aleatória emitida pelo `cloudflared` e configure no ambiente
-Production do projeto Vercel `portal-nite`:
-
-```text
-CMS_PREVIEW_RESOLVE_URL=https://<origem-gerada>.trycloudflare.com/api/preview/resolve
-```
-
-Faça redeploy do Portal para aplicar a variável. A origem muda toda vez que o
-Quick Tunnel é recriado; portanto a variável e o deployment precisam ser
-atualizados em cada nova sessão. Nenhum domínio `nite.tec.br` participa deste
-fluxo. Quick Tunnel é somente uma ponte de desenvolvimento, sem SLA, e depende
-do Admin, proxy e `cloudflared` permanecerem ativos.
-
-Antes de abrir uma revisão, confirme que um `POST` sem token retorna `401` tanto
-em `http://127.0.0.1:3011/api/preview/resolve` quanto na URL pública, e que `/`,
-`/articles` e `/api/auth/session` retornam `404` pela URL pública.
-
-Para desativar a integração, remova `CMS_PREVIEW_RESOLVE_URL` da Vercel, faça
-novo deployment, esvazie `PORTAL_PREVIEW_URL` no Admin, reinicie-o e encerre o
-proxy e o `cloudflared`. O Preview do CMS continua disponível.
 
 ### Playwright do Admin em homologação
 
@@ -183,7 +138,8 @@ proxy e o `cloudflared`. O Preview do CMS continua disponível.
 - `ADMIN_E2E_ADMIN_STORAGE_STATE`
 - `ADMIN_E2E_PUBLISHER_STORAGE_STATE`
 - `ADMIN_E2E_ARTICLE_ID`
-- `ADMIN_E2E_INVITATION_EMAIL` (endereço institucional ainda sem membership;
+- `ADMIN_E2E_INVITATION_EMAIL` (endereço `@unijorge.com` ou
+  `@unijorge.com.br` ainda sem membership;
   use um valor exclusivo por execução)
 
 Os storage states são artefatos sensíveis do ambiente de teste e não devem ser
@@ -213,7 +169,8 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
    no mesmo contrato. Não publique uma matéria durante a janela intermediária.
 7. Entre como identidade não autorizada, `publisher` e `admin`. Confirme acesso
    negado, permissões editoriais e exclusividade da gestão de equipe.
-8. Como admin, crie um convite para um e-mail `@unijorge.com`, comunique a
+8. Como admin, crie um convite para um e-mail `@unijorge.com` ou
+   `@unijorge.com.br`, comunique a
    pessoa por um canal externo e confirme o aceite em até 7 dias. Verifique que
    o convite ficou `accepted`, que a membership recebeu o `oid` real e que o
    login seguinte continua válido mesmo após uma mudança de e-mail de perfil.
@@ -242,8 +199,8 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
     controles e em loop; limite de 60 segundos e três autoplays; bloqueios de
     navegador, erro de rede e `prefers-reduced-motion` em desktop e mobile.
 15. Publique, despublique, republique, arquive e restaure. Confirme primeira
-    `publishedAt`, slug bloqueado, auditoria, outbox, 404 quando fora do ar,
-    revalidação de lista/artigo/filtros/sitemap e restauração em draft.
+    `publishedAt`, slug bloqueado, auditoria, 404 após despublicação,
+    atualização de lista/artigo/filtros/sitemap na próxima requisição e restauração em draft.
 16. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
     em logs. Prove recuperação de uma falha transitória da outbox.
 17. Execute Playwright desktop/mobile do Admin com storage states dedicados e
@@ -255,18 +212,17 @@ O corte só está liberado após todos os passos de homologação e aprovação 
 conteúdo oficial. Aplicar Portal, migration e CMS é uma operação coordenada:
 Portal consumidor V1/V2/V3 primeiro, migration depois e CMS Admin/API produtores
 por último, sem publicar matéria durante a janela intermediária. Faça smoke de
-`/atualizacoes`, slug, sitemap, preview e revalidação; monitore API, outbox e
+`/atualizacoes`, slug, sitemap e preview; monitore API, outbox de mídia e
 processamento de mídia.
 
 ## Rollback
 
 1. Suspenda novas mutações editoriais enquanto a causa é investigada.
-2. Se o Portal estiver saudável com fixtures, configure explicitamente
-   `NITE_NEWS_SOURCE=static` e faça novo deploy; isso não altera dados do CMS.
+2. Reverta para a versão anterior do Worker durante a janela de reversão e
+   suspenda publicações até restabelecer a leitura dinâmica.
 3. Não reverta migrations automaticamente nem exclua objetos R2: preserve
    dados, originais, outbox e auditoria.
-4. Corrija o ambiente, restaure `NITE_NEWS_SOURCE=api`, reprocesse a recuperação
-   normal da outbox e repita todo smoke relevante antes de reabrir o fluxo.
+4. Corrija o ambiente e repita o smoke de publicação e prévia antes de reabrir o fluxo.
 
 ## Pendência desta implementação
 

@@ -228,16 +228,6 @@ export async function deleteEditorialArticle<
           "A matéria publicada não possui uma revisão pública válida.",
         );
       }
-      await transaction.insert(outboxEvents).values({
-        topic: "news.article.unpublished",
-        aggregateId: context.article.id,
-        payload: {
-          articleId: context.article.id,
-          revisionId: context.article.publishedRevisionId,
-          slug: context.article.slug,
-          category: publishedRevision.category,
-        },
-      });
     }
 
     const [detached] = await transaction

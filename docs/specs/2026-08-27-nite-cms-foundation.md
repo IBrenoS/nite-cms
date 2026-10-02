@@ -1,7 +1,7 @@
 # Fundação do CMS NITE
 
 **Status:** implementação local concluída; provisionamento e smoke test de homologação pendentes
-**Escopo:** contrato, persistência, Admin, API pública v2, autenticação, memberships, editor, mídia, preview, ciclo editorial, auditoria, outbox e revalidação
+**Escopo:** contrato, persistência, Admin, API pública v2, autenticação, memberships, editor, mídia, preview, ciclo editorial, auditoria, outbox e convites
 **Fora do escopo:** provisionamento/deploy, conteúdo oficial, compatibilidade `/v1`, aprovação, agendamento, autosave, transcodificação, streaming adaptativo e validação E2E com recursos reais
 
 ## Objetivo e topologia aprovada
@@ -13,7 +13,7 @@ packages, arquivos, migrations, banco ou credenciais editoriais do CMS.
 Portal apps/web ── HTTPS GET /v2/news ──> CMS apps/api ── SELECT ──> PostgreSQL
 CMS apps/admin ── escrita autenticada ──> PostgreSQL
 CMS apps/admin ── staging/processamento ──> R2 privado + R2 público/CDN
-CMS apps/admin ── webhook HMAC ──> Portal /api/revalidate/news
+CMS apps/admin ── HTTPS ──> Resend
 Portal /api/preview ── HTTPS POST ──> CMS apps/admin/api/preview/resolve
 ```
 
@@ -61,8 +61,9 @@ auto-desativação, auto-rebaixamento e remoção do último admin ativo são
 bloqueados e toda alteração gera auditoria.
 
 O primeiro acesso de uma nova pessoa começa por convite ao e-mail exato no
-domínio `@unijorge.com`, válido por 7 dias. O CMS não envia mensagens: a pessoa
-é avisada pelo responsável e entra normalmente com a conta Microsoft. Após
+domínio `@unijorge.com` ou `@unijorge.com.br`, válido por 7 dias. O CMS envia o
+convite pelo Resend e a pessoa entra com a conta Microsoft pelo link recebido.
+Após
 validar provider, issuer, tenant e e-mail autenticado, o aceite cria a
 membership e vincula definitivamente o `oid` real em uma única transação.
 Logins posteriores usam exclusivamente `tid + oid`; o e-mail deixa de ser
@@ -168,6 +169,8 @@ recebe privilégios nas tabelas-base.
 
 O rollout permanece bloqueado até homologar Entra autorizado/não autorizado,
 PostgreSQL com os três logins, os dois buckets R2, CORS público para MP4/WebVTT,
-domínios reais, API v2, preview entre projetos, revalidação e o fluxo editorial
-completo. Não produzir V3 até consumidor, migration 0013 e Admin/API estarem no
-contrato compatível.
+domínios reais, API v2, preview entre projetos, entrega de convites e o fluxo
+editorial completo. Não produzir V3 até consumidor, migration 0013 e Admin/API
+estarem no contrato compatível.
+
+> Documento histórico. O fluxo atual não usa webhook de revalidação editorial; consulte [cms-rollout.md](../runbooks/cms-rollout.md).

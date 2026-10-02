@@ -278,7 +278,7 @@ describe("exclusão editorial definitiva", () => {
         .select({ topic: outboxEvents.topic })
         .from(outboxEvents)
         .where(eq(outboxEvents.aggregateId, target.article.id)),
-    ).resolves.toContainEqual({ topic: "news.article.unpublished" });
+    ).resolves.toEqual([]);
     await expect(
       database
         .select({ topic: outboxEvents.topic })

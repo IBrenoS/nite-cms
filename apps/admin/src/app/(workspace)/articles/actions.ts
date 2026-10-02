@@ -64,12 +64,6 @@ export async function submitEditorialArticle(
       input,
     });
 
-    if (intent === "publish") {
-      after(async () => {
-        await processCmsOutbox().catch(() => undefined);
-      });
-    }
-
     return {
       status: "success",
       message:

@@ -23,7 +23,6 @@ import {
   articles,
   auditEvents,
   mediaAssets,
-  outboxEvents,
   type CmsMembership,
 } from "@nite/cms-db";
 import { type CmsDatabase, requireActiveCmsMembership } from "./identity";
@@ -590,17 +589,6 @@ export async function publishArticle<TQueryResult extends PgQueryResultHKT>(
       aggregateId: article.id,
       metadata: { revisionId: command.expectedRevisionId },
     });
-    await transaction.insert(outboxEvents).values({
-      topic: "news.article.published",
-      aggregateId: article.id,
-      payload: {
-        articleId: article.id,
-        revisionId: command.expectedRevisionId,
-        slug: article.slug,
-        category: publishable.category,
-      },
-    });
-
     return publishedArticle;
   });
 }
@@ -665,12 +653,9 @@ async function getArticleForTransition<TQueryResult extends PgQueryResultHKT>(
   return article;
 }
 
-async function createPublicRemovalOutboxEvent<
-  TQueryResult extends PgQueryResultHKT,
->(
+async function assertPublicRevision<TQueryResult extends PgQueryResultHKT>(
   database: CmsDatabase<TQueryResult>,
   article: typeof articles.$inferSelect,
-  topic: "news.article.unpublished" | "news.article.archived",
 ) {
   if (!article.publishedRevisionId) {
     throw new EditorialPublicationError(
@@ -687,16 +672,6 @@ async function createPublicRemovalOutboxEvent<
       "A matéria publicada não possui uma revisão pública válida.",
     );
   }
-  await database.insert(outboxEvents).values({
-    topic,
-    aggregateId: article.id,
-    payload: {
-      articleId: article.id,
-      revisionId: article.publishedRevisionId,
-      slug: article.slug,
-      category: revision.category,
-    },
-  });
 }
 
 export async function unpublishArticle<TQueryResult extends PgQueryResultHKT>(
@@ -739,11 +714,7 @@ export async function unpublishArticle<TQueryResult extends PgQueryResultHKT>(
       aggregateId: article.id,
       metadata: { revisionId: article.publishedRevisionId },
     });
-    await createPublicRemovalOutboxEvent(
-      transaction,
-      article,
-      "news.article.unpublished",
-    );
+    await assertPublicRevision(transaction, article);
     return updatedArticle;
   });
 }
@@ -789,11 +760,7 @@ export async function archiveArticle<TQueryResult extends PgQueryResultHKT>(
       metadata: { revisionId: article.publishedRevisionId },
     });
     if (article.status === "published") {
-      await createPublicRemovalOutboxEvent(
-        transaction,
-        article,
-        "news.article.archived",
-      );
+      await assertPublicRevision(transaction, article);
     }
     return updatedArticle;
   });

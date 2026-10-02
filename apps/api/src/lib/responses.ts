@@ -2,8 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { NewsArticle } from "@nite/editorial";
 
-export const PUBLIC_NEWS_CACHE_CONTROL =
-  "public, s-maxage=300, stale-while-revalidate=86400";
+const PUBLIC_NEWS_CACHE_CONTROL = "no-store";
 
 function createEtag(body: string) {
   return `"${createHash("sha256").update(body).digest("hex")}"`;

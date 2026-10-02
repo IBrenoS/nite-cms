@@ -112,7 +112,7 @@ describe("ciclo editorial", () => {
     return { database, publisher, created, published };
   }
 
-  it("despublica com revisão esperada, preserva a primeira publicação e emite outbox de categoria", async () => {
+  it("despublica com revisão esperada, preserva a primeira publicação e não agenda revalidação", async () => {
     const { database, publisher, created, published } =
       await createPublishedArticle();
 
@@ -134,21 +134,7 @@ describe("ciclo editorial", () => {
       publishedRevisionId: created.revision.id,
       publishedAt: published.publishedAt,
     });
-    await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
-      {
-        topic: "news.article.published",
-        payload: { category: "inovacao" },
-      },
-      {
-        topic: "news.article.unpublished",
-        payload: {
-          articleId: created.article.id,
-          revisionId: created.revision.id,
-          slug: "laboratorio-de-inovacao",
-          category: "inovacao",
-        },
-      },
-    ]);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
 
     const republished = await publishArticle(database, {
       actor: publisher,
@@ -184,10 +170,7 @@ describe("ciclo editorial", () => {
         .from(articles)
         .where(eq(articles.id, created.article.id)),
     ).resolves.toEqual([{ status: "draft" }]);
-    await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
-      expect.objectContaining({ topic: "news.article.published" }),
-      expect.objectContaining({ topic: "news.article.archived" }),
-    ]);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
     await expect(
       saveArticleRevision(database, {
         actor: publisher,
@@ -211,10 +194,10 @@ describe("ciclo editorial", () => {
         },
       ]),
     ).rejects.toBeInstanceOf(EditorialConflictError);
-    await expect(database.select().from(outboxEvents)).resolves.toHaveLength(1);
+    await expect(database.select().from(outboxEvents)).resolves.toHaveLength(0);
   });
 
-  it("reverte artigo, auditoria e outbox se a inserção do outbox falhar", async () => {
+  it("arquiva sem inserir evento editorial no outbox", async () => {
     const { database, publisher, created } = await createPublishedArticle();
     await client.exec(`
       CREATE FUNCTION reject_archived_article_outbox() RETURNS trigger
@@ -241,24 +224,24 @@ describe("ciclo editorial", () => {
           expectedRevisionId: created.revision.id,
         },
       ]),
-    ).rejects.toThrow(/Failed query: insert into "outbox_events"/);
+    ).resolves.toMatchObject({ status: "archived" });
     await expect(
       database
         .select({ status: articles.status })
         .from(articles)
         .where(eq(articles.id, created.article.id)),
-    ).resolves.toEqual([{ status: "published" }]);
+    ).resolves.toEqual([{ status: "archived" }]);
     await expect(
       database
         .select()
         .from(auditEvents)
         .where(eq(auditEvents.aggregateId, created.article.id)),
-    ).resolves.toHaveLength(2);
+    ).resolves.toHaveLength(3);
     await expect(
       database
         .select()
         .from(outboxEvents)
         .where(eq(outboxEvents.aggregateId, created.article.id)),
-    ).resolves.toHaveLength(1);
+    ).resolves.toHaveLength(0);
   });
 });
