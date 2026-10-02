@@ -15,7 +15,7 @@ Internet -> Caddy :80/:443 -> Admin :3001
                     Admin <- Scheduler interno
 
 Admin/API -> Neon e R2 por HTTPS/TLS
-Admin     -> Entra e webhook do Portal por HTTPS
+Admin     -> Entra e API de preview do Portal por HTTPS
 ```
 
 O profile `operations` contém a migration e não participa de `up` ou restart.
@@ -94,7 +94,7 @@ https://<CMS_ADMIN_DOMAIN>/api/auth/callback/microsoft
 Defina `BETTER_AUTH_URL` como a origem exata do Admin, sem barra final, e use o
 mesmo hostname cadastrado no Entra. Revise tenant, client ID, client secret e o
 object ID do bootstrap admin antes do primeiro login. Não reutilize o secret do
-Entra como secret de Better Auth, preview, revalidação ou cron.
+Entra como secret de Better Auth, preview ou cron.
 
 ## Arquivos de configuração e secrets
 
@@ -114,8 +114,7 @@ ou logs. Todos os arquivos reais são ignorados pelo Git.
 
 - `stack.env`: domínios, e-mail ACME, nomes/tags das imagens, paths dos arquivos
   de ambiente e limites de recursos;
-- `admin.env`: Neon administrativo, Better Auth, Entra, R2, preview e
-  revalidação;
+- `admin.env`: Neon administrativo, Better Auth, Entra, R2 e preview;
 - `api.env`: login Neon read-only e base pública do R2;
 - `scheduler.env`: um único `CRON_SECRET` de pelo menos 32 caracteres,
   compartilhado apenas com o Admin, e intervalo opcional;
@@ -204,8 +203,9 @@ Em seguida:
    público esperado;
 2. confirme que `/api/cron/outbox` sem Bearer retorna `401`;
 3. faça login pelo Entra e valide uma leitura no Admin;
-4. valide upload/preview/revalidação com dados exclusivos de homologação antes
-   de liberar publicação real;
+4. valide upload, preview e publicação/despublicação com dados exclusivos de
+   homologação. Confirme que a próxima requisição do Portal lê o estado atual
+   pela API `no-store`; não existe webhook de revalidação;
 5. confirme externamente que as portas 3001 e 3002 não estão acessíveis.
 
 ## Observabilidade e operação

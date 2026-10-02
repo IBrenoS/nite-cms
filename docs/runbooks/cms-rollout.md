@@ -17,12 +17,13 @@ runbook complementar também exige autorização operacional separada.
 - tenant e aplicação Microsoft Entra do domínio do Admin;
 - `R2_STAGING_BUCKET` privado, com CORS de upload limitado ao Admin;
 - `R2_PUBLIC_BUCKET` servido pela URL HTTPS de `R2_PUBLIC_BASE_URL`;
-- CORS `GET/HEAD` no bucket público para o domínio Vercel do Portal;
+- CORS `GET/HEAD` no bucket público para a origem pública do Portal;
 - domínios HTTPS do Admin, API, Portal e mídia;
 - identidades de teste `admin`, `publisher` e não autorizada;
 - uma imagem, um MP4 H.264/AAC, um WebVTT pt-BR e uma matéria aprovados somente
   para homologação;
-- secrets independentes de Better Auth, revalidação, cron e preview.
+- secrets independentes de Better Auth, cron e preview. Não existe secret de
+  revalidação editorial.
 
 Nenhum valor de credencial deve ser armazenado no repositório ou em logs.
 
@@ -99,13 +100,18 @@ Reinicie o Admin depois de alterar `.env.local`. `BETTER_AUTH_URL` e o redirect
 URI do Microsoft Entra permanecem locais; o túnel descrito abaixo não publica
 rotas de autenticação ou do workspace.
 
-O cron versionado chama `/api/cron/outbox` diariamente às `06:00 UTC`. A
-tentativa em `after()` acelera a limpeza de mídia; o cron é a recuperação durável. No
-plano Hobby, a execução pode ocorrer em qualquer ponto da hora, portanto uma
-indisponibilidade prolongada pode aguardar o próximo ciclo.
-Antes de processar o outbox, o mesmo cron remove `preview_snapshots` expirados
-e agenda o purge de mídias sem referências criadas há mais de 48 horas; criação
-e resolução também fazem a limpeza oportunística dos snapshots.
+O endpoint protegido `/api/cron/outbox` processa tarefas duráveis do CMS, como
+purge de mídia e envio de convites; ele não revalida o Portal. No deploy de VM,
+o scheduler interno chama o endpoint ao iniciar e depois a cada 15 minutos. O
+repositório também mantém um cron Vercel diário às `06:00 UTC` para deploy no
+Vercel; essa agenda não é usada pelo scheduler da VM. Se mais de um disparador
+estiver ativo, o claim transacional com `SKIP LOCKED` impede workers concorrentes
+de reivindicarem o mesmo evento.
+Após exclusão de matéria e criação/substituição de convite há tentativas
+imediatas best-effort; o scheduler/cron recupera falhas. Cada execução também
+remove snapshots de preview expirados e agenda purge de mídias sem referências
+criadas há mais de 48 horas. Criação e resolução de preview também fazem limpeza
+oportunística dos snapshots.
 
 ### CMS API
 
@@ -162,7 +168,8 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
 3. Prove que a API lê a view e não lê/escreve tabelas-base; prove que o Admin
    escreve apenas pelo papel previsto.
 4. Configure buckets, CORS, domínios e variáveis, sem reutilizar secrets entre
-   preview, revalidação, cron e autenticação.
+   preview, cron e autenticação. Não configure secret, endpoint ou webhook para
+   revalidação editorial.
 5. Publique CMS Admin e CMS API v2; valide `/health`, `/v2/news` e um 404 de
    slug inexistente antes de conectar conteúdo real.
 6. Não habilite o Admin a produzir V3 antes de Portal, migration 0013 e API estarem
@@ -199,8 +206,10 @@ descartável com `npm run test:postgres:down`. A migration local pode carregar
     controles e em loop; limite de 60 segundos e três autoplays; bloqueios de
     navegador, erro de rede e `prefers-reduced-motion` em desktop e mobile.
 15. Publique, despublique, republique, arquive e restaure. Confirme primeira
-    `publishedAt`, slug bloqueado, auditoria, 404 após despublicação,
-    atualização de lista/artigo/filtros/sitemap na próxima requisição e restauração em draft.
+    `publishedAt`, slug bloqueado, auditoria, 404 após despublicação e os dados
+    atuais de lista/artigo/filtros/sitemap na próxima requisição ao Portal. O
+    client do Portal e a API pública usam `no-store`; não há invalidação por
+    webhook. Restauração deve voltar a draft.
 16. Acione o cron com e sem Bearer correto e verifique `200` e `401` sem secret
     em logs. Prove recuperação de uma falha transitória da outbox.
 17. Execute Playwright desktop/mobile do Admin com storage states dedicados e
@@ -218,8 +227,9 @@ processamento de mídia.
 ## Rollback
 
 1. Suspenda novas mutações editoriais enquanto a causa é investigada.
-2. Reverta para a versão anterior do Worker durante a janela de reversão e
-   suspenda publicações até restabelecer a leitura dinâmica.
+2. Reverta Portal, Admin ou API para as versões compatíveis anteriores conforme
+   o componente afetado; suspenda publicações se a API pública não puder
+   entregar o contrato esperado.
 3. Não reverta migrations automaticamente nem exclua objetos R2: preserve
    dados, originais, outbox e auditoria.
 4. Corrija o ambiente e repita o smoke de publicação e prévia antes de reabrir o fluxo.

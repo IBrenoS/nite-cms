@@ -13,7 +13,7 @@ Antes de alterar, leia a implementação, os tipos, os testes e a documentação
 
 ## Arquitetura e implementação
 
-- O Portal NITE é um sistema externo; integre somente por HTTPS e webhook HMAC, nunca por imports, paths, banco, migrations ou credenciais compartilhadas.
+- O Portal NITE é um sistema externo; consuma notícias pela API pública HTTPS e integre o preview privado por HTTPS com tokens HMAC. Não use imports, paths, banco, migrations ou credenciais compartilhadas. Não há webhook de revalidação editorial.
 - Entre workspaces, use apenas exports públicos dos packages; não importe arquivos físicos. `packages/db` não depende de `packages/editorial`: JSONB permanece `unknown` na persistência e é validado no domínio.
 - `apps/admin` concentra autenticação e escrita, usando `DATABASE_ADMIN_URL`. `apps/api` usa `DATABASE_PUBLIC_URL` e acessa somente o read model público. Migrations usam exclusivamente `DATABASE_MIGRATION_URL`.
 - Faça a menor alteração que resolva integralmente o problema. Reutilize padrões existentes e evite refatorações, abstrações ou dependências sem necessidade comprovada.

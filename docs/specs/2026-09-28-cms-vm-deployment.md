@@ -16,8 +16,9 @@ expõe portas públicas; Admin e API permanecem na rede interna do stack.
   usuário não-root.
 - O Admin mantém um cache persistente para otimização de imagens. Certificados
   e configuração dinâmica do Caddy usam volumes próprios.
-- Neon, R2, Entra e o endpoint de revalidação do Portal são acessados por rede
-  externa; nenhum banco ou object storage é criado pelo stack.
+- Neon, R2 e Entra são acessados por rede externa. O Portal consome a API pública
+  do CMS por HTTPS e resolve o preview privado por HTTPS; não há endpoint de
+  revalidação editorial nem banco ou object storage criado pelo stack.
 
 ## Operação
 
@@ -54,7 +55,8 @@ pelas imagens anteriores e não reverte migrations automaticamente.
 
 - Migrar Neon ou R2 para a VM.
 - Alterar autenticação Microsoft Entra.
-- Tornar o Portal público consumidor dinâmico da CMS API.
+- Alterar o runtime ou o deploy do Portal; o consumo da API pública do CMS
+  permanece uma integração HTTPS externa a este stack.
 - Executar migrations, publicar conteúdo ou acessar produção nesta entrega.
 
 ## Critérios de aceite

@@ -17,7 +17,7 @@ estruturado e legenda WebVTT sem alterar o envelope público `version: 2`.
 
 ## Fronteira com o Portal
 
-Não existe package, workspace, import ou path compartilhado com o Portal. A comunicação é feita pela API pública versionada e pelo webhook HMAC de revalidação. O checkout opcional deste repositório como submodule no Portal é apenas uma referência Git.
+Não existe package, workspace, import ou path compartilhado com o Portal. Notícias são consumidas pela API pública versionada em HTTPS; o Portal consulta o CMS por requisição sem cache HTTP persistente. O preview privado usa endpoints HTTPS e tokens HMAC, sem compartilhar o segredo com o Portal. Não há webhook de revalidação editorial. O checkout opcional deste repositório como submodule no Portal é apenas uma referência Git.
 
 O preview também cruza essa fronteira por HTTPS: o Admin persiste por dez
 minutos um snapshot validado das alterações atuais, emite o token HMAC v2 e o

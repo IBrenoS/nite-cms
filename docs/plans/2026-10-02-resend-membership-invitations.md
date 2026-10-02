@@ -531,11 +531,11 @@ Run:
 
 Expected: FAIL porque o tópico ainda não é suportado.
 
-- [ ] **Step 3: integrar o dispatcher sem sobrescrever o WIP existente**
+- [ ] **Step 3: integrar o dispatcher de e-mail sem sobrescrever o WIP existente**
 
-Adicionar uma dependência injetável/lazy para e-mail. Não restaurar o dispatcher
-de revalidação removido pelas alterações locais preexistentes e não alterar os
-contratos de purge de mídia.
+Adicionar uma dependência injetável/lazy para e-mail. Notícias são lidas sob
+demanda pela API pública `no-store`, portanto não adicionar dispatcher ou
+webhook de revalidação editorial. Não alterar os contratos de purge de mídia.
 
 - [ ] **Step 4: escrever teste RED do best-effort pós-commit**
 
