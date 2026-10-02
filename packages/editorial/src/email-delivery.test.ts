@@ -115,6 +115,31 @@ describe("persistência de entrega de convite", () => {
     });
   });
 
+  it("preserva o motivo quando um evento terminal chega antes do retorno de envio", async () => {
+    const { database, invitation, outboxEvent } = await arrangeDelivery();
+    const delivery = await getOrCreateInvitationEmailDelivery(database, {
+      outboxEventId: outboxEvent.id,
+      invitationId: invitation.id,
+      recipientEmail: invitation.email,
+    });
+
+    await database
+      .update(emailDeliveries)
+      .set({ status: "bounced", failureReason: "Mailbox unavailable." })
+      .where(eq(emailDeliveries.id, delivery.id));
+    const sent = await markInvitationEmailDeliverySent(
+      database,
+      delivery.id,
+      "provider-message-id",
+    );
+
+    expect(sent).toMatchObject({
+      status: "bounced",
+      providerMessageId: "provider-message-id",
+      failureReason: "Mailbox unavailable.",
+    });
+  });
+
   it("marca falha permanente com motivo sanitizado recebido", async () => {
     const { database, invitation, outboxEvent } = await arrangeDelivery();
     const delivery = await getOrCreateInvitationEmailDelivery(database, {

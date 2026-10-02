@@ -49,7 +49,10 @@ export async function markInvitationEmailDeliverySent<
           then 'sent'::email_delivery_status
         else ${emailDeliveries.status}
       end`,
-      failureReason: null,
+      failureReason: sql<string | null>`case
+        when ${emailDeliveries.status} = 'pending' then null
+        else ${emailDeliveries.failureReason}
+      end`,
       updatedAt: new Date(),
     })
     .where(eq(emailDeliveries.id, deliveryId))
