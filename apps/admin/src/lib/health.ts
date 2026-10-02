@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { getDatabase } from "@nite/cms-db/database";
 import { readAdminConfiguration } from "./auth-config";
+import { readEmailConfiguration } from "./email-config";
 
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 type DatabaseProbe = (databaseUrl: string) => Promise<void>;
@@ -22,7 +23,10 @@ export async function checkAdminDatabase(
   const configuration = readAdminConfiguration(
     options.environment ?? process.env,
   );
-  if (!configuration.configured) {
+  const emailConfiguration = readEmailConfiguration(
+    options.environment ?? process.env,
+  );
+  if (!configuration.configured || !emailConfiguration.configured) {
     throw new Error("Configuração administrativa indisponível.");
   }
 

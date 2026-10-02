@@ -12,6 +12,11 @@ const configuredEnvironment = {
   MICROSOFT_CLIENT_SECRET: "client-secret",
   MICROSOFT_TENANT_ID: "10000000-0000-4000-8000-000000000001",
   CMS_BOOTSTRAP_ADMIN_OID: "20000000-0000-4000-8000-000000000001",
+  RESEND_API_KEY: "re_test_key",
+  RESEND_WEBHOOK_SECRET: "whsec_test_secret",
+  RESEND_FROM_EMAIL: "CMS NITE <acesso@notify.unijorge.com.br>",
+  CMS_PUBLIC_URL: "https://cms.nite.test",
+  INVITATION_LINK_SECRET: "convite-secreto-com-pelo-menos-32-bytes",
 };
 
 describe("readiness do Admin", () => {
@@ -34,6 +39,17 @@ describe("readiness do Admin", () => {
 
     await expect(
       checkAdminDatabase({ environment: {}, probeDatabase }),
+    ).rejects.toThrow("Configuração administrativa indisponível.");
+    expect(probeDatabase).not.toHaveBeenCalled();
+  });
+
+  it("falha genericamente quando somente a configuração de e-mail falta", async () => {
+    const probeDatabase = vi.fn().mockResolvedValue(undefined);
+    const environment = { ...configuredEnvironment };
+    delete (environment as Partial<typeof configuredEnvironment>).RESEND_API_KEY;
+
+    await expect(
+      checkAdminDatabase({ environment, probeDatabase }),
     ).rejects.toThrow("Configuração administrativa indisponível.");
     expect(probeDatabase).not.toHaveBeenCalled();
   });
