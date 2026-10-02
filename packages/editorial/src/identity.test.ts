@@ -248,10 +248,15 @@ describe("identidade editorial Entra", () => {
       email: "Convidada@UniJorge.com",
     };
 
-    const accepted = await resolveCmsMembership(database, identity, {
-      tenantId,
-      adminObjectId,
-    });
+    await expect(
+      resolveCmsMembership(database, identity, { tenantId, adminObjectId }),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+    const accepted = await resolveCmsMembership(
+      database,
+      identity,
+      { tenantId, adminObjectId },
+      { invitationId: invitation.id },
+    );
     const repeated = await resolveCmsMembership(
       database,
       { ...identity, email: "novo.email@unijorge.com" },
@@ -287,14 +292,17 @@ describe("identidade editorial Entra", () => {
         role: "admin",
       })
       .returning();
-    await database.insert(cmsMembershipInvitations).values({
-      tenantId,
-      email: "expirada@unijorge.com",
-      role: "publisher",
-      expiresAt: new Date(Date.now() - 1),
-      invitedByMembershipId: admin.id,
-      createdAt: new Date(Date.now() - 60_000),
-    });
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "expirada@unijorge.com",
+        role: "publisher",
+        expiresAt: new Date(Date.now() - 1),
+        invitedByMembershipId: admin.id,
+        createdAt: new Date(Date.now() - 60_000),
+      })
+      .returning();
 
     await expect(
       resolveCmsMembership(
@@ -306,6 +314,7 @@ describe("identidade editorial Entra", () => {
           email: "expirada@unijorge.com",
         },
         { tenantId, adminObjectId },
+        { invitationId: invitation.id },
       ),
     ).rejects.toBeInstanceOf(CmsAuthorizationError);
     await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
@@ -325,13 +334,16 @@ describe("identidade editorial Entra", () => {
         role: "admin",
       })
       .returning();
-    await database.insert(cmsMembershipInvitations).values({
-      tenantId,
-      email: "nova.admin@unijorge.com",
-      role: "admin",
-      expiresAt: new Date(Date.now() + 60_000),
-      invitedByMembershipId: admin.id,
-    });
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "nova.admin@unijorge.com",
+        role: "admin",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+      })
+      .returning();
 
     await expect(
       resolveCmsMembership(
@@ -343,6 +355,7 @@ describe("identidade editorial Entra", () => {
           email: "nova.admin@unijorge.com",
         },
         { tenantId, adminObjectId },
+        { invitationId: invitation.id },
       ),
     ).resolves.toMatchObject({ role: "admin", active: true });
   });
@@ -358,15 +371,18 @@ describe("identidade editorial Entra", () => {
         role: "admin",
       })
       .returning();
-    await database.insert(cmsMembershipInvitations).values({
-      tenantId,
-      email: "revogada@unijorge.com",
-      role: "publisher",
-      status: "revoked",
-      expiresAt: new Date(Date.now() + 60_000),
-      invitedByMembershipId: admin.id,
-      revokedAt: new Date(),
-    });
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "revogada@unijorge.com",
+        role: "publisher",
+        status: "revoked",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+        revokedAt: new Date(),
+      })
+      .returning();
 
     await expect(
       resolveCmsMembership(
@@ -378,6 +394,7 @@ describe("identidade editorial Entra", () => {
           email: "revogada@unijorge.com",
         },
         { tenantId, adminObjectId },
+        { invitationId: invitation.id },
       ),
     ).rejects.toBeInstanceOf(CmsAuthorizationError);
     await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
@@ -396,13 +413,16 @@ describe("identidade editorial Entra", () => {
         role: "admin",
       })
       .returning();
-    await database.insert(cmsMembershipInvitations).values({
-      tenantId,
-      email: "rollback@unijorge.com",
-      role: "publisher",
-      expiresAt: new Date(Date.now() + 60_000),
-      invitedByMembershipId: admin.id,
-    });
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "rollback@unijorge.com",
+        role: "publisher",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+      })
+      .returning();
     await client.exec(`
       create function reject_invitation_audit() returns trigger as $$
       begin
@@ -427,6 +447,7 @@ describe("identidade editorial Entra", () => {
           email: "rollback@unijorge.com",
         },
         { tenantId, adminObjectId },
+        { invitationId: invitation.id },
       ),
     ).rejects.toThrow();
     await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
@@ -438,5 +459,81 @@ describe("identidade editorial Entra", () => {
       { status: "pending", acceptedMembershipId: null, acceptedAt: null },
     ]);
     await expect(database.select().from(auditEvents)).resolves.toEqual([]);
+  });
+
+  it("recusa contexto de aceite inexistente, de outro tenant ou e-mail", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: adminObjectId,
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    const [invitation] = await database
+      .insert(cmsMembershipInvitations)
+      .values({
+        tenantId,
+        email: "correta@unijorge.com",
+        role: "publisher",
+        expiresAt: new Date(Date.now() + 60_000),
+        invitedByMembershipId: admin.id,
+      })
+      .returning();
+    const bootstrap = { tenantId, adminObjectId };
+
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000011",
+          displayName: "ID inexistente",
+          email: invitation.email,
+        },
+        bootstrap,
+        { invitationId: "30000000-0000-4000-8000-000000000011" },
+      ),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId,
+          objectId: "20000000-0000-4000-8000-000000000012",
+          displayName: "E-mail diferente",
+          email: "diferente@unijorge.com",
+        },
+        bootstrap,
+        { invitationId: invitation.id },
+      ),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+
+    const otherTenantId = "10000000-0000-4000-8000-000000000002";
+    await expect(
+      resolveCmsMembership(
+        database,
+        {
+          tenantId: otherTenantId,
+          objectId: "20000000-0000-4000-8000-000000000013",
+          displayName: "Outro tenant",
+          email: invitation.email,
+        },
+        {
+          tenantId: otherTenantId,
+          adminObjectId: "20000000-0000-4000-8000-000000000099",
+        },
+        { invitationId: invitation.id },
+      ),
+    ).rejects.toBeInstanceOf(CmsAuthorizationError);
+
+    await expect(database.select().from(cmsMemberships)).resolves.toHaveLength(
+      1,
+    );
+    await expect(
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toMatchObject([{ id: invitation.id, status: "pending" }]);
   });
 });

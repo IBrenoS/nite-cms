@@ -9,6 +9,7 @@ import {
   auditEvents,
   cmsMembershipInvitations,
   cmsMemberships,
+  outboxEvents,
   type CmsMembershipInvitation,
 } from "@nite/cms-db";
 import * as cmsSchema from "@nite/cms-db";
@@ -78,14 +79,14 @@ describe("convites de acesso editorial", () => {
       .returning();
     const create = command("createCmsMembershipInvitation");
 
-    const invitation = await Reflect.apply(create, undefined, [
+    const invitation = (await Reflect.apply(create, undefined, [
       database,
       {
         actor: admin,
         email: "  NOVA@UniJorge.com.br ",
         role: "publisher",
       },
-    ]);
+    ])) as CmsMembershipInvitation;
     expect(invitation).toMatchObject({
       tenantId,
       email: "nova@unijorge.com.br",
@@ -119,6 +120,13 @@ describe("convites de acesso editorial", () => {
     ).resolves.toHaveLength(1);
     await expect(database.select().from(auditEvents)).resolves.toMatchObject([
       { action: "membership.invitation.created", actorMembershipId: admin.id },
+    ]);
+    await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
+      {
+        topic: "membership.invitation.email.requested",
+        aggregateId: invitation.id,
+        payload: { invitationId: invitation.id },
+      },
     ]);
   });
 
@@ -186,5 +194,60 @@ describe("convites de acesso editorial", () => {
       { action: "membership.invitation.created" },
       { action: "membership.invitation.revoked" },
     ]);
+    await expect(database.select().from(outboxEvents)).resolves.toMatchObject([
+      {
+        topic: "membership.invitation.email.requested",
+        aggregateId: original.id,
+        payload: { invitationId: original.id },
+      },
+      {
+        topic: "membership.invitation.email.requested",
+        aggregateId: replacement.id,
+        payload: { invitationId: replacement.id },
+      },
+    ]);
+  });
+
+  it("reverte convite e auditoria quando a outbox rejeita o evento", async () => {
+    const database = drizzle(client, { schema: cmsSchema });
+    const [admin] = await database
+      .insert(cmsMemberships)
+      .values({
+        tenantId,
+        objectId: "20000000-0000-4000-8000-000000000003",
+        displayName: "Admin NITE",
+        role: "admin",
+      })
+      .returning();
+    await client.exec(`
+      create function reject_invitation_outbox() returns trigger as $$
+      begin
+        if new.topic = 'membership.invitation.email.requested' then
+          raise exception 'falha de outbox simulada';
+        end if;
+        return new;
+      end;
+      $$ language plpgsql;
+      create trigger reject_invitation_outbox_trigger
+      before insert on outbox_events
+      for each row execute function reject_invitation_outbox();
+    `);
+
+    await expect(
+      Reflect.apply(command("createCmsMembershipInvitation"), undefined, [
+        database,
+        {
+          actor: admin,
+          email: "rollback@unijorge.com.br",
+          role: "publisher",
+        },
+      ]),
+    ).rejects.toThrow();
+
+    await expect(
+      database.select().from(cmsMembershipInvitations),
+    ).resolves.toEqual([]);
+    await expect(database.select().from(auditEvents)).resolves.toEqual([]);
+    await expect(database.select().from(outboxEvents)).resolves.toEqual([]);
   });
 });

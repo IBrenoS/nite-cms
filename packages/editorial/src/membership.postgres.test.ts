@@ -248,13 +248,16 @@ describe("administração de memberships com PostgreSQL", () => {
           role: "admin",
         })
         .returning();
-      await firstDatabase.insert(cmsMembershipInvitations).values({
-        tenantId,
-        email: "concorrente@unijorge.com",
-        role: "publisher",
-        expiresAt: new Date(Date.now() + 60_000),
-        invitedByMembershipId: admin.id,
-      });
+      const [invitation] = await firstDatabase
+        .insert(cmsMembershipInvitations)
+        .values({
+          tenantId,
+          email: "concorrente@unijorge.com",
+          role: "publisher",
+          expiresAt: new Date(Date.now() + 60_000),
+          invitedByMembershipId: admin.id,
+        })
+        .returning();
       const bootstrap = { tenantId, adminObjectId };
 
       const results = await Promise.allSettled([
@@ -267,6 +270,7 @@ describe("administração de memberships com PostgreSQL", () => {
             email: "concorrente@unijorge.com",
           },
           bootstrap,
+          { invitationId: invitation.id },
         ),
         resolveCmsMembership(
           secondDatabase,
@@ -277,6 +281,7 @@ describe("administração de memberships com PostgreSQL", () => {
             email: "CONCORRENTE@UNIJORGE.COM",
           },
           bootstrap,
+          { invitationId: invitation.id },
         ),
       ]);
 

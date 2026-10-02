@@ -264,6 +264,7 @@ export async function resolveCmsMembership<
   database: CmsDatabase<TQueryResult>,
   rawIdentity: EntraIdentity,
   rawBootstrap: BootstrapAdmin,
+  context?: { invitationId?: string },
 ): Promise<CmsMembership> {
   const identity = entraLoginIdentitySchema.parse(rawIdentity);
   const bootstrap = bootstrapAdminSchema.parse(rawBootstrap);
@@ -337,7 +338,10 @@ export async function resolveCmsMembership<
         );
       }
 
-      if (!identity.email) throw new CmsAuthorizationError();
+      const invitationId = z.uuid().safeParse(context?.invitationId);
+      if (!invitationId.success || !identity.email) {
+        throw new CmsAuthorizationError();
+      }
       const normalizedEmail = institutionalEmailSchema.safeParse(
         identity.email,
       );
@@ -360,16 +364,16 @@ export async function resolveCmsMembership<
       const [invitation] = await transaction
         .select()
         .from(cmsMembershipInvitations)
-        .where(
-          and(
-            eq(cmsMembershipInvitations.tenantId, identity.tenantId),
-            eq(cmsMembershipInvitations.email, email),
-            eq(cmsMembershipInvitations.status, "pending"),
-          ),
-        )
+        .where(eq(cmsMembershipInvitations.id, invitationId.data))
         .limit(1)
         .for("update");
-      if (!invitation || invitation.expiresAt <= now) {
+      if (
+        !invitation ||
+        invitation.tenantId !== identity.tenantId ||
+        invitation.email !== email ||
+        invitation.status !== "pending" ||
+        invitation.expiresAt <= now
+      ) {
         throw new CmsAuthorizationError();
       }
 
@@ -493,6 +497,11 @@ export async function createCmsMembershipInvitation<
         aggregateId: invitation.id,
         metadata: { role, replacesInvitationId: null },
       });
+      await transaction.insert(schema.outboxEvents).values({
+        topic: "membership.invitation.email.requested",
+        aggregateId: invitation.id,
+        payload: { invitationId: invitation.id },
+      });
       return invitation;
     },
   );
@@ -573,6 +582,11 @@ export async function replaceCmsMembershipInvitation<
           metadata: { role, replacesInvitationId: original.id },
         },
       ]);
+      await transaction.insert(schema.outboxEvents).values({
+        topic: "membership.invitation.email.requested",
+        aggregateId: replacement.id,
+        payload: { invitationId: replacement.id },
+      });
       return replacement;
     },
   );
