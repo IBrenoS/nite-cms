@@ -27,7 +27,7 @@ describe("links assinados de convite", () => {
       secret,
     });
     expect(url.href).toBe(
-      `https://cms.nite.test/invitations/start?id=${claims.invitationId}&signature=${signature}`,
+      `https://cms.nite.test/invitations/accept/start?id=${claims.invitationId}&signature=${signature}`,
     );
     expect(url.href).not.toContain(claims.linkNonce);
     expect(url.href).not.toContain(claims.tenantId);

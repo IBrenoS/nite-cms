@@ -39,7 +39,7 @@ export default async function LoginPage() {
         ) : context.status === "forbidden" ? (
           <p role="alert" className="text-sm leading-6 text-status-error">
             Sua conta Microsoft foi autenticada, mas não possui acesso editorial
-            ativo nem convite disponível.
+            ativo ou ainda não concluiu um convite válido.
           </p>
         ) : (
           <SignInButton />

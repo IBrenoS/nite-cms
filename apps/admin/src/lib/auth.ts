@@ -56,7 +56,7 @@ export function getAuth(configuration: AdminConfiguration): AuthInstance {
   return authInstance;
 }
 
-export async function getCmsContext() {
+export async function getAuthenticatedEntraContext() {
   const configurationResult = readAdminConfiguration(process.env);
   if (!configurationResult.configured) {
     return {
@@ -90,20 +90,42 @@ export async function getCmsContext() {
   }
 
   try {
-    const membership = await resolveCmsMembership(
-      database,
-      toEntraIdentity(configuration, microsoftAccount, authSession.user),
-      {
-        tenantId: configuration.tenantId,
-        adminObjectId: configuration.bootstrapAdminObjectId,
-      },
-    );
     return {
       status: "authenticated" as const,
       authSession,
-      membership,
+      identity: toEntraIdentity(
+        configuration,
+        microsoftAccount,
+        authSession.user,
+      ),
       configuration,
       database,
+    };
+  } catch (error) {
+    if (error instanceof CmsAuthorizationError) {
+      return { status: "forbidden" as const };
+    }
+    throw error;
+  }
+}
+
+export async function getCmsContext() {
+  const identityContext = await getAuthenticatedEntraContext();
+  if (identityContext.status !== "authenticated") return identityContext;
+
+  try {
+    const membership = await resolveCmsMembership(
+      identityContext.database,
+      identityContext.identity,
+      {
+        tenantId: identityContext.configuration.tenantId,
+        adminObjectId:
+          identityContext.configuration.bootstrapAdminObjectId,
+      },
+    );
+    return {
+      ...identityContext,
+      membership,
     };
   } catch (error) {
     if (error instanceof CmsAuthorizationError) {

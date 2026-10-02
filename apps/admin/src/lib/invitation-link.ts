@@ -87,7 +87,7 @@ export function buildInvitationAcceptUrl(
   configuration: InvitationLinkConfiguration,
 ): URL {
   const publicOrigin = parsePublicOrigin(configuration.publicUrl);
-  const url = new URL("/invitations/start", publicOrigin);
+  const url = new URL("/invitations/accept/start", publicOrigin);
   url.searchParams.set("id", input.invitationId);
   url.searchParams.set(
     "signature",
