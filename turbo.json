@@ -1,5 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "cacheMaxAge": "7d",
+  "cacheMaxSize": "2GB",
   "tasks": {
     "dev": {
       "cache": false,
@@ -7,7 +9,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "lint": {
       "outputs": []
