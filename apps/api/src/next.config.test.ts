@@ -1,10 +1,5 @@
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.resetModules();
-});
+import { describe, expect, it } from "vitest";
 
 describe("empacotamento da CMS API", () => {
   it("gera um artefato standalone traçado desde a raiz do monorepo", async () => {
@@ -13,15 +8,5 @@ describe("empacotamento da CMS API", () => {
 
     expect(configuration.output).toBe("standalone");
     expect(configuration.outputFileTracingRoot).toBe(repositoryRoot);
-  });
-
-  it("delega o empacotamento ao runtime nativo da Vercel", async () => {
-    vi.stubEnv("VERCEL", "1");
-    vi.resetModules();
-
-    const { default: configuration } = await import("../next.config");
-
-    expect(configuration.output).toBeUndefined();
-    expect(configuration.outputFileTracingRoot).toBeUndefined();
   });
 });

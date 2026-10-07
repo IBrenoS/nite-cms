@@ -31,14 +31,4 @@ describe("configuração de imagens do Admin", () => {
     expect(configuration.output).toBe("standalone");
     expect(configuration.outputFileTracingRoot).toBe(repositoryRoot);
   });
-
-  it("delega o empacotamento ao runtime nativo da Vercel", async () => {
-    vi.stubEnv("VERCEL", "1");
-    vi.resetModules();
-
-    const { default: configuration } = await import("./next.config");
-
-    expect(configuration.output).toBeUndefined();
-    expect(configuration.outputFileTracingRoot).toBeUndefined();
-  });
 });

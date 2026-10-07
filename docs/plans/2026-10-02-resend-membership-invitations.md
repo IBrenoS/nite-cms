@@ -16,7 +16,7 @@ link do e-mail apenas inicia um aceite que só cria membership após autenticaç
 com o mesmo endereço institucional.
 
 **Tech Stack:** TypeScript estrito, Next.js 16 App Router, Better Auth/Entra,
-PostgreSQL/Drizzle, Vitest/PGlite, Resend Node SDK, Vercel e Turbo/npm
+PostgreSQL/Drizzle, Vitest/PGlite, Resend Node SDK e Turbo/npm
 workspaces.
 
 **Spec:** `docs/specs/2026-10-02-resend-membership-invitations.md`
@@ -628,7 +628,7 @@ Commit esperado: `feat(admin): exibir entrega dos convites`.
 
 Registrar criação do domínio `notify.nite.tec.br` em `sa-east-1`, SPF/DKIM,
 DMARC institucional, API key restrita ao domínio, webhook com eventos
-necessários, armazenamento imediato do signing secret e variáveis Vercel/VM.
+necessários, armazenamento imediato do signing secret e variáveis da VM.
 
 - [ ] **Step 2: documentar rollout e rollback**
 

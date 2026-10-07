@@ -4,13 +4,10 @@ import path from "node:path";
 import { readPublicMediaConfiguration } from "./src/lib/public-media-config";
 
 const publicMedia = readPublicMediaConfiguration(process.env);
-const selfHostedOutput =
-  process.env.VERCEL === "1"
-    ? {}
-    : {
-        output: "standalone" as const,
-        outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
-      };
+const selfHostedOutput = {
+  output: "standalone" as const,
+  outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
+};
 
 const nextConfig: NextConfig = {
   ...selfHostedOutput,

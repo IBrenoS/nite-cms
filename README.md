@@ -72,15 +72,6 @@ A migration é uma operação manual separada. Ela não é executada em `build`,
 [`docs/runbooks/cms-vm-deployment.md`](docs/runbooks/cms-vm-deployment.md) para
 preparação da VM, DNS, Entra, secrets, smoke tests, observabilidade e rollback.
 
-A topologia anterior por integração Git da Vercel continua documentada como
-alternativa com dois projetos independentes:
-
-- `nite-cms-admin`, com Root Directory `apps/admin`;
-- `nite-cms-api`, com Root Directory `apps/api`.
-
-Cada projeto mantém somente as variáveis exigidas pela sua responsabilidade.
-Migrations não fazem parte do build ou do deploy.
-
 Consulte `docs/runbooks/cms-rollout.md` para o corte coordenado de Admin, API e
 Portal. Os runbooks não contêm credenciais nem autorizam, por si só, uma
 migration ou publicação em produção.

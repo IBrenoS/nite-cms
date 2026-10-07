@@ -103,10 +103,8 @@ rotas de autenticação ou do workspace.
 O endpoint protegido `/api/cron/outbox` processa tarefas duráveis do CMS, como
 purge de mídia e envio de convites; ele não revalida o Portal. No deploy de VM,
 o scheduler interno chama o endpoint ao iniciar e depois a cada 15 minutos. O
-repositório também mantém um cron Vercel diário às `06:00 UTC` para deploy no
-Vercel; essa agenda não é usada pelo scheduler da VM. Se mais de um disparador
-estiver ativo, o claim transacional com `SKIP LOCKED` impede workers concorrentes
-de reivindicarem o mesmo evento.
+claim transacional com `SKIP LOCKED` impede workers concorrentes de
+reivindicarem o mesmo evento.
 Após exclusão de matéria e criação/substituição de convite há tentativas
 imediatas best-effort; o scheduler/cron recupera falhas. Cada execução também
 remove snapshots de preview expirados e agenda purge de mídias sem referências

@@ -39,7 +39,6 @@ deploy/vm/*.env
 !**/.env.e2e.example
 !**/.env.postgres.example
 !.env.postgres-test.example
-.vercel
 *.tsbuildinfo
 **/next-env.d.ts
 .playwright-mcp/
