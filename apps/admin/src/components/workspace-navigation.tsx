@@ -99,15 +99,25 @@ export function WorkspaceNavigation({
         aria-label="Navegação principal"
       >
         <div className="flex h-14 shrink-0 items-center border-b border-nite-border-subtle px-3">
-          <div className={cn("min-w-0 items-center gap-2", expandedFlexClass)}>
+          <div
+            className={cn(
+              "min-w-0 flex-1 items-center justify-between gap-2",
+              expandedFlexClass,
+              collapsed && "inspector-rail:hidden",
+            )}
+          >
             <Link
               href="/"
               aria-label="NITE CMS — Matérias"
               className="inline-flex min-w-0 items-center gap-2.5"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-nite-brand-primary text-ui-md font-bold text-text-inverse">
-                N
-              </span>
+              <img
+                src="/nite-editorial-glyph.png"
+                alt=""
+                width={36}
+                height={36}
+                className="size-9 shrink-0"
+              />
               <span className="min-w-0">
                 <span className="block text-ui-md font-semibold tracking-tight text-nite-text-primary">
                   NITE
@@ -140,9 +150,13 @@ export function WorkspaceNavigation({
               compactBrandClass,
             )}
           >
-            <span className="group-hover:hidden group-focus-visible:hidden [@media(pointer:coarse)]:hidden">
-              N
-            </span>
+            <img
+              src="/nite-editorial-glyph.png"
+              alt=""
+              width={36}
+              height={36}
+              className="size-9 group-hover:hidden group-focus-visible:hidden [@media(pointer:coarse)]:hidden"
+            />
             <PanelLeftOpenIcon
               className="hidden group-hover:block group-focus-visible:block [@media(pointer:coarse)]:block"
               aria-hidden="true"
@@ -286,9 +300,13 @@ export function WorkspaceNavigation({
           href="/"
           className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 font-semibold tracking-tight"
         >
-          <span className="flex size-8 items-center justify-center rounded-md bg-nite-brand-primary text-ui-md font-bold text-text-inverse">
-            N
-          </span>
+          <img
+            src="/nite-editorial-glyph.png"
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 shrink-0"
+          />
           <span>NITE</span>
         </Link>
         <div className="flex items-center gap-1">
@@ -348,9 +366,13 @@ export function WorkspaceNavigation({
               onClick={() => setMobileNavigationOpen(false)}
               className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 font-semibold tracking-tight"
             >
-              <span className="flex size-8 items-center justify-center rounded-md bg-nite-brand-primary text-ui-md font-bold text-text-inverse">
-                N
-              </span>
+              <img
+                src="/nite-editorial-glyph.png"
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 shrink-0"
+              />
               <span>NITE</span>
             </Link>
             <IconButton

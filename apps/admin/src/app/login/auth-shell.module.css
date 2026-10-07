@@ -174,10 +174,11 @@
 @media (max-width: 35rem) {
   .authShell {
     padding: 3rem 1.25rem 2rem;
+    align-content: center;
   }
 
   .authShell::before {
-    top: calc(3rem - 15.5rem);
+    top: calc(50% - 26.875rem);
   }
 
   .signInActions,

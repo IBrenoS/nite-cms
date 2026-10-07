@@ -86,4 +86,33 @@ describe("WorkspaceShell", () => {
       "inspector-rail:block",
     );
   });
+
+  it("oculta a marca expandida quando a navegação larga é recolhida", () => {
+    render(
+      <WorkspaceShell displayName="Marina Costa" role="admin">
+        <p>Conteúdo editorial</p>
+      </WorkspaceShell>,
+    );
+
+    const expandedBrand = screen.getByLabelText(
+      "NITE CMS — Matérias",
+    ).parentElement;
+
+    fireEvent.click(screen.getByRole("button", { name: "Recolher navegação" }));
+
+    expect(expandedBrand).toHaveClass("inspector-rail:hidden");
+  });
+
+  it("exibe o glyph editorial na marca da navegação principal", () => {
+    render(
+      <WorkspaceShell displayName="Marina Costa" role="admin">
+        <p>Conteúdo editorial</p>
+      </WorkspaceShell>,
+    );
+
+    const brand = screen.getByLabelText("NITE CMS — Matérias");
+    const glyph = brand.querySelector("img");
+
+    expect(glyph).toHaveAttribute("src", "/nite-editorial-glyph.png");
+  });
 });
