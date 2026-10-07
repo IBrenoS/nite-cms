@@ -81,3 +81,17 @@ jobs:
             org.opencontainers.image.revision=${{ env.TARGET_SHA }}
           cache-from: type=gha,scope=nite-cms-scheduler
           cache-to: type=gha,mode=max,scope=nite-cms-scheduler
+
+      - name: Build and publish Migration
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: migration
+          push: true
+          tags: ghcr.io/ibrenos/nite-cms-migration:${{ env.TARGET_SHA }}
+          labels: |
+            org.opencontainers.image.source=${{ env.SOURCE_URL }}
+            org.opencontainers.image.revision=${{ env.TARGET_SHA }}
+          cache-from: type=gha,scope=nite-cms-migration
+          cache-to: type=gha,mode=max,scope=nite-cms-migration
