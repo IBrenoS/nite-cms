@@ -29,6 +29,7 @@ WORKDIR /app
 
 COPY --from=admin-builder --chown=node:node /app/apps/admin/.next/standalone ./
 COPY --from=admin-builder --chown=node:node /app/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=admin-builder --chown=node:node /app/apps/admin/public ./apps/admin/public
 RUN mkdir -p /app/apps/admin/.next/cache && chown -R node:node /app/apps/admin/.next
 
 USER node
