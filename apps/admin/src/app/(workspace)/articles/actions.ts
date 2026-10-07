@@ -19,7 +19,11 @@ import {
 } from "@nite/editorial";
 import { revalidatePath } from "next/cache";
 import { requireCmsContext } from "@/lib/auth";
-import { getMediaObjectStore, sharpImageProcessor } from "@/lib/media-storage";
+import {
+  getMediaObjectStore,
+  getPublicMediaUrl,
+  sharpImageProcessor,
+} from "@/lib/media-storage";
 import { mp4BoxVideoInspector } from "@/lib/mp4box-video-inspector";
 import { processCmsOutbox } from "@/lib/outbox";
 import { readPreviewConfiguration } from "@/lib/preview-config";
@@ -134,6 +138,7 @@ export async function processMediaUploadAction(mediaId: string) {
         mediaStatus: media.status,
         mimeType: media.mimeType,
         publicObjectKey: media.publicObjectKey,
+        publicUrl: getPublicMediaUrl(media.publicObjectKey),
         width: media.width,
         height: media.height,
         durationMs: media.durationMs,

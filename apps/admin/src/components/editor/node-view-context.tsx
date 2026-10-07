@@ -2,11 +2,23 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
+type EditorMediaPreview = {
+  mediaKind: "image" | "video" | "captions";
+  src?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+};
+
+export type EditorMediaMap = Record<string, EditorMediaPreview>;
+
 export type NodeViewContextValue = {
+  mediaById?: EditorMediaMap;
+  onReplaceImage?: (file: File) => void;
   onReplaceVideo?: (file: File) => void;
   onReplaceCaptions?: (file: File) => void;
-  videoReplacementPending?: boolean;
-  videoReplacementMessage?: string;
+  mediaReplacementPending?: boolean;
+  mediaReplacementMessage?: string;
 };
 
 const NodeViewContext = createContext<NodeViewContextValue>({});

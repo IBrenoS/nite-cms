@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "@nite/cms-ui";
+import { Alert, Button, Field, FieldLabel, Input, Select } from "@nite/cms-ui";
 
 import {
   replaceMembershipInvitation,
@@ -42,13 +42,13 @@ export function MembershipInvitations({
   if (invitations.length === 0) return null;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-      <div className="border-b border-nite-border-subtle px-4 py-3">
-        <h2 className="text-sm font-semibold text-nite-text-primary">
+    <section className="overflow-hidden rounded-lg border border-border-subtle bg-surface">
+      <div className="border-b border-border-subtle px-4 py-3">
+        <h2 className="text-ui-md font-semibold text-text-primary">
           Convites pendentes
         </h2>
       </div>
-      <ul className="divide-y divide-nite-border-subtle">
+      <ul className="divide-y divide-border-subtle">
         {invitations.map((invitation) => {
           const expiration = new Date(invitation.expiresAt);
           const deliveryLabel = invitation.deliveryStatus
@@ -58,10 +58,10 @@ export function MembershipInvitations({
             <li key={invitation.id} className="grid gap-3 px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-nite-text-primary">
+                  <p className="text-ui-md font-semibold text-text-primary">
                     {invitation.email}
                   </p>
-                  <p className="mt-0.5 text-[13px] text-nite-text-secondary">
+                  <p className="mt-0.5 text-ui-sm text-text-secondary">
                     {invitation.role === "admin"
                       ? "Acesso administrativo"
                       : "Acesso editorial"}
@@ -69,7 +69,7 @@ export function MembershipInvitations({
                     {invitation.expired ? "Expirado" : "Expira em"}{" "}
                     {new Intl.DateTimeFormat("pt-BR").format(expiration)}
                   </p>
-                  <p className="mt-0.5 text-[13px] text-nite-text-secondary">
+                  <p className="mt-0.5 text-ui-sm text-text-secondary">
                     Entrega: <span>{deliveryLabel}</span>
                   </p>
                 </div>
@@ -85,7 +85,7 @@ export function MembershipInvitations({
                   <Button
                     type="button"
                     size="sm"
-                    variant="quiet"
+                    variant="ghost"
                     loading={pending}
                     onClick={() =>
                       startTransition(async () =>
@@ -104,7 +104,7 @@ export function MembershipInvitations({
               {editingId === invitation.id ? (
                 <form
                   aria-label={`Corrigir convite de ${invitation.email}`}
-                  className="grid gap-2 rounded-md bg-nite-section/60 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end"
+                  className="grid gap-3 rounded-md bg-surface-subtle p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const data = new FormData(event.currentTarget);
@@ -119,26 +119,31 @@ export function MembershipInvitations({
                     );
                   }}
                 >
-                  <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
-                    E-mail institucional
+                  <Field>
+                    <FieldLabel htmlFor={`invite-email-${invitation.id}`}>
+                      E-mail institucional
+                    </FieldLabel>
                     <Input
+                      id={`invite-email-${invitation.id}`}
                       name="email"
                       type="email"
                       required
                       defaultValue={invitation.email}
                     />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
-                    Nível de acesso
-                    <select
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`invite-role-${invitation.id}`}>
+                      Nível de acesso
+                    </FieldLabel>
+                    <Select
+                      id={`invite-role-${invitation.id}`}
                       name="role"
                       defaultValue={invitation.role}
-                      className="nite-form-field h-10 rounded-md border border-nite-border-subtle bg-transparent px-3 text-sm"
                     >
                       <option value="publisher">Acesso editorial</option>
                       <option value="admin">Acesso administrativo</option>
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                   <Button type="submit" loading={pending}>
                     Substituir convite
                   </Button>
@@ -149,12 +154,11 @@ export function MembershipInvitations({
         })}
       </ul>
       {error ? (
-        <p
-          role="alert"
-          className="border-t border-nite-border-subtle px-4 py-2 text-xs text-status-error"
-        >
-          {error}
-        </p>
+        <div className="border-t border-border-subtle p-3">
+          <Alert variant="danger" role="alert">
+            {error}
+          </Alert>
+        </div>
       ) : null}
     </section>
   );

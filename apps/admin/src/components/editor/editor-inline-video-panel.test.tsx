@@ -21,6 +21,7 @@ function renderPanel(
     onCreditChange: vi.fn(),
     onLayoutChange: vi.fn(),
     onInsert: vi.fn(),
+    onClosePanel: vi.fn(),
   };
   render(
     <EditorInlineVideoPanel
@@ -41,11 +42,12 @@ function renderPanel(
 }
 
 describe("EditorInlineVideoPanel", () => {
-  it("informa o limite de 806 px para a largura normal", () => {
-    renderPanel();
+  it("identifica a largura normal como coluna de leitura", () => {
+    renderPanel({ videoState: "ready" });
+    fireEvent.click(screen.getByText("Opções do vídeo"));
 
     expect(
-      screen.getByRole("option", { name: "Normal · até 806 px" }),
+      screen.getByRole("option", { name: "Normal · coluna de leitura" }),
     ).toBeVisible();
   });
 
@@ -57,7 +59,7 @@ describe("EditorInlineVideoPanel", () => {
     expect(screen.getByLabelText("Progresso do upload do vídeo")).toHaveValue(
       42,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar upload" }));
     expect(callbacks.onCancelVideo).toHaveBeenCalledOnce();
   });
 
@@ -66,20 +68,22 @@ describe("EditorInlineVideoPanel", () => {
       videoState: "error",
       videoMessage: "Falhou.",
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Tentar vídeo novamente" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(callbacks.onRetryVideo).toHaveBeenCalledOnce();
   });
 
-  it("orienta WebVTT para manual com áudio sem bloquear o rascunho", () => {
+  it("exige WebVTT para inserir vídeo manual com áudio", () => {
     renderPanel({
       videoState: "ready",
       hasAudio: true,
       playbackMode: "manual",
     });
-    expect(screen.getByText(/Este vídeo contém áudio/u)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Inserir vídeo" })).toBeEnabled();
+    expect(
+      screen.getByText(/Vídeos manuais com áudio precisam/u),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Inserir vídeo" }),
+    ).toBeDisabled();
   });
 
   it("avisa quando autoplay excede 60 segundos", () => {
@@ -89,7 +93,7 @@ describe("EditorInlineVideoPanel", () => {
       durationMs: 60_001,
     });
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Autoplay aceita vídeos de até 60 segundos.",
+      "Reprodução automática aceita vídeos de até 60 segundos.",
     );
     expect(screen.queryByLabelText("Legenda WebVTT pt-BR")).toBeNull();
   });

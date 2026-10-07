@@ -1,5 +1,4 @@
 import type { Membership, MembershipInvitation } from "./memberships.types";
-import { MembershipInviteDialog } from "./membership-invite-dialog";
 import { MembershipInvitations } from "./membership-invitations";
 import { MembershipsTable } from "./memberships-table";
 
@@ -21,9 +20,9 @@ export function MembershipsPanel({
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
         {total > 0 ? (
-          <dl className="grid flex-1 grid-cols-2 gap-px overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-border-subtle sm:grid-cols-3 xl:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3 xl:grid-cols-5">
             {[
               { label: "Membros", value: total },
               { label: "Acesso administrativo", value: admins },
@@ -33,21 +32,18 @@ export function MembershipsPanel({
             ].map(({ label, value }) => (
               <div
                 key={label}
-                className="grid min-h-16 content-center gap-1 bg-nite-surface px-4 py-3"
+                className="grid min-h-16 content-center gap-1 bg-surface px-4 py-3"
               >
-                <dt className="text-xs font-medium text-nite-text-secondary">
+                <dt className="text-ui-sm font-medium text-text-secondary">
                   {label}
                 </dt>
-                <dd className="font-mono text-base font-semibold text-nite-text-primary">
+                <dd className="font-mono text-ui-lg font-semibold text-text-primary">
                   {value}
                 </dd>
               </div>
             ))}
           </dl>
-        ) : (
-          <div />
-        )}
-        <MembershipInviteDialog />
+        ) : null}
       </div>
       <MembershipInvitations invitations={invitations} />
 

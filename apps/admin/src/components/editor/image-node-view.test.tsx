@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ImageNodeView } from "./image-node-view";
+import { NodeViewContextProvider } from "./node-view-context";
 
 vi.mock("@tiptap/react", () => ({
   NodeViewWrapper: ({
@@ -20,14 +21,22 @@ vi.mock("@tiptap/react", () => ({
   ),
 }));
 
+vi.mock("next/image", () => ({
+  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt={alt} {...props} />
+  ),
+}));
+
 describe("ImageNodeView", () => {
   afterEach(cleanup);
 
-  function renderImage(attrs: Record<string, unknown> = {}, selected = false) {
+  function renderImage(attrs: Record<string, unknown> = {}, selected = true) {
     const updateAttributes = vi.fn();
     const deleteNode = vi.fn();
+    const mediaId = "30000000-0000-4000-8000-000000000101";
     const defaultAttrs = {
-      mediaId: "30000000-0000-4000-8000-000000000101",
+      mediaId,
       alt: "Pessoas no laboratório de inovação",
       caption: "Equipe reunida durante o workshop",
       credit: "Foto: NITE",
@@ -36,53 +45,58 @@ describe("ImageNodeView", () => {
     };
 
     render(
-      <ImageNodeView
-        editor={null as never}
-        node={{ attrs: defaultAttrs } as never}
-        selected={selected}
-        updateAttributes={updateAttributes}
-        deleteNode={deleteNode}
-        decorations={[]}
-        extension={null as never}
-        getPos={() => 0}
-        view={null as never}
-        innerDecorations={null as never}
-        HTMLAttributes={null as never}
-      />,
+      <NodeViewContextProvider
+        value={{
+          mediaById: {
+            [mediaId]: {
+              mediaKind: "image",
+              src: "https://media.nite.test/noticia.webp",
+              width: 1280,
+              height: 720,
+            },
+          },
+          onReplaceImage: vi.fn(),
+        }}
+      >
+        <ImageNodeView
+          editor={null as never}
+          node={{ attrs: defaultAttrs } as never}
+          selected={selected}
+          updateAttributes={updateAttributes}
+          deleteNode={deleteNode}
+          decorations={[]}
+          extension={null as never}
+          getPos={() => 0}
+          view={null as never}
+          innerDecorations={null as never}
+          HTMLAttributes={null as never}
+        />
+      </NodeViewContextProvider>,
     );
 
     return { updateAttributes, deleteNode };
   }
 
-  it("renderiza representação visual com dados informativos e ações", () => {
+  it("renderiza a mídia como conteúdo editorial e oferece ações contextuais", () => {
     const { deleteNode } = renderImage();
 
-    expect(screen.getByText("Imagem inserida")).toBeInTheDocument();
-    expect(screen.getByText("Largura normal")).toBeInTheDocument();
-    expect(screen.getByText("Texto alternativo presente")).toBeInTheDocument();
     expect(
-      screen.getByText(/Pessoas no laboratório de inovação/),
-    ).toBeInTheDocument();
+      screen.getByRole("img", { name: "Pessoas no laboratório de inovação" }),
+    ).toHaveAttribute("src", "https://media.nite.test/noticia.webp");
     expect(
-      screen.getByText(/Equipe reunida durante o workshop/),
+      screen.getByText("Equipe reunida durante o workshop"),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Foto: NITE/)).toBeInTheDocument();
+    expect(screen.getByText("Foto: NITE")).toBeInTheDocument();
+    expect(screen.queryByText(/ID:/)).toBeNull();
 
-    const removeBtn = screen.getByRole("button", {
-      name: "Remover imagem do conteúdo",
-    });
-    fireEvent.click(removeBtn);
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
     expect(deleteNode).toHaveBeenCalledOnce();
   });
 
-  it("abre edição contextual in-place com rótulos visíveis e atualiza atributos", () => {
+  it("abre detalhes contextuais e atualiza atributos", () => {
     const { updateAttributes } = renderImage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
-
-    expect(
-      screen.getByRole("heading", { name: "Editar imagem interna" }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes" }));
 
     expect(screen.getByLabelText("Alt da imagem selecionada")).toHaveValue(
       "Pessoas no laboratório de inovação",
@@ -103,10 +117,13 @@ describe("ImageNodeView", () => {
     expect(updateAttributes).toHaveBeenCalledWith({ layout: "wide" });
   });
 
-  it("informa ausência de texto alternativo quando vazio", () => {
+  it("mantém o texto alternativo editável quando ainda está vazio", () => {
     renderImage({ alt: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes" }));
 
-    expect(screen.getByText("Alt ausente")).toBeInTheDocument();
-    expect(screen.getByText(/Sem texto alternativo/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Alt da imagem selecionada")).toHaveValue("");
+    expect(
+      screen.getByText("Necessário para leitores de tela e acessibilidade."),
+    ).toBeInTheDocument();
   });
 });

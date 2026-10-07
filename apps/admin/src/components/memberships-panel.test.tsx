@@ -27,6 +27,7 @@ vi.mock("@/app/(workspace)/memberships/actions", () => ({
 }));
 
 import { MembershipsPanel } from "./memberships-panel";
+import { MembershipInviteDialog } from "./memberships/membership-invite-dialog";
 
 describe("MembershipsPanel", () => {
   afterEach(cleanup);
@@ -105,21 +106,24 @@ describe("MembershipsPanel", () => {
 
   it("exibe e aciona correção e revogação somente por e-mail", async () => {
     render(
-      <MembershipsPanel
-        memberships={[]}
-        invitations={[
-          {
-            id: "30000000-0000-4000-8000-000000000001",
-            email: "convidada@unijorge.com",
-            role: "publisher",
-            status: "pending",
-            expiresAt: "2099-09-14T12:00:00.000Z",
-            expired: false,
-            deliveryStatus: "pending",
-          },
-        ]}
-        currentMembershipId="10000000-0000-4000-8000-000000000001"
-      />,
+      <>
+        <MembershipInviteDialog />
+        <MembershipsPanel
+          memberships={[]}
+          invitations={[
+            {
+              id: "30000000-0000-4000-8000-000000000001",
+              email: "convidada@unijorge.com",
+              role: "publisher",
+              status: "pending",
+              expiresAt: "2099-09-14T12:00:00.000Z",
+              expired: false,
+              deliveryStatus: "pending",
+            },
+          ]}
+          currentMembershipId="10000000-0000-4000-8000-000000000001"
+        />
+      </>,
     );
 
     expect(
@@ -127,7 +131,7 @@ describe("MembershipsPanel", () => {
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Convidar pessoa" }));
     const invitationDialog = screen.getByRole("dialog", {
-      name: "Convidar pessoa para o CMS",
+      name: "Convidar pessoa",
     });
     expect(
       within(invitationDialog).getByLabelText("E-mail institucional"),
@@ -136,7 +140,7 @@ describe("MembershipsPanel", () => {
       within(invitationDialog).getByRole("button", { name: "Fechar convite" }),
     );
     expect(
-      screen.queryByRole("dialog", { name: "Convidar pessoa para o CMS" }),
+      screen.queryByRole("dialog", { name: "Convidar pessoa" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("convidada@unijorge.com")).toBeInTheDocument();
     expect(

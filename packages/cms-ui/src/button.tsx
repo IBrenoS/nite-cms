@@ -4,31 +4,32 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 disabled:saturate-50 aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:saturate-50 data-[loading=true]:cursor-wait data-[loading=true]:after:ms-2 data-[loading=true]:after:inline-block data-[loading=true]:after:size-1.5 data-[loading=true]:after:rounded-full data-[loading=true]:after:bg-current data-[loading=true]:after:content-[''] aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap transition-colors outline-none select-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary-subtle active:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:opacity-50 data-[loading=true]:cursor-wait data-[loading=true]:after:ms-2 data-[loading=true]:after:inline-block data-[loading=true]:after:size-1.5 data-[loading=true]:after:rounded-full data-[loading=true]:after:bg-current data-[loading=true]:after:content-[''] aria-invalid:border-danger aria-invalid:ring-3 aria-invalid:ring-danger-bg [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         primary:
-          "bg-nite-brand-primary text-white hover:bg-blue-800 border-transparent shadow-sm active:bg-blue-900",
-        spotlight:
-          "relative overflow-hidden rounded-lg bg-nite-brand-primary text-white hover:bg-blue-800 shadow-sm active:bg-blue-900",
-        outline:
-          "border-nite-border-soft bg-transparent text-nite-text-primary hover:bg-nite-surface-subtle hover:text-nite-text-primary aria-expanded:bg-nite-surface-subtle aria-expanded:text-nite-text-primary",
-        invisible:
-          "h-auto min-h-0 w-fit rounded-none border-transparent bg-transparent !px-0 !py-0 text-nite-text-secondary shadow-none hover:text-nite-text-primary focus-visible:text-nite-text-primary focus-visible:ring-0 active:translate-y-0",
-        quiet:
-          "border-nite-border-soft bg-transparent text-nite-text-secondary hover:border-nite-border-hover hover:bg-nite-surface-subtle hover:text-nite-text-primary aria-expanded:border-nite-border-hover aria-expanded:bg-nite-surface-subtle aria-expanded:text-nite-text-primary",
+          "bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active border-transparent",
         secondary:
-          "border-nite-border-soft bg-nite-surface text-nite-text-primary hover:bg-nite-surface-focus aria-expanded:bg-nite-surface-focus aria-expanded:text-nite-text-primary",
+          "bg-surface text-text-primary border-border hover:bg-surface-hover hover:border-border-strong active:bg-surface-active",
         ghost:
-          "bg-transparent text-nite-text-primary hover:bg-nite-surface-subtle hover:text-nite-text-primary aria-expanded:bg-nite-surface-subtle aria-expanded:text-nite-text-primary",
-        link: "h-auto min-h-0 rounded-sm bg-transparent px-0 py-0 text-nite-brand-accent underline-offset-4 shadow-none hover:underline active:translate-y-0",
+          "bg-transparent text-text-primary border-transparent hover:bg-surface-hover active:bg-surface-active",
+        danger:
+          "bg-danger text-text-inverse hover:brightness-90 active:brightness-75 border-transparent",
+        // Compatibilidade com variantes anteriores
+        outline:
+          "bg-surface text-text-primary border-border hover:bg-surface-hover hover:border-border-strong active:bg-surface-active",
+        quiet:
+          "bg-transparent text-text-secondary border-transparent hover:bg-surface-hover hover:text-text-primary active:bg-surface-active",
+        spotlight:
+          "bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active border-transparent",
+        link: "h-auto min-h-0 rounded-none bg-transparent px-0 py-0 text-primary underline-offset-4 shadow-none hover:underline active:translate-y-0",
       },
       size: {
-        md: "min-h-10 px-4 py-2",
-        sm: "min-h-9 px-3 py-1.5 text-sm in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "min-h-11 px-5 py-2.5 text-base",
-        icon: "size-10 p-0",
+        sm: "h-8 px-3 text-ui-sm leading-none",
+        md: "h-9 px-3.5 text-ui-md leading-none",
+        lg: "h-10 px-4 text-ui-md leading-none",
+        icon: "size-9 p-0",
       },
     },
     defaultVariants: {

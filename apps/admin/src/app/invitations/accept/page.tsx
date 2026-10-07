@@ -13,12 +13,8 @@ import { AcceptInvitationButton } from "./accept-button";
 
 function InvitationShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden px-5 py-12">
-      <div
-        aria-hidden="true"
-        className="admin-grid absolute inset-0 opacity-30"
-      />
-      <section className="nite-panel relative z-10 grid w-full max-w-xl gap-7 rounded-2xl border border-nite-border-subtle p-7 sm:p-10">
+    <main className="grid min-h-screen place-items-center bg-canvas px-5 py-12">
+      <section className="grid w-full max-w-xl gap-7 rounded-xl border border-border-subtle bg-surface p-7 sm:p-10">
         <Chip>CMS NITE / Convite</Chip>
         {children}
       </section>
@@ -30,7 +26,7 @@ function InvalidInvitation() {
   return (
     <InvitationShell>
       <div className="grid gap-3">
-        <h1 className="font-heading text-3xl font-semibold tracking-[-0.03em]">
+        <h1 className="font-heading text-heading-lg font-semibold tracking-tight">
           Convite indisponível
         </h1>
         <p className="leading-7 text-nite-text-secondary">
@@ -73,7 +69,7 @@ export default async function InvitationAcceptPage() {
   return (
     <InvitationShell>
       <div className="grid gap-4">
-        <h1 className="font-heading text-3xl font-semibold tracking-[-0.03em]">
+        <h1 className="font-heading text-heading-lg font-semibold tracking-tight">
           Convite para integrar a equipe do CMS NITE
         </h1>
         <p className="leading-7 text-nite-text-secondary">

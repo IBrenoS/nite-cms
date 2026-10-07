@@ -135,7 +135,7 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
             className="h-auto w-full"
           />
           {node.attrs.caption || node.attrs.credit ? (
-            <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-sm leading-5 text-nite-text-secondary">
+            <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-ui-md leading-5 text-text-secondary">
               {node.attrs.caption ? <span>{node.attrs.caption}</span> : null}
               {node.attrs.credit ? <span>{node.attrs.credit}</span> : null}
             </figcaption>
@@ -169,7 +169,7 @@ function renderNode(node: EditorialContentNode, key: string): ReactNode {
           captions={node.attrs.captions}
         />
         {node.attrs.caption || node.attrs.credit ? (
-          <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-sm leading-5 text-nite-text-secondary">
+          <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-ui-md leading-5 text-text-secondary">
             {node.attrs.caption ? <span>{node.attrs.caption}</span> : null}
             {node.attrs.credit ? <span>{node.attrs.credit}</span> : null}
           </figcaption>
@@ -185,7 +185,7 @@ function NewsArticleBody({ document, className }: NewsArticleBodyProps) {
     <div
       className={
         className ??
-        "grid gap-7 text-[1.0625rem] leading-8 text-nite-text-secondary sm:text-lg sm:leading-9"
+        "grid gap-7 font-editorial text-editor-body text-text-secondary"
       }
     >
       {document.content.map((node, index) =>

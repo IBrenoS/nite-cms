@@ -3,11 +3,18 @@
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  Button,
   ChevronDownIcon,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   ExternalLinkIcon,
   EyeIcon,
   SaveIcon,
   StatusBadge,
+  buttonVariants,
+  cn,
   type StatusBadgeStatus,
 } from "@nite/cms-ui";
 
@@ -40,37 +47,33 @@ export function EditorHeader({
       : "Publicar matéria";
 
   return (
-    <header className="sticky top-14 z-30 flex h-14 items-center justify-between border-b border-nite-border-subtle bg-nite-surface/95 px-4 backdrop-blur md:top-0 md:px-6">
+    <header className="sticky top-14 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-surface/95 px-4 backdrop-blur md:top-0 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/"
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm font-semibold text-nite-text-secondary transition-colors hover:text-nite-text-primary"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-md text-ui-md font-semibold text-text-secondary transition-colors [transition-duration:var(--motion-duration-normal)] hover:text-text-primary"
         >
           <ArrowLeftIcon className="size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Matérias</span>
         </Link>
-        <span className="h-4 w-px bg-nite-border-subtle" aria-hidden="true" />
-        <h1 className="truncate text-[15px] font-semibold tracking-tight text-nite-text-primary">
+        <span className="h-4 w-px bg-border-subtle" aria-hidden="true" />
+        <h1 className="truncate text-ui-lg font-semibold tracking-tight text-text-primary">
           {isExisting ? "Editar matéria" : "Nova matéria"}
         </h1>
-        <StatusBadge
-          status={status.status}
-          label={status.label}
-          size="sm"
-          variant="outline"
-        />
+        <StatusBadge status={status.status} label={status.label} size="sm" />
       </div>
 
       <div className="hidden items-center gap-2 sm:flex">
-        <button
+        <Button
           type="submit"
           form="article-editor-form"
           name="intent"
           value="save"
           disabled={operationPending}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-3.5 text-sm font-semibold text-nite-text-primary transition-colors hover:bg-nite-section disabled:cursor-not-allowed disabled:opacity-55"
+          variant="secondary"
+          size="lg"
         >
-          <SaveIcon className="size-4" aria-hidden="true" />
+          <SaveIcon aria-hidden="true" />
           <span>
             {pending
               ? "Salvando…"
@@ -78,53 +81,58 @@ export function EditorHeader({
                 ? "Salvar revisão"
                 : "Salvar rascunho"}
           </span>
-        </button>
+        </Button>
 
         {isExisting && articleId ? (
-          <details className="group relative">
-            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-surface px-3.5 text-sm font-semibold text-nite-text-primary transition-colors hover:bg-nite-section">
-              <EyeIcon className="size-4" aria-hidden="true" />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={operationPending}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "lg" }),
+                "group",
+              )}
+            >
+              <EyeIcon aria-hidden="true" />
               <span>Visualizar</span>
               <ChevronDownIcon
-                className="size-3 text-nite-text-secondary transition-transform group-open:rotate-180"
+                className="size-3 text-text-secondary"
                 aria-hidden="true"
               />
-            </summary>
-            <div className="absolute top-full right-0 z-50 mt-1.5 w-64 rounded-lg border border-nite-border-subtle bg-nite-surface p-1.5 shadow-lg">
-              <button
-                type="button"
-                aria-label="Preview no Portal"
+            </DropdownMenuTrigger>
+            <DropdownMenuContent sideOffset={6} className="w-64">
+              <DropdownMenuItem
                 disabled={operationPending}
                 onClick={openLivePreview}
-                className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-nite-text-primary hover:bg-nite-section disabled:opacity-55"
+                className="items-start justify-between py-2.5"
               >
                 <span>
                   <span className="block font-semibold">Preview no Portal</span>
-                  <span className="block text-xs text-nite-text-secondary">
+                  <span className="mt-0.5 block text-ui-xs font-normal text-text-secondary">
                     Alterações atuais · expira em 10 min.
                   </span>
                 </span>
                 <ExternalLinkIcon
-                  className="size-3 text-nite-text-secondary"
+                  className="mt-0.5 size-3.5 text-text-secondary"
                   aria-hidden="true"
                 />
-              </button>
-              <p className="mx-2 mt-1 border-t border-nite-border-subtle pt-2 text-xs leading-5 text-nite-text-secondary">
+              </DropdownMenuItem>
+              <p className="mx-2 mt-1 border-t border-border-subtle pt-2 pb-1 text-ui-xs leading-5 text-text-secondary">
                 O preview não salva uma nova revisão.
               </p>
-            </div>
-          </details>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <>
-            <button
+            <Button
               type="button"
               disabled
               aria-describedby="new-preview-help"
-              className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-nite-border-subtle bg-nite-section px-3.5 text-sm font-semibold text-nite-text-secondary opacity-60"
+              variant="secondary"
+              size="lg"
             >
-              <EyeIcon className="size-3.5" aria-hidden="true" />
+              <EyeIcon aria-hidden="true" />
               <span>Visualizar</span>
-            </button>
+            </Button>
             <span id="new-preview-help" className="sr-only">
               Salve o primeiro rascunho para habilitar a visualização.
             </span>
@@ -132,17 +140,17 @@ export function EditorHeader({
         )}
 
         {canPublish ? (
-          <button
+          <Button
             type="submit"
             form="article-editor-form"
             name="intent"
             value="publish"
             aria-label={publishLabel}
             disabled={operationPending || currentStatus === "archived"}
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-nite-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
+            size="lg"
           >
             {pending ? "Publicando…" : publishLabel}
-          </button>
+          </Button>
         ) : null}
       </div>
     </header>

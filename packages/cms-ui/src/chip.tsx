@@ -4,15 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const chipVariants = cva(
-  "inline-flex min-h-7 w-fit items-center rounded-full border px-3 py-1 font-mono text-xs uppercase tracking-[0.14em]",
+  "inline-flex h-6 w-fit items-center rounded-full border px-2.5 font-mono text-ui-xs font-medium uppercase tracking-[0.08em]",
   {
     variants: {
       variant: {
-        default:
-          "border-nite-brand-accent/40 bg-nite-brand-accent/10 text-nite-brand-accent",
-        quiet: "border-border bg-muted text-muted-foreground",
-        metal:
-          "border-nite-text-primary/40 bg-nite-text-primary/10 text-nite-text-primary",
+        default: "border-primary-border bg-primary-subtle text-primary",
+        quiet: "border-border-subtle bg-surface-subtle text-text-secondary",
+        metal: "border-border bg-surface text-text-primary",
       },
     },
     defaultVariants: { variant: "default" },
@@ -24,8 +22,13 @@ type ChipProps = ComponentPropsWithoutRef<"span"> &
 
 function Chip({ className, variant, ...props }: ChipProps) {
   return (
-    <span className={cn(chipVariants({ variant, className }))} {...props} />
+    <span
+      data-slot="chip"
+      className={cn(chipVariants({ variant, className }))}
+      {...props}
+    />
   );
 }
 
 export { Chip, chipVariants };
+export type { ChipProps };

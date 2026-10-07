@@ -1,6 +1,11 @@
 "use client";
 
-import { StatusBadge, type StatusBadgeTone } from "@nite/cms-ui";
+import {
+  Avatar,
+  AvatarFallback,
+  StatusBadge,
+  type StatusBadgeTone,
+} from "@nite/cms-ui";
 
 function memberInitials(displayName: string): string {
   return displayName
@@ -17,12 +22,11 @@ type MembershipAvatarProps = {
 
 function MembershipAvatar({ displayName }: MembershipAvatarProps) {
   return (
-    <span
-      aria-hidden="true"
-      className="inline-flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-nite-section border border-nite-border-subtle font-mono text-xs font-semibold text-nite-text-secondary uppercase"
-    >
-      {memberInitials(displayName)}
-    </span>
+    <Avatar size="md" aria-hidden="true">
+      <AvatarFallback className="font-mono uppercase">
+        {memberInitials(displayName)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -31,18 +35,10 @@ type MembershipRowStatusProps = {
 };
 
 function MembershipRowStatus({ active }: MembershipRowStatusProps) {
-  const tone: StatusBadgeTone = active ? "validated" : "quiet";
-  const status = active ? "validated" : "archived";
+  const tone: StatusBadgeTone = active ? "done" : "quiet";
+  const status = active ? "done" : "archived";
   const label = active ? "Ativa" : "Inativa";
-  return (
-    <StatusBadge
-      status={status}
-      tone={tone}
-      variant="outline"
-      size="sm"
-      label={label}
-    />
-  );
+  return <StatusBadge status={status} tone={tone} size="sm" label={label} />;
 }
 
 export { MembershipAvatar, MembershipRowStatus };

@@ -34,6 +34,7 @@ vi.mock("@nite/editorial", async (importOriginal) => {
 });
 vi.mock("@/lib/media-storage", () => ({
   getMediaObjectStore: vi.fn(() => ({ objectStore: true })),
+  getPublicMediaUrl: vi.fn((key: string) => `https://media.nite.test/${key}`),
   sharpImageProcessor: { imageProcessor: true },
 }));
 vi.mock("@/lib/mp4box-video-inspector", () => ({
@@ -198,6 +199,7 @@ describe("ações do editor", () => {
       data: {
         mediaKind: "video",
         mediaStatus: "ready",
+        publicUrl: "https://media.nite.test/news/video/etag.mp4",
         durationMs: 24_500,
         videoCodec: "avc1.640028",
         hasAudio: true,

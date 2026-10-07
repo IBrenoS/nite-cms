@@ -4,13 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const cardVariants = cva(
-  "group/card flex flex-col gap-4 overflow-hidden rounded-xl border py-4 text-sm text-card-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+  "group/card flex flex-col gap-4 overflow-hidden rounded-lg border border-border-subtle bg-surface py-4 text-ui-md text-text-primary outline-none transition-colors focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary-subtle has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
   {
     variants: {
       variant: {
-        default: "border-nite-border-subtle bg-transparent",
+        default: "bg-surface border-border-subtle",
         interactive:
-          "border-nite-border-subtle bg-transparent hover:border-nite-border-hover hover:bg-nite-surface-subtle active:translate-y-px aria-disabled:pointer-events-none aria-disabled:opacity-60",
+          "bg-surface border-border-subtle hover:bg-surface-hover hover:border-border active:translate-y-px aria-disabled:pointer-events-none aria-disabled:opacity-60",
       },
     },
     defaultVariants: { variant: "default" },
@@ -98,7 +98,7 @@ function CardHeader({ className, ...props }: ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-4 has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4",
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-lg px-4 has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4",
         className,
       )}
       {...props}
@@ -111,7 +111,7 @@ function CardTitle({ className, ...props }: ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-base leading-snug font-medium",
+        "font-heading text-ui-lg leading-snug font-semibold text-text-primary",
         className,
       )}
       {...props}
@@ -123,10 +123,20 @@ function CardContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-4", className)}
+      className={cn("px-4 text-ui-md text-text-secondary", className)}
       {...props}
     />
   );
 }
 
-export { Card, cardVariants, CardHeader, CardTitle, CardContent };
+function CardFooter({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-4 pt-2 pb-4", className)}
+      {...props}
+    />
+  );
+}
+
+export { Card, cardVariants, CardHeader, CardTitle, CardContent, CardFooter };

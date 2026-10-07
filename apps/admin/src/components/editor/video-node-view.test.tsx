@@ -26,14 +26,16 @@ describe("VideoNodeView", () => {
 
   function renderVideo(
     attrs: Record<string, unknown> = {},
-    selected = false,
+    selected = true,
     contextValues = {},
   ) {
     const updateAttributes = vi.fn();
     const deleteNode = vi.fn();
+    const videoId = "30000000-0000-4000-8000-000000000201";
+    const captionsId = "30000000-0000-4000-8000-000000000202";
     const defaultAttrs = {
-      mediaId: "30000000-0000-4000-8000-000000000201",
-      captionsMediaId: "30000000-0000-4000-8000-000000000202",
+      mediaId: videoId,
+      captionsMediaId: captionsId,
       playbackMode: "manual",
       layout: "normal",
       description: "Vídeo explicativo sobre inovação",
@@ -43,7 +45,23 @@ describe("VideoNodeView", () => {
     };
 
     render(
-      <NodeViewContextProvider value={contextValues}>
+      <NodeViewContextProvider
+        value={{
+          mediaById: {
+            [videoId]: {
+              mediaKind: "video",
+              src: "https://media.nite.test/video.mp4",
+            },
+            [captionsId]: {
+              mediaKind: "captions",
+              src: "https://media.nite.test/pt-BR.vtt",
+            },
+          },
+          onReplaceVideo: vi.fn(),
+          onReplaceCaptions: vi.fn(),
+          ...contextValues,
+        }}
+      >
         <VideoNodeView
           editor={null as never}
           node={{ attrs: defaultAttrs } as never}
@@ -63,39 +81,25 @@ describe("VideoNodeView", () => {
     return { updateAttributes, deleteNode };
   }
 
-  it("renderiza representação visual rica com metadados, badges e ações", () => {
+  it("renderiza o vídeo como conteúdo editorial sem expor metadados técnicos", () => {
     const { deleteNode } = renderVideo();
 
-    expect(screen.getByText("Vídeo inserido")).toBeInTheDocument();
-    expect(screen.getByText("Reprodução manual")).toBeInTheDocument();
-    expect(screen.getByText("Largura normal")).toBeInTheDocument();
-    expect(screen.getByText("WebVTT pt-BR presente")).toBeInTheDocument();
     expect(
-      screen.getByText(/Vídeo explicativo sobre inovação/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Cena do laboratório/)).toBeInTheDocument();
-    expect(screen.getByText(/Vídeo: NITE/)).toBeInTheDocument();
+      screen.getByLabelText("Vídeo explicativo sobre inovação"),
+    ).toHaveAttribute("src", "https://media.nite.test/video.mp4");
+    expect(screen.getByText("Cena do laboratório")).toBeInTheDocument();
+    expect(screen.getByText("Vídeo: NITE")).toBeInTheDocument();
+    expect(screen.queryByText(/ID:/)).toBeNull();
 
-    const editBtn = screen.getByRole("button", { name: "Editar" });
-    expect(editBtn).toBeInTheDocument();
-
-    const removeBtn = screen.getByRole("button", {
-      name: "Remover vídeo do conteúdo",
-    });
-    fireEvent.click(removeBtn);
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
     expect(deleteNode).toHaveBeenCalledOnce();
   });
 
-  it("abre edição contextual in-place com rótulos visíveis e atualiza atributos", () => {
+  it("abre opções contextuais e atualiza reprodução e largura", () => {
     const { updateAttributes } = renderVideo();
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Opções" }));
 
-    expect(
-      screen.getByRole("heading", { name: "Editar vídeo interno" }),
-    ).toBeInTheDocument();
-
-    // Rótulos visíveis
     expect(
       screen.getByLabelText("Reprodução do vídeo selecionado"),
     ).toBeInTheDocument();
@@ -111,14 +115,7 @@ describe("VideoNodeView", () => {
     expect(screen.getByLabelText("Crédito do vídeo selecionado")).toHaveValue(
       "Vídeo: NITE",
     );
-    expect(
-      screen.getByLabelText("Substituir vídeo selecionado"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Substituir legenda do vídeo selecionado"),
-    ).toBeInTheDocument();
 
-    // Atualização de atributos
     fireEvent.change(screen.getByLabelText("Reprodução do vídeo selecionado"), {
       target: { value: "autoplay" },
     });
@@ -130,17 +127,15 @@ describe("VideoNodeView", () => {
     expect(updateAttributes).toHaveBeenCalledWith({ layout: "wide" });
   });
 
-  it("informa ausência de WebVTT e descrição quando não preenchidos", () => {
-    renderVideo({
-      captionsMediaId: null,
-      description: "",
-      caption: "",
-      credit: "",
-    });
+  it("oferece WebVTT como configuração contextual quando ausente", () => {
+    renderVideo({ captionsMediaId: null, description: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Opções" }));
 
-    expect(screen.getByText("Sem legenda WebVTT")).toBeInTheDocument();
     expect(
-      screen.getByText(/Sem descrição acessível informada/i),
+      screen.getByRole("button", { name: "Adicionar WebVTT" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Recomendado para vídeos com áudio."),
     ).toBeInTheDocument();
   });
 });

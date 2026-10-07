@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" data-theme="light">
       <body
-        className={`${sourceSans.variable} ${newsreader.variable} ${ibmPlexMono.variable} min-h-screen bg-nite-background font-sans text-nite-text-primary antialiased`}
+        className={`${sourceSans.variable} ${newsreader.variable} ${ibmPlexMono.variable} min-h-screen bg-canvas font-sans text-text-primary antialiased`}
       >
         {children}
       </body>

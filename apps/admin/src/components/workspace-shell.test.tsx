@@ -80,10 +80,10 @@ describe("WorkspaceShell", () => {
       "NITE CMS — Matérias",
     ).parentElement;
 
-    expect(brandDetails).toHaveClass("md:hidden", "xl:flex");
-    expect(screen.getByText("Operação editorial")).toHaveClass(
+    expect(brandDetails).toHaveClass("md:hidden", "inspector-rail:flex");
+    expect(screen.getAllByText("Redação")[0]).toHaveClass(
       "md:hidden",
-      "xl:block",
+      "inspector-rail:block",
     );
   });
 });

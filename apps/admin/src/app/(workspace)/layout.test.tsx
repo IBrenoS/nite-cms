@@ -45,13 +45,14 @@ describe("WorkspaceLayout", () => {
     const navigation = screen.getByRole("navigation", {
       name: "Seções do CMS",
     });
-    expect(navigation).toHaveTextContent("Operação editorial");
+    expect(navigation).toHaveTextContent("Redação");
+    expect(navigation).toHaveTextContent("Gestão");
     expect(screen.getByText("Redação Digital")).toBeInTheDocument();
     expect(
       within(navigation).getByRole("link", { name: "Matérias" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
-      within(navigation).getByRole("link", { name: "Equipe e acessos" }),
+      within(navigation).getByRole("link", { name: "Equipe" }),
     ).toHaveAttribute("href", "/memberships");
     expect(screen.getByText("MC")).toBeInTheDocument();
     expect(screen.getByText("Marina Costa")).toBeInTheDocument();
@@ -59,7 +60,7 @@ describe("WorkspaceLayout", () => {
     expect(screen.getByText("Conteúdo editorial")).toBeInTheDocument();
   });
 
-  it("não exibe Equipe e acessos para acesso editorial", async () => {
+  it("não exibe Equipe para acesso editorial", async () => {
     mocks.getCmsContext.mockResolvedValue({
       status: "authenticated",
       membership: { displayName: "Pessoa Editorial", role: "publisher" },
@@ -68,7 +69,7 @@ describe("WorkspaceLayout", () => {
     render(await WorkspaceLayout({ children: <p>Conteúdo</p> }));
 
     expect(
-      screen.queryByRole("link", { name: "Equipe e acessos" }),
+      screen.queryByRole("link", { name: "Equipe" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Acesso editorial")).toBeInTheDocument();
   });

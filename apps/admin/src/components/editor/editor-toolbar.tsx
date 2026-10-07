@@ -6,14 +6,26 @@ import { isAllowedEditorialLink } from "@nite/editorial";
 import {
   BoldIcon,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Heading2Icon,
   Heading3Icon,
-  ImagePlusIcon,
+  ImageIcon,
+  Input,
   ItalicIcon,
   LinkIcon,
   ListIcon,
   ListOrderedIcon,
+  PlusIcon,
   QuoteIcon,
+  Toolbar,
+  ToolbarButton,
+  ToolbarGroup,
+  ToolbarSeparator,
+  buttonVariants,
+  cn,
 } from "@nite/cms-ui";
 
 type EditorToolbarProps = {
@@ -60,246 +72,177 @@ export function EditorToolbar({
   }
 
   return (
-    <div className="border-b border-nite-border-subtle bg-nite-section/50">
-      <div
-        className="flex max-w-[880px] flex-nowrap items-center gap-1 overflow-x-auto px-4 py-2 sm:px-7 lg:px-9 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="toolbar"
-        aria-label="Formatação do texto"
-      >
-        <button
-          type="button"
-          aria-label="Desfazer (Ctrl+Z)"
-          title="Desfazer · Ctrl+Z"
-          disabled={!editor}
-          onClick={() => editor?.chain().focus().undo().run()}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40 max-sm:size-11"
+    <div className="sticky top-28 z-20 border-y border-border-subtle bg-surface/95 backdrop-blur md:top-14 inspector-rail:top-0">
+      <div className="mx-auto max-w-[760px] px-5 py-2 sm:px-8">
+        <Toolbar
+          aria-label="Formatação do texto"
+          className="flex-nowrap overflow-x-auto rounded-none border-0 bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          ↶
-        </button>
-        <button
-          type="button"
-          aria-label="Refazer (Ctrl+Shift+Z)"
-          title="Refazer · Ctrl+Shift+Z"
-          disabled={!editor}
-          onClick={() => editor?.chain().focus().redo().run()}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-nite-text-secondary hover:bg-nite-surface disabled:opacity-40 max-sm:size-11"
-        >
-          ↷
-        </button>
-        <button
-          type="button"
-          aria-label="Parágrafo"
-          aria-pressed={editor?.isActive("paragraph") ?? false}
-          onClick={() => editor?.chain().focus().setParagraph().run()}
-          className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors max-sm:min-h-11 ${
-            editor?.isActive("paragraph")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          Parágrafo
-        </button>
-
-        <button
-          type="button"
-          aria-label="Intertítulo (H2)"
-          aria-pressed={editor?.isActive("heading", { level: 2 }) ?? false}
-          onClick={() =>
-            editor?.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("heading", { level: 2 })
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <Heading2Icon className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Subseção (H3)"
-          aria-pressed={editor?.isActive("heading", { level: 3 }) ?? false}
-          onClick={() =>
-            editor?.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("heading", { level: 3 })
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <Heading3Icon className="size-4" aria-hidden="true" />
-        </button>
-
-        <span
-          className="mx-1 h-4 w-px bg-nite-border-subtle"
-          aria-hidden="true"
-        />
-
-        <button
-          type="button"
-          aria-label="Negrito"
-          aria-pressed={editor?.isActive("bold") ?? false}
-          onClick={() => editor?.chain().focus().toggleBold().run()}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("bold")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <BoldIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Itálico"
-          aria-pressed={editor?.isActive("italic") ?? false}
-          onClick={() => editor?.chain().focus().toggleItalic().run()}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("italic")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <ItalicIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Link"
-          aria-pressed={editor?.isActive("link") ?? false}
-          aria-expanded={linkPanelOpen}
-          onClick={openLinkPanel}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("link")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <LinkIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <span
-          className="mx-1 h-4 w-px bg-nite-border-subtle"
-          aria-hidden="true"
-        />
-
-        <button
-          type="button"
-          aria-label="Lista"
-          aria-pressed={editor?.isActive("bulletList") ?? false}
-          onClick={() => editor?.chain().focus().toggleBulletList().run()}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("bulletList")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <ListIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Lista numerada"
-          aria-pressed={editor?.isActive("orderedList") ?? false}
-          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("orderedList")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <ListOrderedIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Citação"
-          aria-pressed={editor?.isActive("blockquote") ?? false}
-          onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors max-sm:size-11 ${
-            editor?.isActive("blockquote")
-              ? "bg-nite-surface text-nite-brand-primary shadow-xs"
-              : "text-nite-text-secondary hover:bg-nite-surface hover:text-nite-text-primary"
-          }`}
-        >
-          <QuoteIcon className="size-4" aria-hidden="true" />
-        </button>
-
-        <div
-          className="ml-auto flex shrink-0 items-center gap-1 border-l border-nite-border-subtle pl-2.5"
-          role="toolbar"
-          aria-label="Adicionar ao conteúdo"
-        >
-          <span className="hidden text-xs font-semibold text-nite-text-muted xl:inline">
-            Adicionar:
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label="Inserir imagem no conteúdo"
-            aria-expanded={inlinePanelOpen}
-            className="min-h-10 text-sm text-nite-brand-primary hover:bg-nite-surface max-sm:min-h-11"
-            onClick={onToggleInlinePanel}
-          >
-            <ImagePlusIcon aria-hidden="true" />
-            <span className="hidden sm:inline">Imagem</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label="Inserir vídeo no conteúdo"
-            aria-expanded={videoPanelOpen}
-            className="min-h-10 text-sm text-nite-brand-primary hover:bg-nite-surface max-sm:min-h-11"
-            onClick={onToggleVideoPanel}
-          >
-            <span aria-hidden="true">▶</span>
-            <span className="hidden sm:inline">Vídeo</span>
-          </Button>
-        </div>
-      </div>
-      {linkPanelOpen ? (
-        <div className="flex flex-wrap items-end gap-2 border-t border-nite-border-subtle p-3">
-          <label className="min-w-56 flex-1 text-sm font-semibold text-nite-text-primary">
-            URL do link
-            <input
-              value={linkHref}
-              aria-invalid={Boolean(linkError)}
-              aria-describedby={linkError ? "editor-link-error" : undefined}
-              onChange={(event) => {
-                setLinkHref(event.target.value);
-                setLinkError(undefined);
-              }}
-              placeholder="https://… ou /caminho"
-              className="nite-form-field mt-1 min-h-10 w-full rounded-md border px-3 text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={applyLink}
-            className="min-h-10 rounded-md bg-nite-brand-primary px-3 text-sm font-semibold text-white"
-          >
-            Aplicar link
-          </button>
-          <button
-            type="button"
-            onClick={removeLink}
-            className="min-h-10 rounded-md px-3 text-sm font-semibold text-status-error hover:bg-status-error/10"
-          >
-            Remover link
-          </button>
-          {linkError ? (
-            <p
-              id="editor-link-error"
-              role="alert"
-              className="w-full text-xs text-status-error"
+          <ToolbarGroup>
+            <ToolbarButton
+              aria-label="Desfazer (Ctrl+Z)"
+              title="Desfazer · Ctrl+Z"
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().undo().run()}
             >
-              {linkError}
-            </p>
-          ) : null}
+              ↶
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Refazer (Ctrl+Shift+Z)"
+              title="Refazer · Ctrl+Shift+Z"
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().redo().run()}
+            >
+              ↷
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Parágrafo"
+              active={editor?.isActive("paragraph") ?? false}
+              onClick={() => editor?.chain().focus().setParagraph().run()}
+              className="px-2.5"
+            >
+              Parágrafo
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Intertítulo (H2)"
+              active={editor?.isActive("heading", { level: 2 }) ?? false}
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 2 }).run()
+              }
+            >
+              <Heading2Icon aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Subseção (H3)"
+              active={editor?.isActive("heading", { level: 3 }) ?? false}
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 3 }).run()
+              }
+            >
+              <Heading3Icon aria-hidden="true" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <ToolbarSeparator />
+
+          <ToolbarGroup>
+            <ToolbarButton
+              aria-label="Negrito"
+              active={editor?.isActive("bold") ?? false}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
+              <BoldIcon aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Itálico"
+              active={editor?.isActive("italic") ?? false}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
+              <ItalicIcon aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Link"
+              active={editor?.isActive("link") ?? false}
+              aria-expanded={linkPanelOpen}
+              onClick={openLinkPanel}
+            >
+              <LinkIcon aria-hidden="true" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <ToolbarSeparator />
+
+          <ToolbarGroup>
+            <ToolbarButton
+              aria-label="Lista"
+              active={editor?.isActive("bulletList") ?? false}
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
+              <ListIcon aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Lista numerada"
+              active={editor?.isActive("orderedList") ?? false}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrderedIcon aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              aria-label="Citação"
+              active={editor?.isActive("blockquote") ?? false}
+              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+            >
+              <QuoteIcon aria-hidden="true" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <ToolbarSeparator className="ml-auto" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Inserir mídia"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                (inlinePanelOpen || videoPanelOpen) &&
+                  "bg-primary-subtle text-primary",
+                "h-8 shrink-0 gap-1.5 px-2.5",
+              )}
+            >
+              <PlusIcon aria-hidden="true" />
+              <span>Inserir</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent sideOffset={6} className="w-44">
+              <DropdownMenuItem onClick={onToggleInlinePanel}>
+                <ImageIcon aria-hidden="true" />
+                <span>Imagem</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onToggleVideoPanel}>
+                <span aria-hidden="true">▶</span>
+                <span>Vídeo</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Toolbar>
+      </div>
+
+      {linkPanelOpen ? (
+        <div className="border-t border-border-subtle bg-surface px-5 py-3 sm:px-8">
+          <div className="mx-auto flex max-w-[760px] flex-wrap items-end gap-2">
+            <label className="min-w-56 flex-1 text-ui-md font-semibold text-text-primary">
+              URL do link
+              <Input
+                value={linkHref}
+                aria-invalid={Boolean(linkError)}
+                aria-describedby={linkError ? "editor-link-error" : undefined}
+                onChange={(event) => {
+                  setLinkHref(event.target.value);
+                  setLinkError(undefined);
+                }}
+                placeholder="https://… ou /caminho"
+                className="mt-1"
+              />
+            </label>
+            <Button type="button" onClick={applyLink}>
+              Aplicar link
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={removeLink}
+              className="text-danger hover:bg-danger-bg hover:text-danger"
+            >
+              Remover link
+            </Button>
+            {linkError ? (
+              <p
+                id="editor-link-error"
+                role="alert"
+                className="w-full text-ui-sm text-danger"
+              >
+                {linkError}
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

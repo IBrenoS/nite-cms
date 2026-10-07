@@ -97,7 +97,7 @@ export function EditorialVideo(props: Props) {
         </span>
       ) : null}
       {status ? (
-        <p id={statusId} role="status" className="text-xs text-nite-text-muted">
+        <p id={statusId} role="status" className="text-ui-xs text-text-muted">
           {status}
         </p>
       ) : null}

@@ -7,8 +7,10 @@ const statusBadgeLabels = {
   draft: "Em estruturação",
   progress: "Em progresso",
   in_progress: "Em andamento",
+  scheduled: "Agendada",
   validated: "Validado",
   done: "Finalizado",
+  published: "Publicada",
   warning: "Atenção",
   error: "Erro",
   archived: "Arquivado",
@@ -26,52 +28,58 @@ type StatusBadgeTone =
   | "error";
 
 const statusBadgeVariants = cva(
-  "inline-flex min-h-6 w-fit shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-xs leading-none font-medium whitespace-nowrap transition-colors",
+  "inline-flex h-6 w-fit shrink-0 items-center gap-1.5 rounded-sm border px-2 text-ui-xs font-semibold leading-none whitespace-nowrap transition-colors",
   {
     variants: {
       size: {
-        sm: "min-h-6 px-2 py-1 text-xs",
-        md: "min-h-7 px-2.5 py-1 text-xs",
-        lg: "min-h-7 px-3 py-1 text-sm leading-5",
+        sm: "h-5 px-1.5 text-ui-xs",
+        md: "h-6 px-2 text-ui-xs",
+        lg: "h-7 px-2.5 text-ui-sm",
       },
-      variant: { soft: "", outline: "bg-transparent" },
+      variant: {
+        soft: "",
+        outline: "bg-transparent",
+      },
     },
-    defaultVariants: { size: "md", variant: "soft" },
+    defaultVariants: {
+      size: "md",
+      variant: "soft",
+    },
   },
 );
 
 const statusBadgeToneClasses = {
   brand: {
-    soft: "border-nite-brand-accent/35 bg-nite-brand-accent/10 text-nite-brand-accent",
-    outline: "border-nite-brand-accent/55 text-nite-brand-accent",
+    soft: "border-primary-border bg-primary-subtle text-primary",
+    outline: "border-primary text-primary",
   },
   quiet: {
-    soft: "border-border bg-muted/40 text-muted-foreground",
-    outline: "border-border text-muted-foreground",
+    soft: "border-border-subtle bg-surface-subtle text-text-secondary",
+    outline: "border-border text-text-secondary",
   },
   draft: {
-    soft: "border-status-draft/35 bg-status-draft/10 text-status-draft",
-    outline: "border-status-draft/55 text-status-draft",
+    soft: "border-border-subtle bg-surface-subtle text-text-secondary",
+    outline: "border-border text-text-secondary",
   },
   progress: {
-    soft: "border-status-progress/35 bg-status-progress/10 text-status-progress",
-    outline: "border-status-progress/55 text-status-progress",
+    soft: "border-primary-border bg-primary-subtle text-primary",
+    outline: "border-primary text-primary",
   },
   validated: {
-    soft: "border-status-validated/35 bg-status-validated/10 text-status-validated",
-    outline: "border-status-validated/55 text-status-validated",
+    soft: "border-success-border bg-success-bg text-success",
+    outline: "border-success-border text-success",
   },
   done: {
-    soft: "border-status-done/35 bg-status-done/10 text-status-done",
-    outline: "border-status-done/55 text-status-done",
+    soft: "border-success-border bg-success-bg text-success",
+    outline: "border-success-border text-success",
   },
   warning: {
-    soft: "border-status-warning/40 bg-status-warning/10 text-status-warning",
-    outline: "border-status-warning/60 text-status-warning",
+    soft: "border-warning-border bg-warning-bg text-warning",
+    outline: "border-warning-border text-warning",
   },
   error: {
-    soft: "border-status-error/40 bg-status-error/10 text-status-error",
-    outline: "border-status-error/60 text-status-error",
+    soft: "border-danger-border bg-danger-bg text-danger",
+    outline: "border-danger-border text-danger",
   },
 } satisfies Record<
   StatusBadgeTone,
@@ -81,16 +89,18 @@ const statusBadgeToneClasses = {
   >
 >;
 
-const statusBadgeToneByStatus = {
+const statusBadgeToneByStatus: Record<StatusBadgeStatus, StatusBadgeTone> = {
   draft: "draft",
   progress: "progress",
   in_progress: "progress",
+  scheduled: "progress",
   validated: "validated",
   done: "done",
+  published: "done",
   warning: "warning",
   error: "error",
   archived: "draft",
-} satisfies Record<StatusBadgeStatus, StatusBadgeTone>;
+};
 
 type StatusBadgeProps = Omit<
   ComponentPropsWithoutRef<"span">,
@@ -109,7 +119,7 @@ function StatusBadge({
   tone,
   label,
   icon,
-  showIndicator = true,
+  showIndicator = false,
   size = "md",
   variant = "soft",
   className,
@@ -137,7 +147,7 @@ function StatusBadge({
       {showIndicator ? (
         <span
           aria-hidden="true"
-          className="inline-flex shrink-0 items-center justify-center [&_svg]:size-3.5 [&_svg]:shrink-0"
+          className="inline-flex shrink-0 items-center justify-center [&_svg]:size-3 [&_svg]:shrink-0"
         >
           {icon ?? <span className="size-1.5 rounded-full bg-current" />}
         </span>
@@ -149,5 +159,5 @@ function StatusBadge({
   );
 }
 
-export { StatusBadge, statusBadgeLabels };
+export { StatusBadge, statusBadgeLabels, statusBadgeVariants };
 export type { StatusBadgeProps, StatusBadgeStatus, StatusBadgeTone };

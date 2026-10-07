@@ -1,8 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import type { ChangeEvent, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
-import { SearchIcon, SlidersHorizontalIcon, XIcon } from "@nite/cms-ui";
+import { useRef, useState } from "react";
+import {
+  Button,
+  IconButton,
+  Input,
+  SearchIcon,
+  Select,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SlidersHorizontalIcon,
+  XIcon,
+  buttonVariants,
+} from "@nite/cms-ui";
 
 type ArticleFiltersProps = {
   search?: string;
@@ -11,57 +26,39 @@ type ArticleFiltersProps = {
   categories: ReadonlyArray<{ value: string; label: string }>;
 };
 
-type FilterFieldsProps = ArticleFiltersProps & {
+type CategoryFilterProps = ArticleFiltersProps & {
   onChange?: (event: ChangeEvent<HTMLSelectElement>) => void;
   mobile?: boolean;
 };
 
-function FilterFields({
-  status,
+function CategoryFilter({
   category,
   categories,
   onChange,
   mobile = false,
-}: FilterFieldsProps) {
+}: CategoryFilterProps) {
   return (
-    <>
-      <label className={mobile ? "grid gap-1.5 text-sm font-medium" : "w-auto"}>
-        <span className={mobile ? undefined : "sr-only"}>
-          Filtrar por estado
-        </span>
-        <select
-          name="status"
-          aria-label="Filtrar por estado"
-          defaultValue={status ?? ""}
-          onChange={onChange}
-          className="min-h-10 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-sm text-nite-text-primary focus:border-nite-brand-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-primary/15"
-        >
-          <option value="">Todos os estados</option>
-          <option value="draft">Rascunho</option>
-          <option value="published">Publicado</option>
-          <option value="archived">Arquivado</option>
-        </select>
-      </label>
-      <label className={mobile ? "grid gap-1.5 text-sm font-medium" : "w-auto"}>
-        <span className={mobile ? undefined : "sr-only"}>
-          Filtrar por categoria
-        </span>
-        <select
-          name="category"
-          aria-label="Filtrar por categoria"
-          defaultValue={category ?? ""}
-          onChange={onChange}
-          className="min-h-10 rounded-md border border-nite-border-subtle bg-nite-surface px-3 text-sm text-nite-text-primary focus:border-nite-brand-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-primary/15"
-        >
-          <option value="">Todas as categorias</option>
-          {categories.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-    </>
+    <label
+      className={mobile ? "grid gap-1.5 text-ui-md font-semibold" : "w-auto"}
+    >
+      <span className={mobile ? undefined : "sr-only"}>
+        Filtrar por categoria
+      </span>
+      <Select
+        name="category"
+        aria-label="Filtrar por categoria"
+        defaultValue={category ?? ""}
+        onChange={onChange}
+        className="sm:min-w-48"
+      >
+        <option value="">Todas as categorias</option>
+        {categories.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </label>
   );
 }
 
@@ -73,123 +70,123 @@ function SearchField({
   inputRef?: RefObject<HTMLInputElement | null>;
 }) {
   return (
-    <label className="relative block min-w-0 flex-1 sm:w-72 sm:flex-initial">
+    <label className="relative block min-w-0 flex-1 sm:max-w-md">
       <span className="sr-only">Buscar por título ou slug</span>
       <SearchIcon
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-nite-text-secondary"
+        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-text-muted"
         aria-hidden="true"
       />
-      <input
+      <Input
         ref={inputRef}
         type="search"
         name="q"
         defaultValue={search}
-        placeholder="Buscar por título ou slug"
-        className="min-h-10 w-full rounded-md border border-nite-border-subtle bg-nite-surface pr-3 pl-9 text-sm text-nite-text-primary placeholder:text-nite-text-secondary focus:border-nite-brand-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-primary/15"
+        placeholder="Buscar matérias"
+        className="pl-9"
       />
     </label>
   );
 }
 
+function currentViewHref(status?: ArticleFiltersProps["status"]) {
+  return status ? { pathname: "/", query: { status } } : "/";
+}
+
 export function ArticleFilters(props: ArticleFiltersProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const hasRefinement = Boolean(props.search || props.category);
 
-  function applySelectFilter(event: ChangeEvent<HTMLSelectElement>) {
+  function applyCategoryFilter(event: ChangeEvent<HTMLSelectElement>) {
     event.currentTarget.form?.requestSubmit();
   }
 
-  function closeFilters() {
-    setFiltersOpen(false);
-    triggerRef.current?.focus();
+  function setOpen(open: boolean) {
+    setFiltersOpen(open);
+    if (!open) window.setTimeout(() => triggerRef.current?.focus());
   }
 
-  useEffect(() => {
-    if (!filtersOpen) return;
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setFiltersOpen(false);
-      triggerRef.current?.focus();
-    }
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [filtersOpen]);
-
   return (
-    <>
+    <Sheet open={filtersOpen} onOpenChange={setOpen}>
       <form
         action="/"
-        className="flex w-full min-w-0 items-center gap-2 min-[1480px]:w-auto"
+        className="flex w-full min-w-0 items-center gap-2"
         role="search"
       >
+        {props.status ? (
+          <input type="hidden" name="status" value={props.status} />
+        ) : null}
         <SearchField search={props.search} />
-        <div className="hidden sm:contents">
-          <FilterFields {...props} onChange={applySelectFilter} />
+        <div className="hidden sm:block">
+          <CategoryFilter {...props} onChange={applyCategoryFilter} />
         </div>
-        <button type="submit" className="sr-only">
-          Aplicar filtros
-        </button>
-        <button
+        <Button type="submit" className="sr-only">
+          Buscar
+        </Button>
+        {hasRefinement ? (
+          <Link
+            href={currentViewHref(props.status)}
+            className={`${buttonVariants({ variant: "ghost", size: "md" })} hidden sm:inline-flex`}
+          >
+            Limpar filtros
+          </Link>
+        ) : null}
+        <IconButton
           ref={triggerRef}
           type="button"
           aria-label="Abrir filtros"
+          variant="secondary"
+          className="size-11 sm:hidden"
           onClick={() => setFiltersOpen(true)}
-          className="flex size-11 shrink-0 items-center justify-center rounded-md border border-nite-border-subtle bg-nite-surface text-nite-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nite-brand-primary"
         >
-          <SlidersHorizontalIcon className="size-4" aria-hidden="true" />
-        </button>
+          <SlidersHorizontalIcon aria-hidden="true" />
+        </IconButton>
       </form>
 
-      {filtersOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end bg-slate-950/35 sm:hidden"
-          onMouseDown={(event) => {
-            if (event.currentTarget === event.target) closeFilters();
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Filtros de matérias"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") closeFilters();
-            }}
-            className="w-full rounded-t-xl border border-nite-border-subtle bg-nite-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-nite-text-primary">
-                  Filtros
-                </h2>
-                <p className="text-sm text-nite-text-secondary">
-                  Refine a central de matérias.
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Fechar filtros"
-                onClick={closeFilters}
-                className="flex size-11 items-center justify-center rounded-md text-nite-text-secondary hover:bg-nite-section"
-              >
-                <XIcon className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-            <form action="/" className="grid gap-4">
-              {props.search ? (
-                <input type="hidden" name="q" value={props.search} />
-              ) : null}
-              <FilterFields {...props} mobile />
-              <button
-                type="submit"
-                className="min-h-11 rounded-md bg-nite-brand-primary px-4 text-sm font-semibold text-white"
-              >
-                Aplicar filtros
-              </button>
-            </form>
+      <SheetContent
+        side="bottom"
+        aria-label="Filtros de matérias"
+        className="max-h-[90dvh] gap-5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:hidden"
+      >
+        <SheetHeader className="flex-row items-start justify-between gap-4">
+          <div>
+            <SheetTitle>Filtros</SheetTitle>
+            <SheetDescription>Refine a lista por categoria.</SheetDescription>
           </div>
-        </div>
-      ) : null}
-    </>
+          <IconButton
+            type="button"
+            aria-label="Fechar filtros"
+            variant="ghost"
+            className="size-11"
+            onClick={() => setOpen(false)}
+          >
+            <XIcon className="size-5" aria-hidden="true" />
+          </IconButton>
+        </SheetHeader>
+        <form action="/" className="grid gap-4">
+          {props.status ? (
+            <input type="hidden" name="status" value={props.status} />
+          ) : null}
+          {props.search ? (
+            <input type="hidden" name="q" value={props.search} />
+          ) : null}
+          <CategoryFilter {...props} mobile />
+          <div className="grid gap-2">
+            <Button type="submit" size="lg">
+              Aplicar filtros
+            </Button>
+            {hasRefinement ? (
+              <Link
+                href={currentViewHref(props.status)}
+                className={buttonVariants({ variant: "ghost", size: "lg" })}
+                onClick={() => setOpen(false)}
+              >
+                Limpar filtros
+              </Link>
+            ) : null}
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }

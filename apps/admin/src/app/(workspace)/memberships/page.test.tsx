@@ -18,6 +18,9 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/components/memberships-panel", () => ({
   MembershipsPanel: mocks.membershipsPanel,
 }));
+vi.mock("@/components/memberships/membership-invite-dialog", () => ({
+  MembershipInviteDialog: () => <button>Convidar pessoa</button>,
+}));
 
 import MembershipsPage from "./page";
 

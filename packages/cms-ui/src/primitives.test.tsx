@@ -2,15 +2,40 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Avatar,
+  AvatarFallback,
+  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  IconButton,
   Input,
   NewsArticleBody,
+  Select,
+  Separator,
+  Skeleton,
+  Spinner,
   StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Textarea,
+  Toolbar,
+  ToolbarButton,
+  ToolbarGroup,
+  ToolbarSeparator,
 } from "./index";
 
 afterEach(cleanup);
@@ -237,5 +262,128 @@ describe("@nite/cms-ui", () => {
       "w-[min(50.4rem,calc(100vw-2rem))]",
       "sm:w-[min(50.4rem,calc(100vw-4rem))]",
     );
+  });
+
+  it("renderiza IconButton com rotulo acessivel e variantes de botao", () => {
+    render(
+      <IconButton aria-label="Abrir painel lateral" variant="ghost">
+        <span data-testid="icon">≡</span>
+      </IconButton>,
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Abrir painel lateral",
+    });
+    expect(button).toBeVisible();
+    expect(button).toHaveAttribute("data-slot", "icon-button");
+  });
+
+  it("renderiza anatomia de formulario padrao com Field e Select", () => {
+    render(
+      <Field>
+        <FieldLabel htmlFor="categoria">Categoria</FieldLabel>
+        <Select id="categoria" aria-describedby="categoria-desc">
+          <option value="tecnologia">Tecnologia</option>
+          <option value="cultura">Cultura</option>
+        </Select>
+        <FieldDescription id="categoria-desc">
+          Selecione a seção principal da matéria.
+        </FieldDescription>
+        <FieldError>Campo obrigatório</FieldError>
+      </Field>,
+    );
+
+    expect(screen.getByLabelText("Categoria")).toBeVisible();
+    expect(
+      screen.getByText("Selecione a seção principal da matéria."),
+    ).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Campo obrigatório");
+  });
+
+  it("renderiza Toolbar estruturada com grupos, botoes e separadores", () => {
+    render(
+      <Toolbar aria-label="Formatação de texto">
+        <ToolbarGroup>
+          <ToolbarButton active aria-label="Negrito">
+            B
+          </ToolbarButton>
+          <ToolbarButton aria-label="Itálico">I</ToolbarButton>
+        </ToolbarGroup>
+        <ToolbarSeparator />
+        <ToolbarGroup>
+          <ToolbarButton aria-label="Link">Link</ToolbarButton>
+        </ToolbarGroup>
+      </Toolbar>,
+    );
+
+    expect(
+      screen.getByRole("toolbar", { name: "Formatação de texto" }),
+    ).toBeVisible();
+    const boldButton = screen.getByRole("button", { name: "Negrito" });
+    expect(boldButton).toHaveAttribute("aria-pressed", "true");
+    expect(boldButton).toHaveAttribute("data-active", "true");
+  });
+
+  it("renderiza Table editorial com cabecalho, linhas e celulas", () => {
+    render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Título</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>Novo Portal NITE</TableCell>
+            <TableCell>
+              <Badge variant="success">Publicada</Badge>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+
+    expect(screen.getByRole("table")).toBeVisible();
+    expect(screen.getByText("Novo Portal NITE")).toBeVisible();
+    expect(screen.getByText("Publicada")).toHaveAttribute("data-slot", "badge");
+  });
+
+  it("renderiza Separator, Spinner, Skeleton, Avatar e Alert", () => {
+    render(
+      <>
+        <Separator data-testid="separator" />
+        <Spinner data-testid="spinner" />
+        <Skeleton data-testid="skeleton" />
+        <Avatar>
+          <AvatarFallback>BC</AvatarFallback>
+        </Avatar>
+        <Alert variant="warning">
+          <AlertTitle>Atenção editorial</AlertTitle>
+          <AlertDescription>
+            Revise a linha fina antes de publicar.
+          </AlertDescription>
+        </Alert>
+      </>,
+    );
+
+    expect(screen.getByTestId("separator")).toHaveAttribute(
+      "data-slot",
+      "separator",
+    );
+    expect(screen.getByTestId("spinner")).toHaveAttribute(
+      "data-slot",
+      "spinner",
+    );
+    expect(screen.getByTestId("skeleton")).toHaveAttribute(
+      "data-slot",
+      "skeleton",
+    );
+    expect(screen.getByText("BC")).toBeVisible();
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByText("Atenção editorial")).toBeVisible();
+    expect(
+      screen.getByText("Revise a linha fina antes de publicar."),
+    ).toBeVisible();
   });
 });

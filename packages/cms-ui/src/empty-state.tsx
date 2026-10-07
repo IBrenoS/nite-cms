@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CircleDashedIcon } from "lucide-react";
 
 import { cn } from "./utils";
@@ -5,22 +6,34 @@ import { cn } from "./utils";
 type EmptyStateProps = {
   title: string;
   description: string;
+  icon?: ReactNode;
+  action?: ReactNode;
   className?: string;
 };
 
-function EmptyState({ title, description, className }: EmptyStateProps) {
+function EmptyState({
+  title,
+  description,
+  icon,
+  action,
+  className,
+}: EmptyStateProps) {
   return (
     <div
+      data-slot="empty-state"
       className={cn(
-        "nite-panel flex flex-col gap-3 rounded-lg border border-border p-5 text-sm text-muted-foreground",
+        "flex flex-col items-start gap-2.5 rounded-lg border border-border-subtle bg-surface p-6 text-ui-md text-text-secondary",
         className,
       )}
     >
-      <CircleDashedIcon className="text-nite-brand-accent" aria-hidden="true" />
-      <p className="font-heading text-base font-semibold text-foreground">
+      <div className="text-text-muted" aria-hidden="true">
+        {icon ?? <CircleDashedIcon className="size-6 text-primary" />}
+      </div>
+      <p className="font-heading text-ui-lg font-semibold text-text-primary">
         {title}
       </p>
-      <p className="leading-6">{description}</p>
+      <p className="leading-relaxed text-text-secondary">{description}</p>
+      {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );
 }

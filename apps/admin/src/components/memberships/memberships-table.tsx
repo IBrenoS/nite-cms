@@ -1,4 +1,11 @@
-import { EmptyState } from "@nite/cms-ui";
+import {
+  EmptyState,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@nite/cms-ui";
 
 import type { Membership } from "./memberships.types";
 import { MembershipRow } from "./membership-row";
@@ -22,34 +29,26 @@ export function MembershipsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-      {/* Table header */}
-      <div className="hidden grid-cols-[minmax(180px,1fr)_150px_90px_90px] items-center gap-3 border-b border-nite-border-subtle bg-nite-section/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-nite-text-secondary md:grid xl:grid-cols-[minmax(240px,1fr)_180px_100px_100px] xl:gap-4 xl:px-5">
-        <span>Membro</span>
-        <span>Nível de acesso</span>
-        <span>Estado</span>
-        <span className="text-right">Ações</span>
-      </div>
-      <table className="w-full">
-        <thead className="sr-only">
-          <tr>
-            <th scope="col">Membro</th>
-            <th scope="col">Nível de acesso</th>
-            <th scope="col">Estado</th>
-            <th scope="col">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {memberships.map((membership, index) => (
+    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface">
+      <Table>
+        <TableHeader className="hidden md:table-header-group">
+          <TableRow className="grid h-10 min-h-0 grid-cols-[minmax(180px,1fr)_150px_90px_90px] items-center gap-3 border-b border-border-subtle px-4 hover:bg-surface-subtle xl:grid-cols-[minmax(240px,1fr)_180px_100px_100px] xl:gap-4 xl:px-5">
+            <TableHead className="h-auto p-0">Membro</TableHead>
+            <TableHead className="h-auto p-0">Nível de acesso</TableHead>
+            <TableHead className="h-auto p-0">Estado</TableHead>
+            <TableHead className="h-auto p-0 text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {memberships.map((membership) => (
             <MembershipRow
               key={membership.id}
               membership={membership}
               isCurrent={membership.id === currentMembershipId}
-              isLast={index === memberships.length - 1}
             />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

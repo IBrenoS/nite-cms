@@ -5,6 +5,7 @@ import {
   emailDeliveries,
 } from "@nite/cms-db";
 import { MembershipsPanel } from "@/components/memberships-panel";
+import { MembershipInviteDialog } from "@/components/memberships/membership-invite-dialog";
 import { requireCmsPageContext } from "@/lib/auth";
 
 export default async function MembershipsPage() {
@@ -12,8 +13,10 @@ export default async function MembershipsPage() {
   if (context.membership.role !== "admin") {
     return (
       <main className="px-4 py-6 sm:px-6 lg:px-8">
-        <h1 className="font-heading text-2xl font-semibold">Acesso negado</h1>
-        <p className="mt-3 text-nite-text-secondary">
+        <h1 className="font-heading text-heading-md font-semibold">
+          Acesso negado
+        </h1>
+        <p className="mt-3 text-text-secondary">
           A gestão da equipe é restrita a pessoas com acesso administrativo.
         </p>
       </main>
@@ -41,14 +44,17 @@ export default async function MembershipsPage() {
   ]);
   return (
     <main className="grid w-full gap-6 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
-      <header className="flex max-w-3xl flex-col gap-1.5 border-b border-nite-border-subtle pb-5">
-        <h1 className="text-[1.75rem] font-semibold tracking-tight">
-          Equipe e acessos
-        </h1>
-        <p className="text-[15px] leading-6 text-nite-text-secondary">
-          Gerencie a equipe da redação, atribua permissões e controle os acessos
-          ativos.
-        </p>
+      <header className="flex flex-col gap-4 border-b border-border-subtle pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-heading-md font-semibold tracking-tight">
+            Equipe e acessos
+          </h1>
+          <p className="mt-1 text-ui-lg text-text-secondary">
+            Gerencie a equipe da redação, atribua permissões e controle os
+            acessos ativos.
+          </p>
+        </div>
+        <MembershipInviteDialog />
       </header>
       <MembershipsPanel
         memberships={memberships}

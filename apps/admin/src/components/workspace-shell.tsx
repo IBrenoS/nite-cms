@@ -60,10 +60,10 @@ export function WorkspaceShell({
       data-sidebar-collapsed={String(collapsed)}
       className={cn(
         "min-h-screen bg-nite-background [--workspace-sidebar-width:64px]",
-        compactRailExpanded && "md:[--workspace-sidebar-width:224px]",
+        compactRailExpanded && "md:[--workspace-sidebar-width:248px]",
         collapsed
-          ? "xl:[--workspace-sidebar-width:64px]"
-          : "xl:[--workspace-sidebar-width:224px]",
+          ? "inspector-rail:[--workspace-sidebar-width:64px]"
+          : "inspector-rail:[--workspace-sidebar-width:248px]",
       )}
     >
       <WorkspaceNavigation

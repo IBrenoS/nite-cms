@@ -1,7 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Input } from "@nite/cms-ui";
+import {
+  Alert,
+  Button,
+  Field,
+  FieldDescription,
+  FieldLabel,
+  Input,
+  Select,
+} from "@nite/cms-ui";
 
 import {
   createMembershipInvitation,
@@ -23,17 +31,15 @@ export function MembershipCreateForm({
   return (
     <div
       className={
-        embedded
-          ? ""
-          : "rounded-lg border border-nite-border-subtle bg-nite-surface"
+        embedded ? "" : "rounded-lg border border-border-subtle bg-surface"
       }
     >
       {!embedded ? (
-        <div className="border-b border-nite-border-subtle px-4 py-3">
-          <h2 className="text-sm font-semibold text-nite-text-primary">
+        <div className="border-b border-border-subtle px-4 py-3">
+          <h2 className="text-ui-md font-semibold text-text-primary">
             Criar convite
           </h2>
-          <p className="mt-0.5 text-xs text-nite-text-secondary">
+          <p className="mt-0.5 text-ui-sm text-text-secondary">
             Autorize uma conta institucional para o primeiro acesso ao CMS.
           </p>
         </div>
@@ -47,61 +53,61 @@ export function MembershipCreateForm({
             : "grid gap-3 p-4 sm:grid-cols-[1fr_180px_auto] sm:items-end"
         }
       >
-        <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
-          E-mail institucional
+        <Field>
+          <FieldLabel htmlFor="membership-invite-email">
+            E-mail institucional
+          </FieldLabel>
           <Input
+            id="membership-invite-email"
             name="email"
             type="email"
             required
             maxLength={320}
             placeholder="matricula@unijorge.com.br"
-            className="h-10 text-sm"
           />
-        </label>
+        </Field>
 
-        <label className="grid gap-1.5 text-sm font-medium text-nite-text-secondary">
-          Nível de acesso
-          <select
+        <Field>
+          <FieldLabel htmlFor="membership-invite-role">
+            Nível de acesso
+          </FieldLabel>
+          <Select
+            id="membership-invite-role"
             name="role"
             defaultValue="publisher"
-            className="nite-form-field h-10 rounded-md border border-nite-border-subtle bg-transparent px-3 text-sm text-nite-text-primary focus:outline-none focus:ring-2 focus:ring-nite-brand-accent/40"
           >
             <option value="publisher">Acesso editorial</option>
             <option value="admin">Acesso administrativo</option>
-          </select>
-        </label>
+          </Select>
+        </Field>
 
         <Button
           type="submit"
           loading={pending}
-          className="min-h-10 whitespace-nowrap max-sm:min-h-11"
+          size="lg"
+          className="whitespace-nowrap"
         >
           Criar convite
         </Button>
       </form>
-      <p
-        className={
-          embedded
-            ? "mt-3 text-xs leading-5 text-nite-text-secondary"
-            : "px-4 pb-3 text-xs text-nite-text-secondary"
-        }
-      >
+
+      <FieldDescription className={embedded ? "mt-3" : "px-4 pb-3"}>
         Um e-mail de convite será enviado automaticamente. A pessoa deverá
-        aceitar o convite e acessar o CMS com a mesma conta institucional em
-        até 7 dias.
-      </p>
+        aceitar o convite e acessar o CMS com a mesma conta institucional em até
+        7 dias.
+      </FieldDescription>
 
       {state.status !== "idle" ? (
         <div
-          role={state.status === "error" ? "alert" : "status"}
-          aria-live={state.status === "error" ? "assertive" : "polite"}
-          className={`border-t border-nite-border-subtle px-4 py-2.5 text-xs ${
-            state.status === "error"
-              ? "text-status-error"
-              : "text-status-validated"
-          }`}
+          className={embedded ? "mt-4" : "border-t border-border-subtle p-4"}
         >
-          {state.message}
+          <Alert
+            variant={state.status === "error" ? "danger" : "success"}
+            role={state.status === "error" ? "alert" : "status"}
+            aria-live={state.status === "error" ? "assertive" : "polite"}
+          >
+            {state.message}
+          </Alert>
         </div>
       ) : null}
     </div>

@@ -71,9 +71,9 @@ describe("EditorialConfirmDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(onCancel).toHaveBeenCalledOnce();
 
-    // Cancel via dialog cancel event (Escape)
+    // O primitive compartilhado trata Escape e devolve o estado ao controlador.
     const dialog = screen.getByRole("dialog");
-    fireEvent(dialog, new Event("cancel"));
+    fireEvent.keyDown(dialog, { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(2);
 
     rerender(

@@ -35,7 +35,7 @@ export function buildMembershipInvitationEmail(
     subject: "Convite para integrar a equipe do CMS NITE",
     text: `Olá,
 
-Você recebeu um convite de Breno Cerqueira para integrar a equipe responsável pelo CMS NITE.
+Você recebeu um convite de ${inviterDisplayName} para integrar a equipe responsável pelo CMS NITE.
 
 Para confirmar sua participação, aceite o convite até ${expiresAt} (horário de Salvador):
 

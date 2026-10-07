@@ -1,6 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ImageIcon, PlusIcon, StatusBadge } from "@nite/cms-ui";
+import {
+  EmptyState,
+  ImageIcon,
+  PlusIcon,
+  StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  buttonVariants,
+  cn,
+} from "@nite/cms-ui";
 
 import {
   getEditorialArticlesDashboard,
@@ -10,8 +23,10 @@ import {
 import { requireCmsPageContext } from "@/lib/auth";
 import { getPublicMediaUrl } from "@/lib/media-storage";
 import { ArticleFilters } from "@/components/article-filters";
+import { ArticleRowActions } from "@/components/article-row-actions";
 
 const articleStatuses = ["draft", "published", "archived"] as const;
+type ArticleStatus = (typeof articleStatuses)[number];
 
 type DashboardSearchParams = {
   q?: string | string[];
@@ -66,8 +81,8 @@ function formatUpdatedAt(date: Date, now = new Date()) {
   const today = dateKey(now);
   const yesterday = dateKey(new Date(now.getTime() - 86_400_000));
   const articleDay = dateKey(date);
-  if (articleDay === today) return `Hoje, ${time}`;
-  if (articleDay === yesterday) return `Ontem, ${time}`;
+  if (articleDay === today) return `hoje, ${time}`;
+  if (articleDay === yesterday) return `ontem, ${time}`;
 
   const parts = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Bahia",
@@ -77,6 +92,31 @@ function formatUpdatedAt(date: Date, now = new Date()) {
   const day = parts.find((part) => part.type === "day")?.value;
   const month = parts.find((part) => part.type === "month")?.value;
   return `${day} ${month}, ${time}`;
+}
+
+function dashboardHref({
+  status,
+  search,
+  category,
+}: {
+  status?: ArticleStatus;
+  search?: string;
+  category?: string;
+}) {
+  return {
+    pathname: "/",
+    query: {
+      ...(status ? { status } : {}),
+      ...(search ? { q: search } : {}),
+      ...(category ? { category } : {}),
+    },
+  };
+}
+
+function articleStatusLabel(status: ArticleStatus) {
+  if (status === "published") return "Publicada";
+  if (status === "archived") return "Arquivada";
+  return "Rascunho";
 }
 
 export default async function DashboardPage({
@@ -101,77 +141,150 @@ export default async function DashboardPage({
     context.membership,
     filters,
   );
-  const resultLabel = `${records.length} ${records.length === 1 ? "matéria encontrada" : "matérias encontradas"}`;
+  const totalCount = counts.draft + counts.published + counts.archived;
+  const hasRefinement = Boolean(search || category);
+
+  const statusLinks = [
+    {
+      label: "Todas",
+      count: totalCount,
+      href: dashboardHref({ search, category }),
+      active: !status,
+    },
+    {
+      label: "Em produção",
+      count: counts.draft,
+      href: dashboardHref({ status: "draft", search, category }),
+      active: status === "draft",
+    },
+    {
+      label: "Publicadas",
+      count: counts.published,
+      href: dashboardHref({ status: "published", search, category }),
+      active: status === "published",
+    },
+    {
+      label: "Arquivadas",
+      count: counts.archived,
+      href: dashboardHref({ status: "archived", search, category }),
+      active: status === "archived",
+    },
+  ];
+
+  const currentViewLabel =
+    status === "draft"
+      ? "em produção"
+      : status === "published"
+        ? "publicada"
+        : status === "archived"
+          ? "arquivada"
+          : undefined;
+
+  const emptyState =
+    totalCount === 0
+      ? {
+          title: "Nenhuma matéria por aqui",
+          description:
+            "Quando a redação começar uma nova história, ela aparecerá nesta lista.",
+          action: (
+            <Link
+              href="/articles/new"
+              className={buttonVariants({ variant: "primary", size: "md" })}
+            >
+              <PlusIcon aria-hidden="true" />
+              Nova matéria
+            </Link>
+          ),
+        }
+      : hasRefinement
+        ? {
+            title: "Nenhuma matéria corresponde aos filtros",
+            description:
+              "Tente outro termo de busca ou ajuste a categoria para consultar a redação.",
+            action: (
+              <Link
+                href={dashboardHref({ status })}
+                className={buttonVariants({ variant: "secondary", size: "md" })}
+              >
+                Limpar filtros
+              </Link>
+            ),
+          }
+        : {
+            title: currentViewLabel
+              ? `Nenhuma matéria ${currentViewLabel}`
+              : "Nenhuma matéria nesta visão",
+            description:
+              status === "draft"
+                ? "Quando uma nova matéria for iniciada, ela aparecerá em produção."
+                : "Não há conteúdo editorial nesta etapa do fluxo no momento.",
+            action: undefined,
+          };
 
   return (
-    <main className="w-full space-y-5 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
+    <main className="w-full space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
       {deletedMedia && /^\d+$/u.test(deletedMedia) ? (
         <p
           role="status"
-          className="rounded-md border border-status-done/30 bg-status-done/5 p-3 text-sm text-status-done"
+          className="rounded-md border border-success-border bg-success-bg p-3 text-ui-md text-success"
         >
           Matéria excluída. Limpeza de {deletedMedia} mídias agendada.
         </p>
       ) : null}
-      <header className="flex flex-col gap-4 border-b border-nite-border-subtle pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-[1.75rem] font-semibold tracking-tight text-nite-text-primary">
+
+      <header className="flex flex-col gap-4 border-b border-border-subtle pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-2xl">
+          <h1 className="text-heading-md font-semibold tracking-tight text-text-primary">
             Matérias
           </h1>
-          <p className="mt-1 text-sm text-nite-text-secondary">{resultLabel}</p>
+          <p className="mt-1 text-ui-md text-text-secondary">
+            Acompanhe o que está em produção e o que já foi publicado.
+          </p>
         </div>
         <Link
-          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-nite-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-800 max-sm:min-h-11"
+          className={cn(
+            buttonVariants({ variant: "primary", size: "lg" }),
+            "max-sm:h-11",
+          )}
           href="/articles/new"
         >
-          <PlusIcon className="size-4" aria-hidden="true" />
+          <PlusIcon aria-hidden="true" />
           <span>Nova matéria</span>
         </Link>
       </header>
 
-      <section
-        role="region"
-        aria-label="Resumo das matérias"
-        className="grid gap-4 min-[1480px]:grid-cols-[minmax(0,1fr)_auto] min-[1480px]:items-center"
-      >
-        <div className="grid grid-cols-2 gap-1 min-[560px]:flex min-[560px]:flex-nowrap min-[560px]:items-center">
-          <Link
-            href="/"
-            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${!status ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
-          >
-            <span>Todas</span>
-            <span className="font-mono text-xs text-nite-text-muted">
-              {counts.draft + counts.published + counts.archived}
-            </span>
-          </Link>
-          <Link
-            href="/?status=draft"
-            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "draft" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
-          >
-            <span>Rascunhos</span>
-            <span className="font-mono text-xs text-nite-text-muted">
-              {counts.draft}
-            </span>
-          </Link>
-          <Link
-            href="/?status=published"
-            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "published" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
-          >
-            <span>Publicadas</span>
-            <span className="font-mono text-xs text-nite-text-muted">
-              {counts.published}
-            </span>
-          </Link>
-          <Link
-            href="/?status=archived"
-            className={`inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 text-sm transition-colors min-[560px]:w-auto min-[560px]:justify-start ${status === "archived" ? "bg-nite-section text-nite-brand-primary font-semibold" : "text-nite-text-secondary hover:bg-nite-section/60 hover:text-nite-text-primary font-medium"}`}
-          >
-            <span>Arquivadas</span>
-            <span className="font-mono text-xs text-nite-text-muted">
-              {counts.archived}
-            </span>
-          </Link>
-        </div>
+      <section aria-label="Visões e filtros de matérias" className="space-y-4">
+        <nav
+          aria-label="Visões editoriais"
+          className="border-b border-border-subtle"
+        >
+          <div className="grid grid-cols-4 items-stretch sm:flex sm:min-w-max sm:items-center sm:gap-6">
+            {statusLinks.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-label={`${item.label} ${item.count}`}
+                aria-current={item.active ? "page" : undefined}
+                className={cn(
+                  "-mb-px inline-flex min-h-11 min-w-0 items-center justify-center gap-1 whitespace-nowrap border-b-2 px-0.5 text-ui-sm font-semibold transition-colors [transition-duration:var(--motion-duration-normal)] sm:gap-2 sm:text-ui-md",
+                  item.active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-secondary hover:border-border-strong hover:text-text-primary",
+                )}
+              >
+                <span>{item.label}</span>
+                <span
+                  className={cn(
+                    "font-mono text-ui-xs",
+                    item.active ? "text-primary" : "text-text-muted",
+                  )}
+                >
+                  {item.count}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </nav>
 
         <ArticleFilters
           search={search}
@@ -186,140 +299,185 @@ export default async function DashboardPage({
 
       <section aria-labelledby="editorial-list-title">
         <h2 id="editorial-list-title" className="sr-only">
-          Fila editorial
+          Índice editorial de matérias
         </h2>
 
-        <div className="overflow-hidden rounded-lg border border-nite-border-subtle bg-nite-surface">
-          <div className="hidden min-[860px]:grid grid-cols-[minmax(280px,1fr)_120px_116px_76px_140px_80px] items-center gap-4 border-b border-nite-border-subtle bg-nite-section/60 px-5 py-2.5 text-xs font-semibold tracking-wide text-nite-text-secondary uppercase">
-            <span>Matéria</span>
-            <span>Categoria</span>
-            <span>Estado</span>
-            <span>Revisão</span>
-            <span>Atualização</span>
-            <span className="text-right">Ação</span>
-          </div>
-
-          {records.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-sm font-semibold text-nite-text-primary">
-                Nenhuma matéria encontrada
-              </p>
-              <p className="mt-1 text-sm text-nite-text-secondary">
-                Ajuste a busca ou os filtros para consultar outra parte da fila.
-              </p>
+        {records.length === 0 ? (
+          <EmptyState
+            title={emptyState.title}
+            description={emptyState.description}
+            action={emptyState.action}
+            className="min-h-56 justify-center sm:max-w-2xl"
+          />
+        ) : (
+          <>
+            <div className="hidden overflow-hidden border-y border-border-subtle bg-surface sm:rounded-lg sm:border editor-stack:block">
+              <Table>
+                <TableHeader className="sr-only">
+                  <TableRow>
+                    <TableHead>Matéria</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {records.map(({ article, revision, cover }, index) => {
+                    const title = revision?.title ?? "Rascunho sem revisão";
+                    const coverUrl =
+                      cover?.status === "ready"
+                        ? getPublicMediaUrl(cover.publicObjectKey)
+                        : undefined;
+                    const statusLabel = articleStatusLabel(article.status);
+                    return (
+                      <TableRow key={article.id} className="h-14 min-h-14">
+                        <TableCell className="py-4">
+                          <div className="flex min-w-0 items-start gap-4">
+                            <div className="relative flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border-subtle bg-surface-subtle text-text-secondary">
+                              {coverUrl ? (
+                                <Image
+                                  src={coverUrl}
+                                  alt={revision?.coverAlt || ""}
+                                  width={80}
+                                  height={48}
+                                  unoptimized
+                                  priority={index === 0}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <ImageIcon
+                                  className="size-4"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/articles/${article.id}/edit`}
+                                className="block truncate font-editorial text-ui-lg font-semibold text-text-primary transition-colors [transition-duration:var(--motion-duration-normal)] hover:text-primary"
+                              >
+                                {title}
+                              </Link>
+                              <p className="mt-0.5 truncate text-ui-sm text-text-secondary">
+                                {revision?.summary ||
+                                  "Resumo ainda não informado."}
+                              </p>
+                              <p className="mt-1.5 flex min-w-0 items-center gap-2 text-ui-sm text-text-muted">
+                                <span>
+                                  {categoryLabel(revision?.category ?? "")}
+                                </span>
+                                <span aria-hidden="true">·</span>
+                                <span>
+                                  Atualizada{" "}
+                                  {formatUpdatedAt(article.updatedAt)}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[132px] py-4 align-top">
+                          <StatusBadge
+                            status={
+                              article.status === "published"
+                                ? "published"
+                                : article.status
+                            }
+                            tone={
+                              article.status === "archived"
+                                ? "quiet"
+                                : undefined
+                            }
+                            label={statusLabel}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[56px] py-3 text-right align-top">
+                          <ArticleRowActions articleId={article.id} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
-          ) : (
-            records.map(({ article, revision, cover }, index) => {
-              const title = revision?.title ?? "Rascunho sem revisão";
-              const titleId = `article-title-${article.id}`;
-              const coverUrl =
-                cover?.status === "ready"
-                  ? getPublicMediaUrl(cover.publicObjectKey)
-                  : undefined;
-              const statusLabel =
-                article.status === "published"
-                  ? "Publicado"
-                  : article.status === "draft"
-                    ? "Rascunho"
-                    : "Arquivado";
-              return (
-                <article
-                  key={article.id}
-                  aria-labelledby={titleId}
-                  className={`p-4 min-[860px]:grid min-[860px]:min-h-16 min-[860px]:grid-cols-[minmax(280px,1fr)_120px_116px_76px_140px_80px] min-[860px]:items-center min-[860px]:gap-4 min-[860px]:px-5 min-[860px]:py-2.5 transition-colors hover:bg-nite-section/30 ${
-                    index < records.length - 1
-                      ? "border-b border-nite-border-subtle"
-                      : ""
-                  }`}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="relative flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-nite-border-subtle bg-nite-section text-nite-text-secondary">
-                      {coverUrl ? (
-                        <Image
-                          src={coverUrl}
-                          alt={revision?.coverAlt || ""}
-                          width={44}
-                          height={32}
-                          unoptimized
-                          priority={index === 0}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="size-3.5" aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3
-                        id={titleId}
-                        className="truncate text-[15px] font-semibold leading-5 text-nite-text-primary"
-                      >
-                        {title}
-                      </h3>
-                      <p className="mt-0.5 truncate text-[13px] text-nite-text-secondary">
-                        {revision?.summary || "Resumo ainda não informado."}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[13px] text-nite-text-secondary min-[860px]:contents">
-                    <div className="flex flex-wrap items-center gap-2 min-[860px]:contents">
-                      <p className="text-[13px] text-nite-text-secondary">
-                        <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
-                          Categoria:
-                        </span>
-                        {categoryLabel(revision?.category ?? "")}
-                      </p>
-                      <span className="text-nite-border-strong min-[860px]:hidden">
-                        ·
-                      </span>
-                      <div>
-                        <StatusBadge
-                          status={
-                            article.status === "published"
-                              ? "done"
-                              : article.status
-                          }
-                          tone={
-                            article.status === "archived" ? "quiet" : undefined
-                          }
-                          variant="outline"
-                          label={statusLabel}
-                        />
+            <div className="overflow-hidden border-y border-border-subtle bg-surface sm:rounded-lg sm:border editor-stack:hidden">
+              {records.map(({ article, revision, cover }, index) => {
+                const title = revision?.title ?? "Rascunho sem revisão";
+                const coverUrl =
+                  cover?.status === "ready"
+                    ? getPublicMediaUrl(cover.publicObjectKey)
+                    : undefined;
+                const statusLabel = articleStatusLabel(article.status);
+                return (
+                  <article
+                    key={article.id}
+                    aria-label={title}
+                    className={cn(
+                      "p-4",
+                      index < records.length - 1 &&
+                        "border-b border-border-subtle",
+                    )}
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="relative flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border-subtle bg-surface-subtle text-text-secondary">
+                        {coverUrl ? (
+                          <Image
+                            src={coverUrl}
+                            alt={revision?.coverAlt || ""}
+                            width={80}
+                            height={56}
+                            unoptimized
+                            priority={index === 0}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="size-4" aria-hidden="true" />
+                        )}
                       </div>
-                      <span className="text-nite-border-strong min-[860px]:hidden">
-                        ·
-                      </span>
-                      <p className="font-mono text-[13px] text-nite-text-secondary">
-                        <span className="mr-1.5 font-sans font-semibold text-nite-text-primary min-[860px]:hidden">
-                          Revisão:
-                        </span>
-                        {revision ? `v${revision.version}` : "—"}
-                      </p>
-                      <span className="text-nite-border-strong min-[860px]:hidden">
-                        ·
-                      </span>
-                      <p className="text-[13px] text-nite-text-secondary">
-                        <span className="mr-1.5 font-semibold text-nite-text-primary min-[860px]:hidden">
-                          Atualização:
-                        </span>
-                        {formatUpdatedAt(article.updatedAt)}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/articles/${article.id}/edit`}
+                          className="line-clamp-2 font-editorial text-ui-lg font-semibold text-text-primary"
+                        >
+                          {title}
+                        </Link>
+                        <p className="mt-1 line-clamp-2 text-ui-sm text-text-secondary">
+                          {revision?.summary || "Resumo ainda não informado."}
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="min-[860px]:flex min-[860px]:justify-end">
-                      <Link
-                        href={`/articles/${article.id}/edit`}
-                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-nite-border-subtle px-3 text-sm font-semibold text-nite-text-primary transition-colors hover:border-nite-border-hover hover:bg-nite-section max-[859px]:min-h-11"
-                      >
-                        Editar
-                      </Link>
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui-sm text-text-muted">
+                          <span>{categoryLabel(revision?.category ?? "")}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>
+                            Atualizada {formatUpdatedAt(article.updatedAt)}
+                          </span>
+                        </p>
+                        <div className="mt-2">
+                          <StatusBadge
+                            status={
+                              article.status === "published"
+                                ? "published"
+                                : article.status
+                            }
+                            tone={
+                              article.status === "archived"
+                                ? "quiet"
+                                : undefined
+                            }
+                            label={statusLabel}
+                          />
+                        </div>
+                      </div>
+                      <ArticleRowActions articleId={article.id} />
                     </div>
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
       </section>
     </main>
   );

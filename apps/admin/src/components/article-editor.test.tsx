@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -147,6 +148,7 @@ vi.mock("@tiptap/react", () => ({
           return chain;
         },
         deleteSelection: () => chain,
+        scrollIntoView: () => chain,
         redo: () => chain,
         run: () => true,
         setLink: () => chain,
@@ -200,6 +202,11 @@ const initialArticle = {
     ],
   },
 };
+
+function openPreviewMenu() {
+  fireEvent.click(screen.getByRole("button", { name: "Visualizar" }));
+  return screen.getByRole("menuitem", { name: /Preview no Portal/u });
+}
 
 describe("ArticleEditor", () => {
   afterEach(cleanup);
@@ -290,7 +297,7 @@ describe("ArticleEditor", () => {
   it("acompanha o titulo ate a primeira edicao manual do slug", () => {
     const { container } = render(<ArticleEditor canPublish />);
     const title = screen.getByLabelText("Título");
-    const slug = screen.getByLabelText("Slug");
+    const slug = screen.getByLabelText("URL da matéria");
     const manualState = container.querySelector<HTMLInputElement>(
       'input[name="slugManuallyEdited"]',
     );
@@ -324,7 +331,9 @@ describe("ArticleEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Laboratório de inovação apresenta nova programação" },
     });
-    expect(screen.getByLabelText("Slug")).toHaveValue("agenda-personalizada");
+    expect(screen.getByLabelText("URL da matéria")).toHaveValue(
+      "agenda-personalizada",
+    );
     expect(
       container.querySelector('input[name="slugManuallyEdited"]'),
     ).toHaveValue("true");
@@ -342,12 +351,10 @@ describe("ArticleEditor", () => {
       />,
     );
 
-    const slug = screen.getByLabelText("Slug");
+    const slug = screen.getByLabelText("URL da matéria");
     expect(slug).toHaveAttribute("readonly");
     expect(
-      screen.getByText(
-        "O slug foi bloqueado permanentemente na primeira publicação.",
-      ),
+      screen.getByText("Bloqueada desde a primeira publicação."),
     ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Laboratório de inovação altera o título publicado" },
@@ -355,12 +362,39 @@ describe("ArticleEditor", () => {
     expect(slug).toHaveValue("agenda-personalizada");
   });
 
-  it("não deixa o campo auxiliar de imagem bloquear o formulário principal", () => {
+  it("não deixa o campo auxiliar de imagem bloquear o formulário principal", async () => {
+    mocks.createUpload.mockResolvedValue({
+      status: "success",
+      data: {
+        mediaId: "30000000-0000-4000-8000-000000000099",
+        uploadUrl: "https://upload.nite.test/inline",
+        requiredHeaders: { "content-type": "image/png" },
+        expiresAt: new Date().toISOString(),
+      },
+    });
+    mocks.processUpload.mockResolvedValue({
+      status: "success",
+      data: {
+        id: "30000000-0000-4000-8000-000000000099",
+        mediaKind: "image",
+        mediaStatus: "ready",
+        publicUrl: "https://media.nite.test/inline.webp",
+      },
+    });
+    mocks.uploadFile.mockResolvedValue(undefined);
     const { container } = render(<ArticleEditor canPublish />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Inserir imagem no conteúdo" }),
+    fireEvent.click(screen.getByLabelText("Inserir mídia"));
+    fireEvent.click(screen.getByText("Imagem"));
+    fireEvent.change(
+      screen.getByLabelText("Selecionar imagem para o conteúdo"),
+      {
+        target: {
+          files: [new File(["imagem"], "inline.png", { type: "image/png" })],
+        },
+      },
     );
+    await screen.findByLabelText("Texto alternativo da imagem inline");
     expect(
       screen.getByLabelText("Texto alternativo da imagem inline"),
     ).not.toBeRequired();
@@ -370,9 +404,7 @@ describe("ArticleEditor", () => {
     expect(
       screen.getByLabelText("Crédito da imagem inline"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Largura da imagem inline")).toHaveValue(
-      "normal",
-    );
+    expect(screen.getByLabelText("Largura")).toHaveValue("normal");
     expect(container.querySelector("form")).toHaveAttribute("novalidate");
     expect(
       screen.getByRole("button", { name: "Publicar matéria" }),
@@ -411,9 +443,7 @@ describe("ArticleEditor", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "Preview no Portal" }),
-    ).toBeEnabled();
+    expect(openPreviewMenu()).toBeEnabled();
     expect(screen.getByRole("button", { name: "Arquivar" })).toBeEnabled();
     expect(
       screen.getAllByText("Alterações atuais · expira em 10 min."),
@@ -448,7 +478,7 @@ describe("ArticleEditor", () => {
       target: { value: "Título atual ainda não salvo" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview no Portal" }));
+    fireEvent.click(openPreviewMenu());
     await waitFor(() =>
       expect(open).toHaveBeenCalledWith(
         "https://portal.nite.test/preview?title=T%C3%ADtulo%20atual%20ainda%20n%C3%A3o%20salvo",
@@ -484,9 +514,7 @@ describe("ArticleEditor", () => {
     expect(
       screen.getByRole("heading", { name: "Capa da matéria" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Aparência na busca (opcional)"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Busca e URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Intertítulo (H2)")).toBeInTheDocument();
     expect(screen.getByLabelText("Subseção (H3)")).toBeInTheDocument();
     expect(screen.getByLabelText("Desfazer (Ctrl+Z)")).toBeInTheDocument();
@@ -513,9 +541,7 @@ describe("ArticleEditor", () => {
     mocks.imageActive = true;
     render(<ArticleEditor canPublish />);
 
-    expect(
-      screen.getByRole("heading", { name: "Editar imagem interna" }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes" }));
     expect(screen.getByLabelText("Alt da imagem selecionada")).toHaveValue(
       "Pessoas no laboratório",
     );
@@ -525,9 +551,7 @@ describe("ArticleEditor", () => {
     expect(screen.getByLabelText("Largura da imagem selecionada")).toHaveValue(
       "wide",
     );
-    expect(
-      screen.getByRole("button", { name: "Remover imagem do conteúdo" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Remover" })).toBeEnabled();
   });
 
   it("avisa o navegador ao sair com alterações não salvas", () => {
@@ -583,9 +607,7 @@ describe("ArticleEditor", () => {
     expect(
       screen.getByText("Alterações não publicadas · v2"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Preview no Portal" }),
-    ).toBeEnabled();
+    expect(openPreviewMenu()).toBeEnabled();
   });
 
   it("abre uma revisão histórica no preview privado do Portal", async () => {
@@ -613,8 +635,12 @@ describe("ArticleEditor", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Revisões/u }));
-    fireEvent.click(screen.getByRole("button", { name: "Visualizar versão" }));
+    fireEvent.click(screen.getByRole("tab", { name: /Revisões/u }));
+    fireEvent.click(
+      within(
+        screen.getByRole("complementary", { name: "Configurações da matéria" }),
+      ).getByRole("button", { name: "Visualizar" }),
+    );
 
     await waitFor(() =>
       expect(mocks.privatePreview).toHaveBeenCalledWith({
@@ -631,6 +657,7 @@ describe("ArticleEditor", () => {
   });
 
   it("mostra pendências e leva ao título antes de confirmar uma publicação inválida", async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     const confirm = vi.spyOn(window, "confirm");
     render(<ArticleEditor canPublish />);
 
@@ -644,7 +671,12 @@ describe("ArticleEditor", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Revise os campos destacados.",
     );
+    expect(
+      screen.getByRole("dialog", { name: "Antes de publicar" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Complete o título/u }));
     await waitFor(() => expect(screen.getByLabelText("Título")).toHaveFocus());
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
     confirm.mockRestore();
   });
 
@@ -688,20 +720,24 @@ describe("ArticleEditor", () => {
       status: "success",
       data: {
         id: "30000000-0000-4000-8000-000000000099",
+        mediaKind: "image",
         mediaStatus: "ready",
+        publicUrl: "https://media.nite.test/inline.webp",
       },
     });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     render(<ArticleEditor canPublish />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Inserir imagem no conteúdo" }),
-    );
-    fireEvent.change(screen.getByLabelText("Imagem inline pronta"), {
-      target: {
-        files: [new File(["imagem"], "inline.png", { type: "image/png" })],
+    fireEvent.click(screen.getByLabelText("Inserir mídia"));
+    fireEvent.click(screen.getByText("Imagem"));
+    fireEvent.change(
+      screen.getByLabelText("Selecionar imagem para o conteúdo"),
+      {
+        target: {
+          files: [new File(["imagem"], "inline.png", { type: "image/png" })],
+        },
       },
-    });
+    );
     const insert = screen.getByRole("button", { name: "Inserir imagem" });
     await waitFor(() => expect(insert).toBeEnabled());
     fireEvent.click(insert);
@@ -739,6 +775,7 @@ describe("ArticleEditor", () => {
           id: "30000000-0000-4000-8000-000000000201",
           mediaKind: "video",
           mediaStatus: "ready",
+          publicUrl: "https://media.nite.test/video.mp4",
           durationMs: 18 * 60 * 1_000,
           hasAudio: true,
         },
@@ -749,6 +786,7 @@ describe("ArticleEditor", () => {
           id: "30000000-0000-4000-8000-000000000202",
           mediaKind: "captions",
           mediaStatus: "ready",
+          publicUrl: "https://media.nite.test/pt-BR.vtt",
         },
       });
     mocks.uploadFile.mockImplementation(
@@ -759,20 +797,26 @@ describe("ArticleEditor", () => {
     );
     render(<ArticleEditor canPublish />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Inserir vídeo no conteúdo" }),
-    );
-    fireEvent.change(screen.getByLabelText("Vídeo MP4"), {
-      target: {
-        files: [new File(["video"], "apresentacao.mp4", { type: "video/mp4" })],
+    fireEvent.click(screen.getByLabelText("Inserir mídia"));
+    fireEvent.click(screen.getByText("Vídeo"));
+    fireEvent.change(
+      screen.getByLabelText("Selecionar vídeo para o conteúdo"),
+      {
+        target: {
+          files: [
+            new File(["video"], "apresentacao.mp4", { type: "video/mp4" }),
+          ],
+        },
       },
-    });
+    );
     await waitFor(() =>
       expect(
-        screen.getByText("Vídeo MP4 pronto para inserir."),
+        screen.getByText("Vídeo pronto para inserir."),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText(/Este vídeo contém áudio/u)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Vídeos manuais com áudio precisam/u),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Legenda WebVTT pt-BR"), {
       target: {
@@ -780,9 +824,7 @@ describe("ArticleEditor", () => {
       },
     });
     await waitFor(() =>
-      expect(
-        screen.getByText("Legenda WebVTT pt-BR pronta."),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("WebVTT pt-BR pronto.")).toBeInTheDocument(),
     );
     fireEvent.change(screen.getByLabelText("Descrição acessível do vídeo"), {
       target: { value: "Apresentação do NiteNews" },
@@ -815,9 +857,7 @@ describe("ArticleEditor", () => {
     mocks.videoActive = true;
     render(<ArticleEditor canPublish />);
 
-    expect(
-      screen.getByRole("heading", { name: "Editar vídeo interno" }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Opções" }));
     fireEvent.change(screen.getByLabelText("Reprodução do vídeo selecionado"), {
       target: { value: "autoplay" },
     });
@@ -828,11 +868,9 @@ describe("ArticleEditor", () => {
       screen.getByLabelText("Substituir vídeo selecionado"),
     ).toBeInTheDocument();
     expect(
-      screen.getByLabelText("Substituir legenda do vídeo selecionado"),
+      screen.getByLabelText("Substituir legenda WebVTT do vídeo"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Remover vídeo do conteúdo" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Remover" })).toBeEnabled();
   });
 
   it("recupera o CTA de preview quando a chamada falha antes de retornar", async () => {
@@ -847,7 +885,7 @@ describe("ArticleEditor", () => {
         }}
       />,
     );
-    const preview = screen.getByRole("button", { name: "Preview no Portal" });
+    const preview = openPreviewMenu();
 
     fireEvent.click(preview);
 
@@ -880,7 +918,7 @@ describe("ArticleEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Alteração local ainda não salva" },
     });
-    const preview = screen.getByRole("button", { name: "Preview no Portal" });
+    const preview = openPreviewMenu();
 
     fireEvent.click(preview);
 
@@ -914,7 +952,7 @@ describe("ArticleEditor", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview no Portal" }));
+    fireEvent.click(openPreviewMenu());
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
@@ -1007,12 +1045,37 @@ describe("ArticleEditor", () => {
       screen.getByRole("dialog", { name: "Configurações da matéria" }),
     ).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document.activeElement ?? document, { key: "Escape" });
 
     await waitFor(() => {
       expect(
         screen.queryByRole("dialog", { name: "Configurações da matéria" }),
       ).toBeNull();
     });
+  });
+
+  it("mantém as abas do inspetor fora da área rolável no rail desktop", () => {
+    render(<ArticleEditor canPublish />);
+
+    const inspector = screen.getByRole("complementary", {
+      name: "Configurações da matéria",
+    });
+
+    expect(inspector.firstElementChild).not.toHaveClass("sticky");
+    expect(inspector.lastElementChild).toHaveClass("overflow-y-auto");
+  });
+
+  it("mantém o cabeçalho do inspetor fora da área rolável no painel responsivo", () => {
+    render(<ArticleEditor canPublish />);
+    fireEvent.click(screen.getByRole("button", { name: "Configurações" }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Configurações da matéria",
+    });
+    expect(dialog).toHaveClass("overflow-hidden");
+    const inspector = dialog.querySelector("aside");
+    expect(inspector).not.toBeNull();
+    expect(inspector?.firstElementChild).not.toHaveClass("sticky");
+    expect(inspector?.lastElementChild).toHaveClass("overflow-y-auto");
   });
 });

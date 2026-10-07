@@ -8,6 +8,7 @@ export {
   CircleIcon,
   ExternalLinkIcon,
   EyeIcon,
+  EllipsisIcon,
   FilePenLineIcon,
   Heading2Icon,
   Heading3Icon,

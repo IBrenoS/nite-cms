@@ -28,7 +28,7 @@ export function AcceptInvitationButton() {
         Aceitar convite
       </Button>
       {error ? (
-        <p role="alert" className="text-sm text-status-error">
+        <p role="alert" className="text-ui-md text-status-error">
           {error}
         </p>
       ) : null}

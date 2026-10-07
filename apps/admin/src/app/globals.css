@@ -2,21 +2,13 @@
 @source "../../../../packages/cms-ui/src/**/*.{ts,tsx}";
 
 @layer utilities {
-  .admin-grid {
-    background-image:
-      linear-gradient(var(--nite-border-subtle) 1px, transparent 1px),
-      linear-gradient(90deg, var(--nite-border-subtle) 1px, transparent 1px);
-    background-size: 2rem 2rem;
-    mask-image: linear-gradient(to bottom, black, transparent 68%);
-  }
-
   .editor-surface .tiptap {
     min-height: clamp(15rem, 28vh, 18rem);
     outline: none;
     color: var(--nite-text-primary);
     font-family: var(--font-newsreader), Georgia, serif;
-    font-size: 1.1875rem;
-    line-height: 2rem;
+    font-size: 1.125rem;
+    line-height: 1.875rem;
   }
 
   .editor-surface .tiptap > * + * {
@@ -53,5 +45,47 @@
   .editor-surface .tiptap blockquote {
     border-left: 2px solid var(--nite-brand-accent);
     padding-left: 1.25rem;
+  }
+}
+
+@layer utilities {
+  /* Editor v1 — inline media behaves as editorial content, not a technical card. */
+  .editor-surface .editor-media {
+    margin-inline: auto;
+  }
+
+  .editor-surface .editor-media-normal {
+    width: 100%;
+  }
+
+  .editor-surface .editor-media-wide,
+  .editor-surface .editor-media-full {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .editor-surface .editor-media-wide {
+    width: min(52rem, calc(100vw - 2.5rem));
+  }
+
+  .editor-surface .editor-media-full {
+    width: min(64rem, calc(100vw - 2rem));
+  }
+
+  @media (min-width: 80rem) {
+    .editor-surface .editor-media-wide {
+      width: min(
+        52rem,
+        calc(100vw - var(--workspace-sidebar-width) - 360px - 4rem)
+      );
+    }
+
+    .editor-surface .editor-media-full {
+      width: min(
+        64rem,
+        calc(100vw - var(--workspace-sidebar-width) - 360px - 2rem)
+      );
+    }
   }
 }
