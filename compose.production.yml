@@ -60,7 +60,7 @@ services:
 
   admin:
     <<: *runtime
-    image: ${CMS_ADMIN_IMAGE:-nite-cms-admin}:${CMS_IMAGE_TAG:-local}
+    image: ${CMS_ADMIN_IMAGE:-nite-redacao-admin}:${CMS_IMAGE_TAG:-local}
     build:
       context: .
       target: admin
@@ -90,7 +90,7 @@ services:
 
   api:
     <<: *runtime
-    image: ${CMS_API_IMAGE:-nite-cms-api}:${CMS_IMAGE_TAG:-local}
+    image: ${CMS_API_IMAGE:-nite-redacao-api}:${CMS_IMAGE_TAG:-local}
     build:
       context: .
       target: api
@@ -117,7 +117,7 @@ services:
 
   outbox-scheduler:
     <<: *runtime
-    image: ${CMS_SCHEDULER_IMAGE:-nite-cms-scheduler}:${CMS_IMAGE_TAG:-local}
+    image: ${CMS_SCHEDULER_IMAGE:-nite-redacao-scheduler}:${CMS_IMAGE_TAG:-local}
     build:
       context: .
       target: scheduler
@@ -134,7 +134,7 @@ services:
     cpus: ${SCHEDULER_CPU_LIMIT:-0.25}
 
   migration:
-    image: ${CMS_MIGRATION_IMAGE:-nite-cms-migration}:${CMS_IMAGE_TAG:-local}
+    image: ${CMS_MIGRATION_IMAGE:-nite-redacao-migration}:${CMS_IMAGE_TAG:-local}
     build:
       context: .
       target: migration

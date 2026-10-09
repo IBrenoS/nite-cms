@@ -1,8 +1,8 @@
-# NITE CMS Design System — v0.1
+# Redação Digital do NITE Design System — v0.1
 
 ## 1. Princípio visual
 
-O NITE CMS é uma **redação digital**, não um dashboard SaaS genérico.
+A Redação Digital do NITE é um ambiente editorial, não um dashboard SaaS genérico.
 
 A interface deve transmitir:
 
@@ -54,7 +54,7 @@ O texto principal não será preto puro. `text-muted` preserva contraste WCAG AA
 
 ### Azul NITE
 
-O azul existente da marca permanece como fonte. Para a v0.1, o azul operacional do CMS fica congelado em `#1D4ED8` através de um único token de marca; qualquer ajuste futuro de identidade deve acontecer somente nesse token.
+O azul existente da marca permanece como fonte. Para a v0.1, o azul operacional da Redação Digital fica congelado em `#1D4ED8` através de um único token de marca; qualquer ajuste futuro de identidade deve acontecer somente nesse token.
 
 ```css
 --nite-brand-blue: #1d4ed8;
@@ -329,7 +329,7 @@ Sidebar │ Page Header
 
 ## 13. Editor
 
-O editor é tratado como uma experiência diferente do restante do CMS.
+O editor é tratado como uma experiência diferente do restante da Redação Digital.
 
 - Canvas: **branco**
 - Área externa: **canvas frio**
@@ -447,4 +447,4 @@ Os componentes entram conforme as telas exigirem, com **uma única implementaç�
 
 ## 22. Resultado esperado
 
-Uma pessoa deve conseguir reconhecer uma tela do NITE CMS mesmo sem ver o logo: pela tipografia, proporção, espaçamento, densidade, sobriedade editorial, uso disciplinado do azul NITE e coerência no comportamento dos componentes. O produto deve parecer **projetado**, não estilizado.
+Uma pessoa deve conseguir reconhecer uma tela da Redação Digital do NITE mesmo sem ver o logo: pela tipografia, proporção, espaçamento, densidade, sobriedade editorial, uso disciplinado do azul NITE e coerência no comportamento dos componentes. O produto deve parecer **projetado**, não estilizado.

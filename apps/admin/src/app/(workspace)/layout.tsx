@@ -25,7 +25,7 @@ export default async function WorkspaceLayout({
           </h1>
           <p className="leading-7 text-nite-text-secondary">
             Sua identidade Microsoft está válida, mas ainda não possui acesso à
-            equipe do CMS. Solicite um convite à administração.
+            equipe da Redação Digital. Solicite um convite à administração.
           </p>
           <SignOutButton />
         </section>

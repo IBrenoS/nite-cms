@@ -77,7 +77,7 @@ describe("WorkspaceShell", () => {
     );
 
     const brandDetails = screen.getByLabelText(
-      "NITE CMS — Matérias",
+      "Redação Digital do NITE — Matérias",
     ).parentElement;
 
     expect(brandDetails).toHaveClass("md:hidden", "inspector-rail:flex");
@@ -95,7 +95,7 @@ describe("WorkspaceShell", () => {
     );
 
     const expandedBrand = screen.getByLabelText(
-      "NITE CMS — Matérias",
+      "Redação Digital do NITE — Matérias",
     ).parentElement;
 
     fireEvent.click(screen.getByRole("button", { name: "Recolher navegação" }));
@@ -110,7 +110,7 @@ describe("WorkspaceShell", () => {
       </WorkspaceShell>,
     );
 
-    const brand = screen.getByLabelText("NITE CMS — Matérias");
+    const brand = screen.getByLabelText("Redação Digital do NITE — Matérias");
     const glyph = brand.querySelector("img");
 
     expect(glyph).toHaveAttribute("src", "/nite-editorial-glyph.png");

@@ -1,8 +1,8 @@
-# Deploy do CMS em VM com Docker Compose
+# Deploy da Redação Digital em VM com Docker Compose
 
 ## Escopo e topologia
 
-Este runbook instala somente CMS Admin, CMS API, scheduler do outbox e Caddy em
+Este runbook instala somente o Admin, a API pública, o scheduler do outbox e o Caddy em
 uma VM Linux `amd64`. Neon, Cloudflare R2, Microsoft Entra e o Portal continuam
 externos. A execução dos comandos em produção exige autorização operacional;
 este documento não autoriza migration, mudança de DNS ou publicação editorial.
@@ -65,7 +65,7 @@ docker compose version
 ```
 
 Reserve um diretório controlado pelo operador, faça checkout de uma revisão
-aprovada e execute todos os comandos seguintes na raiz do CMS.
+aprovada e execute todos os comandos seguintes na raiz de `nite-redacao`.
 
 ## DNS, firewall e TLS
 
@@ -85,7 +85,7 @@ produção.
 
 ## Microsoft Entra
 
-No app registration usado pelo CMS, registre como Web redirect URI:
+No app registration usado pela Redação Digital, registre como Web redirect URI:
 
 ```text
 https://<CMS_ADMIN_DOMAIN>/api/auth/callback/microsoft

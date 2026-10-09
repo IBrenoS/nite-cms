@@ -108,7 +108,7 @@ export function WorkspaceNavigation({
           >
             <Link
               href="/"
-              aria-label="NITE CMS — Matérias"
+              aria-label="Redação Digital do NITE — Matérias"
               className="inline-flex min-w-0 items-center gap-2.5"
             >
               <img
@@ -164,7 +164,10 @@ export function WorkspaceNavigation({
           </IconButton>
         </div>
 
-        <nav className="flex-1 px-2 py-4" aria-label="Seções do CMS">
+        <nav
+          className="flex-1 px-2 py-4"
+          aria-label="Seções da Redação Digital"
+        >
           <div>
             <p
               className={cn(
@@ -355,9 +358,11 @@ export function WorkspaceNavigation({
           aria-label="Navegação móvel"
           className="w-full max-w-xs gap-0 p-0 md:hidden"
         >
-          <SheetTitle className="sr-only">Navegação do NITE CMS</SheetTitle>
+          <SheetTitle className="sr-only">
+            Navegação da Redação Digital
+          </SheetTitle>
           <SheetDescription className="sr-only">
-            Acesse as áreas da Redação Digital e da gestão do CMS.
+            Acesse as áreas da Redação Digital e da gestão da equipe.
           </SheetDescription>
 
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border-subtle px-3">
@@ -388,7 +393,7 @@ export function WorkspaceNavigation({
 
           <nav
             className="flex-1 overflow-y-auto p-3"
-            aria-label="Seções do CMS"
+            aria-label="Seções da Redação Digital"
           >
             <p className="px-3 pb-1.5 text-ui-xs font-semibold tracking-wide text-nite-text-secondary uppercase">
               Redação

@@ -32,10 +32,10 @@ export function buildMembershipInvitationEmail(
   }).format(input.expiresAt);
 
   return {
-    subject: "Convite para integrar a equipe do CMS NITE",
+    subject: "Convite para integrar a Redação Digital do NITE",
     text: `Olá,
 
-Você recebeu um convite de ${inviterDisplayName} para integrar a equipe responsável pelo CMS NITE.
+Você recebeu um convite de ${inviterDisplayName} para integrar a equipe da Redação Digital do NITE.
 
 Para confirmar sua participação, aceite o convite até ${expiresAt} (horário de Salvador):
 
@@ -48,6 +48,6 @@ Entre utilizando este mesmo endereço de e-mail para concluir seu acesso.
 Se você não reconhece este convite, nenhuma ação é necessária.
 
 Atenciosamente,
-CMS NITE`,
+Redação Digital do NITE`,
   };
 }

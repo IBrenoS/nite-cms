@@ -1,6 +1,9 @@
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 
-const APPROVED_FROM_EMAIL = "CMS NITE <acesso@notify.nite.tec.br>";
+const APPROVED_FROM_EMAILS = [
+  "Redação Digital do NITE <acesso@notify.nite.tec.br>",
+  "CMS NITE <acesso@notify.nite.tec.br>",
+];
 
 type EmailConfigurationField =
   | "RESEND_API_KEY"
@@ -75,7 +78,7 @@ export function readEmailConfiguration(
       reason: issueReason(webhookSecret),
     });
   }
-  if (fromEmail !== APPROVED_FROM_EMAIL) {
+  if (!APPROVED_FROM_EMAILS.includes(fromEmail ?? "")) {
     issues.push({
       field: "RESEND_FROM_EMAIL",
       reason: issueReason(fromEmail),

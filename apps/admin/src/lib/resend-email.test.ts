@@ -31,9 +31,9 @@ const migrationsFolder = path.resolve(
   "../../packages/db/drizzle",
 );
 const providerInput = {
-  from: "CMS NITE <acesso@notify.nite.tec.br>",
+  from: "Redação Digital do NITE <acesso@notify.nite.tec.br>",
   to: "pessoa@unijorge.com.br",
-  subject: "Convite para integrar a equipe do CMS NITE",
+  subject: "Convite para integrar a Redação Digital do NITE",
   text: "Mensagem em texto puro",
   tags: [{ name: "delivery_id", value: "delivery-1" }],
 };
@@ -123,7 +123,7 @@ describe("dispatcher de convite", () => {
         tenantId: admin.tenantId,
         email: "pessoa@unijorge.com.br",
         role: "publisher",
-        expiresAt: new Date("2026-10-09T12:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         invitedByMembershipId: admin.id,
       })
       .returning();
@@ -148,7 +148,7 @@ describe("dispatcher de convite", () => {
       invitationId: arranged.invitation.id,
       provider,
       configuration: {
-        fromEmail: "CMS NITE <acesso@notify.nite.tec.br>",
+        fromEmail: "Redação Digital do NITE <acesso@notify.nite.tec.br>",
         publicUrl: "https://cms.nite.test",
         invitationLinkSecret: "convite-secreto-com-pelo-menos-32-bytes",
       },

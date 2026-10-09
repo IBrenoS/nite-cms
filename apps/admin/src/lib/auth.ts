@@ -19,7 +19,7 @@ import { getDatabase } from "@nite/cms-db/database";
 function createAuth(configuration: AdminConfiguration) {
   const database = getDatabase(configuration);
   return betterAuth({
-    appName: "NITE CMS",
+    appName: "Redação Digital do NITE",
     baseURL: configuration.betterAuthUrl,
     secret: configuration.betterAuthSecret,
     database: drizzleAdapter(database, {

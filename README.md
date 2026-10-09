@@ -1,6 +1,6 @@
-# NITE CMS
+# Redação Digital do NITE
 
-CMS editorial independente do Portal NITE. O repositório contém o painel administrativo, a API pública de notícias e os módulos privados de persistência e domínio.
+O `nite-redacao` é o projeto da Redação Digital do NITE, independente do Portal NITE. O repositório contém o painel editorial, a API pública de notícias e os módulos privados de persistência e domínio.
 
 ## Aplicações
 
@@ -17,7 +17,7 @@ estruturado e legenda WebVTT sem alterar o envelope público `version: 2`.
 
 ## Fronteira com o Portal
 
-Não existe package, workspace, import ou path compartilhado com o Portal. Notícias são consumidas pela API pública versionada em HTTPS; o Portal consulta o CMS por requisição sem cache HTTP persistente. O preview privado usa endpoints HTTPS e tokens HMAC, sem compartilhar o segredo com o Portal. Não há webhook de revalidação editorial. O checkout opcional deste repositório como submodule no Portal é apenas uma referência Git.
+Não existe package, workspace, import ou path compartilhado com o Portal. Notícias são consumidas pela API pública versionada em HTTPS; o Portal consulta a API da Redação Digital por requisição sem cache HTTP persistente. O preview privado usa endpoints HTTPS e tokens HMAC, sem compartilhar o segredo com o Portal. Não há webhook de revalidação editorial. O checkout opcional deste repositório como submodule no Portal é apenas uma referência Git.
 
 O preview também cruza essa fronteira por HTTPS: o Admin persiste por dez
 minutos um snapshot validado das alterações atuais, emite o token HMAC v2 e o
@@ -75,6 +75,9 @@ preparação da VM, DNS, Entra, secrets, smoke tests, observabilidade e rollback
 Consulte `docs/runbooks/cms-rollout.md` para o corte coordenado de Admin, API e
 Portal. Os runbooks não contêm credenciais nem autorizam, por si só, uma
 migration ou publicação em produção.
+
+A identidade técnica e o corte futuro dos domínios estão descritos em
+[`docs/runbooks/redacao-identity-migration.md`](docs/runbooks/redacao-identity-migration.md).
 
 Para provisionar e homologar o envio transacional de convites, consulte
 [`docs/runbooks/resend-membership-invitations.md`](docs/runbooks/resend-membership-invitations.md).

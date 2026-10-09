@@ -15,7 +15,7 @@ export default async function LoginPage() {
         <div className={styles.brandMark}>
           <Image
             src="/nite-editorial-glyph.png"
-            alt="Símbolo do NITE CMS"
+            alt="Símbolo da Redação Digital do NITE"
             width={74}
             height={74}
             priority

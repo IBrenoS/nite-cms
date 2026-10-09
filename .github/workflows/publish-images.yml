@@ -1,4 +1,4 @@
-name: Publish CMS images
+name: Publish Redação Digital images
 
 on:
   workflow_run:
@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: publish-cms-images-${{ github.event.workflow_run.head_branch }}
+  group: publish-redacao-images-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 jobs:
@@ -47,12 +47,14 @@ jobs:
           file: ./Dockerfile
           target: admin
           push: true
-          tags: ghcr.io/ibrenos/nite-cms-admin:${{ env.TARGET_SHA }}
+          tags: |
+            ghcr.io/ibrenos/nite-redacao-admin:${{ env.TARGET_SHA }}
+            ghcr.io/ibrenos/nite-cms-admin:${{ env.TARGET_SHA }}
           labels: |
             org.opencontainers.image.source=${{ env.SOURCE_URL }}
             org.opencontainers.image.revision=${{ env.TARGET_SHA }}
-          cache-from: type=gha,scope=nite-cms-admin
-          cache-to: type=gha,mode=max,scope=nite-cms-admin
+          cache-from: type=gha,scope=nite-redacao-admin
+          cache-to: type=gha,mode=max,scope=nite-redacao-admin
 
       - name: Build and publish API
         uses: docker/build-push-action@v6
@@ -61,12 +63,14 @@ jobs:
           file: ./Dockerfile
           target: api
           push: true
-          tags: ghcr.io/ibrenos/nite-cms-api:${{ env.TARGET_SHA }}
+          tags: |
+            ghcr.io/ibrenos/nite-redacao-api:${{ env.TARGET_SHA }}
+            ghcr.io/ibrenos/nite-cms-api:${{ env.TARGET_SHA }}
           labels: |
             org.opencontainers.image.source=${{ env.SOURCE_URL }}
             org.opencontainers.image.revision=${{ env.TARGET_SHA }}
-          cache-from: type=gha,scope=nite-cms-api
-          cache-to: type=gha,mode=max,scope=nite-cms-api
+          cache-from: type=gha,scope=nite-redacao-api
+          cache-to: type=gha,mode=max,scope=nite-redacao-api
 
       - name: Build and publish Scheduler
         uses: docker/build-push-action@v6
@@ -75,12 +79,14 @@ jobs:
           file: ./Dockerfile
           target: scheduler
           push: true
-          tags: ghcr.io/ibrenos/nite-cms-scheduler:${{ env.TARGET_SHA }}
+          tags: |
+            ghcr.io/ibrenos/nite-redacao-scheduler:${{ env.TARGET_SHA }}
+            ghcr.io/ibrenos/nite-cms-scheduler:${{ env.TARGET_SHA }}
           labels: |
             org.opencontainers.image.source=${{ env.SOURCE_URL }}
             org.opencontainers.image.revision=${{ env.TARGET_SHA }}
-          cache-from: type=gha,scope=nite-cms-scheduler
-          cache-to: type=gha,mode=max,scope=nite-cms-scheduler
+          cache-from: type=gha,scope=nite-redacao-scheduler
+          cache-to: type=gha,mode=max,scope=nite-redacao-scheduler
 
       - name: Build and publish Migration
         uses: docker/build-push-action@v6
@@ -89,9 +95,11 @@ jobs:
           file: ./Dockerfile
           target: migration
           push: true
-          tags: ghcr.io/ibrenos/nite-cms-migration:${{ env.TARGET_SHA }}
+          tags: |
+            ghcr.io/ibrenos/nite-redacao-migration:${{ env.TARGET_SHA }}
+            ghcr.io/ibrenos/nite-cms-migration:${{ env.TARGET_SHA }}
           labels: |
             org.opencontainers.image.source=${{ env.SOURCE_URL }}
             org.opencontainers.image.revision=${{ env.TARGET_SHA }}
-          cache-from: type=gha,scope=nite-cms-migration
-          cache-to: type=gha,mode=max,scope=nite-cms-migration
+          cache-from: type=gha,scope=nite-redacao-migration
+          cache-to: type=gha,mode=max,scope=nite-redacao-migration

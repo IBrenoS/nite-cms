@@ -64,7 +64,7 @@ describe("contexto de aceite do convite", () => {
         email: "pessoa@unijorge.com.br",
         role: "publisher",
         invitedByMembershipId: admin.id,
-        expiresAt: new Date("2026-10-09T12:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
       .returning();
     const signature = createInvitationSignature(
@@ -82,7 +82,7 @@ describe("contexto de aceite do convite", () => {
         database,
         { invitationId: invitation.id, signature },
         secret,
-        new Date("2026-10-02T12:00:00.000Z"),
+        new Date(),
       ),
     ).resolves.toEqual({
       status: "valid",

@@ -5,7 +5,7 @@ import { readEmailConfiguration } from "./email-config";
 const configuredEnvironment = {
   RESEND_API_KEY: "re_test_key",
   RESEND_WEBHOOK_SECRET: "whsec_test_secret",
-  RESEND_FROM_EMAIL: "CMS NITE <acesso@notify.nite.tec.br>",
+  RESEND_FROM_EMAIL: "Redação Digital do NITE <acesso@notify.nite.tec.br>",
   CMS_PUBLIC_URL: "https://cms.nite.test",
   INVITATION_LINK_SECRET: "convite-secreto-com-pelo-menos-32-bytes",
 };
@@ -35,6 +35,15 @@ describe("configuração de e-mail transacional", () => {
         invitationLinkSecret: configuredEnvironment.INVITATION_LINK_SECRET,
       },
     });
+  });
+
+  it("mantém compatibilidade com o remetente configurado antes da renomeação", () => {
+    expect(
+      readEmailConfiguration({
+        ...configuredEnvironment,
+        RESEND_FROM_EMAIL: "CMS NITE <acesso@notify.nite.tec.br>",
+      }),
+    ).toMatchObject({ configured: true });
   });
 
   it.each([

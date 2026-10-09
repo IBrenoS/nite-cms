@@ -51,7 +51,7 @@ function parsePublicOrigin(value: string): URL {
     url.search ||
     url.hash
   ) {
-    throw new TypeError("Origem pública do CMS inválida.");
+    throw new TypeError("Origem pública da Redação Digital inválida.");
   }
   return url;
 }

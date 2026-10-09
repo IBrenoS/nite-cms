@@ -1,4 +1,4 @@
-# CMS NITE — instruções para agentes
+# Redação Digital do NITE — instruções para agentes
 
 ## Contexto
 

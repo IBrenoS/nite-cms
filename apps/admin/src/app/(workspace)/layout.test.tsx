@@ -43,7 +43,7 @@ describe("WorkspaceLayout", () => {
     );
 
     const navigation = screen.getByRole("navigation", {
-      name: "Seções do CMS",
+      name: "Seções da Redação Digital",
     });
     expect(navigation).toHaveTextContent("Redação");
     expect(navigation).toHaveTextContent("Gestão");

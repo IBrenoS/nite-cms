@@ -19,7 +19,7 @@ describe("LoginPage", () => {
 
   afterEach(cleanup);
 
-  it("apresenta a entrada institucional com a identidade do NITE CMS", async () => {
+  it("apresenta a entrada institucional com a identidade da Redação Digital", async () => {
     render(await LoginPage());
 
     expect(

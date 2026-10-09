@@ -1,9 +1,9 @@
-# Rollout do CMS e corte do Nite News
+# Rollout da Redação Digital e corte do Nite News
 
 ## Limite deste runbook
 
 Este documento descreve a homologação coordenada de três aplicações
-independentes: CMS Admin, CMS API e Portal. Ele não autoriza migration, deploy,
+independentes: Admin da Redação Digital, API pública e Portal. Ele não autoriza migration, deploy,
 alteração de secrets ou publicação de conteúdo em produção.
 
 O provisionamento, a homologação e o rollback do envio de convites estão em
@@ -41,7 +41,7 @@ credenciais externas continuam sendo preenchidas manualmente. Consulte também
   group roles `nite_admin` e `nite_public`.
 
 Com a variável disponível somente no ambiente do operador, o comando da raiz
-do CMS é:
+da Redação Digital é:
 
 ```text
 npm run db:migrate
@@ -56,7 +56,7 @@ e objetos reais legados. Não fazem conversão de corpo anterior, backfill de
 no ambiente alvo, interrompa o rollout e planeje uma migration de dados
 separada.
 
-### CMS Admin
+### Admin da Redação Digital
 
 - `DATABASE_ADMIN_URL`
 - `BETTER_AUTH_SECRET`
@@ -111,7 +111,7 @@ remove snapshots de preview expirados e agenda purge de mídias sem referências
 criadas há mais de 48 horas. Criação e resolução de preview também fazem limpeza
 oportunística dos snapshots.
 
-### CMS API
+### API pública da Redação Digital
 
 - `DATABASE_PUBLIC_URL`: login com `SELECT` somente em `published_articles`.
 - `R2_PUBLIC_BASE_URL`: a mesma base HTTPS pública usada pelo Admin.

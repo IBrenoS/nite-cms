@@ -5,7 +5,7 @@ import { IBM_Plex_Mono, Newsreader, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NITE CMS",
+  title: "Redação Digital do NITE",
   description: "Ambiente editorial administrativo do Portal NITE.",
   robots: { index: false, follow: false },
 };

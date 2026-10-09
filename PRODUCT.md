@@ -1,4 +1,4 @@
-# Redação Digital NITE — Documento de Produto (PRODUCT.md)
+# Redação Digital do NITE — Documento de Produto (PRODUCT.md)
 
 ## 1. Visão Geral
 

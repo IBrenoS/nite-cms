@@ -3,7 +3,7 @@
 ## Limite deste runbook
 
 Este documento prepara, homologa e opera o envio transacional de convites do
-CMS NITE. Ele não autoriza criação de recursos no Resend, alteração de DNS,
+Redação Digital do NITE. Ele não autoriza criação de recursos no Resend, alteração de DNS,
 armazenamento de secrets, migration, deploy nem envio real.
 
 O Admin cria o convite e o evento de outbox na mesma transação. O processador
@@ -39,14 +39,14 @@ Antes de alterar qualquer ambiente:
    exclusivo dos links de convite e não deve reutilizar secrets de autenticação,
    cron, preview ou webhook.
 
-## Variáveis do CMS Admin
+## Variáveis do Admin da Redação Digital
 
 Configure somente no runtime do Admin:
 
 ```text
 RESEND_API_KEY=<secret de envio restrito ao domínio>
 RESEND_WEBHOOK_SECRET=<signing secret do webhook>
-RESEND_FROM_EMAIL=CMS NITE <acesso@notify.nite.tec.br>
+RESEND_FROM_EMAIL=Redação Digital do NITE <acesso@notify.nite.tec.br>
 CMS_PUBLIC_URL=https://<origem-canônica-do-admin>
 INVITATION_LINK_SECRET=<secret aleatório exclusivo>
 ```
